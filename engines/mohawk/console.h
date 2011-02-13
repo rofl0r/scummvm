@@ -34,6 +34,7 @@ class MohawkEngine_Myst;
 class MohawkEngine_Riven;
 class MohawkEngine_LivingBooks;
 class MohawkEngine_CSTime;
+class MohawkEngine_Zoombini;
 
 class MystConsole : public GUI::Debugger {
 public:
@@ -116,6 +117,20 @@ private:
 	bool Cmd_ChangeScene(int argc, const char **argv);
 	bool Cmd_CaseVariable(int argc, const char **argv);
 	bool Cmd_InvItem(int argc, const char **argv);
+};
+
+class ZoombiniConsole : public GUI::Debugger {
+public:
+	ZoombiniConsole(MohawkEngine_Zoombini *vm);
+	virtual ~ZoombiniConsole(void);
+
+private:
+	MohawkEngine_Zoombini *_vm;
+
+	bool Cmd_PlaySound(int argc, const char **argv);
+	bool Cmd_StopSound(int argc, const char **argv);
+	bool Cmd_DrawImage(int argc, const char **argv);
+	bool Cmd_DrawSubimage(int argc, const char **argv);
 };
 
 } // End of namespace Mohawk

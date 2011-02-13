@@ -29,6 +29,7 @@
 #include "mohawk/riven.h"
 #include "mohawk/livingbooks.h"
 #include "mohawk/cstime.h"
+#include "mohawk/zoombini.h"
 
 #include "common/substream.h"
 #include "engines/util.h"
@@ -1053,6 +1054,24 @@ MohawkSurface *CSTimeGraphics::decodeImage(uint16 id) {
 
 Common::Array<MohawkSurface *> CSTimeGraphics::decodeImages(uint16 id) {
 	return _bmpDecoder->decodeImages(_vm->getResource(ID_TBMH, id));
+}
+
+ZoombiniGraphics::ZoombiniGraphics(MohawkEngine_Zoombini *vm) : GraphicsManager(), _vm(vm) {
+	_bmpDecoder = new MohawkBitmap();
+
+	initGraphics(640, 480, true);
+}
+
+ZoombiniGraphics::~ZoombiniGraphics() {
+	delete _bmpDecoder;
+}
+
+MohawkSurface *ZoombiniGraphics::decodeImage(uint16 id) {
+	return _bmpDecoder->decodeImage(_vm->getResource(ID_TBMP, id));
+}
+
+Common::Array<MohawkSurface *> ZoombiniGraphics::decodeImages(uint16 id) {
+	return _bmpDecoder->decodeImages(_vm->getResource(ID_TBMP, id));
 }
 
 } // End of namespace Mohawk

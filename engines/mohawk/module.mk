@@ -30,6 +30,7 @@ MODULE_OBJS = \
 	sound.o \
 	video.o \
 	view.o \
+	zoombini.o \
 	myst_stacks/channelwood.o \
 	myst_stacks/credits.o \
 	myst_stacks/demo.o \

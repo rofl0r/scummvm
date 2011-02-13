@@ -34,6 +34,7 @@
 #include "mohawk/riven.h"
 #include "mohawk/livingbooks.h"
 #include "mohawk/cstime.h"
+#include "mohawk/zoombini.h"
 
 namespace Mohawk {
 
@@ -245,6 +246,8 @@ bool MohawkMetaEngine::createInstance(OSystem *syst, Engine **engine, const ADGa
 			*engine = new Mohawk::MohawkEngine_CSTime(syst, gd);
 			break;
 		case Mohawk::GType_ZOOMBINI:
+			*engine = new Mohawk::MohawkEngine_Zoombini(syst, gd);
+			break;
 		case Mohawk::GType_CSWORLD:
 		case Mohawk::GType_CSAMTRAK:
 		case Mohawk::GType_JAMESMATH:
