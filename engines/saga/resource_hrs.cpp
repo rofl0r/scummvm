@@ -18,9 +18,6 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
- * $URL$
- * $Id$
- *
  */
 
 #ifdef ENABLE_SAGA2
@@ -62,7 +59,7 @@ bool ResourceContext_HRS::loadResV2(uint32 contextSize) {
 	readElement(_file, origin);
 
 	// Check if the file is valid
-	if (origin.id != MKID_BE('HRES')) {	// header
+	if (origin.id != MKTAG('H','R','E','S')) {	// header
 		return false;
 	}
 

@@ -18,9 +18,6 @@
 * along with this program; if not, write to the Free Software
 * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
 *
-* $URL$
-* $Id$
-*
 */
 
 #ifndef TOON_RESOURCE_H
@@ -31,6 +28,8 @@
 #include "common/file.h"
 #include "common/stream.h"
 
+#define MAX_CACHE_SIZE	(4 * 1024 * 1024)
+
 namespace Toon {
 
 class PakFile {
@@ -38,7 +37,7 @@ public:
 	PakFile();
 	~PakFile();
 
-	void open(Common::SeekableReadStream *rs, Common::String packName, bool preloadEntirePackage);
+	void open(Common::SeekableReadStream *rs, Common::String packName);
 	uint8 *getFileData(Common::String fileName, uint32 *fileSize);
 	Common::String getPackName() { return _packName; }
 	Common::SeekableReadStream *createReadStream(Common::String fileName);
@@ -52,9 +51,6 @@ protected:
 	};
 	Common::String _packName;
 
-	uint8 *_buffer;
-	int32 _bufferSize;
-
 	uint32 _numFiles;
 	Common::Array<File> _files;
 	Common::File *_fileHandle;
@@ -62,11 +58,25 @@ protected:
 
 class ToonEngine;
 
+class CacheEntry {
+public:
+	CacheEntry() : _age(0), _size(0), _data(0) {}
+	~CacheEntry() {
+		free(_data);
+	}
+
+	Common::String _packName;
+	Common::String _fileName;
+	uint32 _age;
+	uint32 _size;
+	uint8 *_data;
+};
+
 class Resources {
 public:
 	Resources(ToonEngine *vm);
 	~Resources();
-	void openPackage(Common::String file, bool preloadEntirePackage);
+	void openPackage(Common::String file);
 	void closePackage(Common::String fileName);
 	Common::SeekableReadStream *openFile(Common::String file);
 	uint8 *getFileData(Common::String fileName, uint32 *fileSize); // this memory must be copied to your own structures!
@@ -76,6 +86,12 @@ protected:
 	ToonEngine *_vm;
 	Common::Array<uint8 *> _allocatedFileData;
 	Common::Array<PakFile *> _pakFiles;
+	uint32 _cacheSize;
+	Common::Array<CacheEntry *> _resourceCache;
+
+	void removePackageFromCache(Common::String packName);
+	bool getFromCache(Common::String fileName, uint32 *fileSize, uint8 **fileData);
+	void addToCache(Common::String packName, Common::String fileName, uint32 fileSize, uint8 *fileData);
 };
 
 } // End of namespace Toon

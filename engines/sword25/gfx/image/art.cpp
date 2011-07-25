@@ -18,9 +18,6 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
- * $URL$
- * $Id$
- *
  */
 
 /*
@@ -154,6 +151,8 @@ ArtSVP *art_svp_from_vpath(ArtVpath *vpath) {
 	n_segs_max = 16;
 	svp = (ArtSVP *)malloc(sizeof(ArtSVP) +
 	                          (n_segs_max - 1) * sizeof(ArtSVPSeg));
+	if (!svp)
+		error("[art_svp_from_vpath] Cannot allocate memory");
 
 	dir = 0;
 	n_points = 0;
@@ -170,9 +169,14 @@ ArtSVP *art_svp_from_vpath(ArtVpath *vpath) {
 			if (points != NULL && n_points >= 2) {
 				if (n_segs == n_segs_max) {
 					n_segs_max <<= 1;
-					svp = (ArtSVP *)realloc(svp, sizeof(ArtSVP) +
-					                            (n_segs_max - 1) *
-					                            sizeof(ArtSVPSeg));
+					ArtSVP *tmp = (ArtSVP *)realloc(svp, sizeof(ArtSVP) +
+					                                    (n_segs_max - 1) *
+					                                    sizeof(ArtSVPSeg));
+
+					if (!tmp)
+						error("Cannot reallocate memory in art_svp_from_vpath()");
+
+					svp = tmp;
 				}
 				svp->segs[n_segs].n_points = n_points;
 				svp->segs[n_segs].dir = (dir > 0);
@@ -207,9 +211,14 @@ ArtSVP *art_svp_from_vpath(ArtVpath *vpath) {
 				y = points[n_points - 1].y;
 				if (n_segs == n_segs_max) {
 					n_segs_max <<= 1;
-					svp = (ArtSVP *)realloc(svp, sizeof(ArtSVP) +
-					                            (n_segs_max - 1) *
-					                            sizeof(ArtSVPSeg));
+					ArtSVP *tmp = (ArtSVP *)realloc(svp, sizeof(ArtSVP) +
+					                                     (n_segs_max - 1) *
+					                                     sizeof(ArtSVPSeg));
+
+					if (!tmp)
+						error("Cannot reallocate memory in art_svp_from_vpath()");
+
+					svp = tmp;
 				}
 				svp->segs[n_segs].n_points = n_points;
 				svp->segs[n_segs].dir = (dir > 0);
@@ -249,9 +258,14 @@ ArtSVP *art_svp_from_vpath(ArtVpath *vpath) {
 		if (n_points >= 2) {
 			if (n_segs == n_segs_max) {
 				n_segs_max <<= 1;
-				svp = (ArtSVP *)realloc(svp, sizeof(ArtSVP) +
-				                            (n_segs_max - 1) *
-				                            sizeof(ArtSVPSeg));
+				ArtSVP *tmp = (ArtSVP *)realloc(svp, sizeof(ArtSVP) +
+				                                     (n_segs_max - 1) *
+				                                      sizeof(ArtSVPSeg));
+
+				if (!tmp)
+					error("Cannot reallocate memory in art_svp_from_vpath()");
+
+				svp = tmp;
 			}
 			svp->segs[n_segs].n_points = n_points;
 			svp->segs[n_segs].dir = (dir > 0);
@@ -1029,6 +1043,8 @@ struct _ArtPriPoint {
 
 static ArtPriQ *art_pri_new(void) {
 	ArtPriQ *result = art_new(ArtPriQ, 1);
+	if (!result)
+		error("[art_pri_new] Cannot allocate memory");
 
 	result->n_items = 0;
 	result->n_items_max = 16;
@@ -1041,7 +1057,7 @@ static void art_pri_free(ArtPriQ *pq) {
 	free(pq);
 }
 
-static art_boolean art_pri_empty(ArtPriQ *pq) {
+static bool art_pri_empty(ArtPriQ *pq) {
 	return pq->n_items == 0;
 }
 
@@ -1122,7 +1138,7 @@ static int art_svp_writer_rewind_add_segment(ArtSvpWriter *self, int wind_left,
 	ArtSvpWriterRewind *swr = (ArtSvpWriterRewind *)self;
 	ArtSVP *svp;
 	ArtSVPSeg *seg;
-	art_boolean left_filled = 0, right_filled = 0;
+	bool left_filled = 0, right_filled = 0;
 	int wind_right = wind_left + delta_wind;
 	int seg_num;
 	const int init_n_points_max = 4;
@@ -1160,8 +1176,13 @@ static int art_svp_writer_rewind_add_segment(ArtSvpWriter *self, int wind_left,
 		                            (swr->n_segs_max - 1) *
 		                            sizeof(ArtSVPSeg));
 		swr->svp = svp;
-		swr->n_points_max = art_renew(swr->n_points_max, int,
-		                              swr->n_segs_max);
+		int *tmp = art_renew(swr->n_points_max, int,
+		                                        swr->n_segs_max);
+
+		if (!tmp)
+			error("Cannot reallocate memory in art_svp_writer_rewind_add_segment()");
+
+		swr->n_points_max = tmp;
 	}
 	seg = &svp->segs[seg_num];
 	seg->n_points = 1;
@@ -1172,6 +1193,9 @@ static int art_svp_writer_rewind_add_segment(ArtSvpWriter *self, int wind_left,
 	seg->bbox.x1 = x;
 	seg->bbox.y1 = y;
 	seg->points = art_new(ArtPoint, init_n_points_max);
+	if (!seg->points)
+		error("[art_svp_writer_rewind_add_segment] Cannot allocate memory");
+
 	seg->points[0].x = x;
 	seg->points[0].y = y;
 	return seg_num;
@@ -1216,6 +1240,8 @@ ArtSVP *art_svp_writer_rewind_reap(ArtSvpWriter *self) {
 
 ArtSvpWriter *art_svp_writer_rewind_new(ArtWindRule rule) {
 	ArtSvpWriterRewind *result = art_new(ArtSvpWriterRewind, 1);
+	if (!result)
+		error("[art_svp_writer_rewind_new] Cannot allocate memory");
 
 	result->super.add_segment = art_svp_writer_rewind_add_segment;
 	result->super.add_point = art_svp_writer_rewind_add_point;
@@ -1225,6 +1251,9 @@ ArtSvpWriter *art_svp_writer_rewind_new(ArtWindRule rule) {
 	result->n_segs_max = 16;
 	result->svp = (ArtSVP *)malloc(sizeof(ArtSVP) +
 	                                  (result->n_segs_max - 1) * sizeof(ArtSVPSeg));
+	if (!result->svp)
+		error("[art_svp_writer_rewind_new] Cannot allocate memory");
+
 	result->svp->n_segs = 0;
 	result->n_points_max = art_new(int, result->n_segs_max);
 
@@ -1395,6 +1424,9 @@ static void art_svp_intersect_push_pt(ArtIntersectCtx *ctx, ArtActiveSeg *seg,
 	seg->y1 = y;
 
 	pri_pt = art_new(ArtPriPoint, 1);
+	if (!pri_pt)
+		error("[art_svp_intersect_push_pt] Cannot allocate memory");
+
 	pri_pt->x = x;
 	pri_pt->y = y;
 	pri_pt->user_data = seg;
@@ -1459,7 +1491,7 @@ static ArtActiveSeg *art_svp_intersect_add_point(ArtIntersectCtx *ctx, double x,
                             ArtActiveSeg *seg, ArtBreakFlags break_flags) {
 	ArtActiveSeg *left, *right;
 	double x_min = x, x_max = x;
-	art_boolean left_live, right_live;
+	bool left_live, right_live;
 	double d;
 	double new_x;
 	ArtActiveSeg *test, *result = NULL;
@@ -1490,9 +1522,9 @@ static ArtActiveSeg *art_svp_intersect_add_point(ArtIntersectCtx *ctx, double x,
 					left = left->left;
 					left_live = (left != NULL);
 				} else
-					left_live = ART_FALSE;
+					left_live = false;
 			} else
-				left_live = ART_FALSE;
+				left_live = false;
 		} else if (right_live) {
 			if (x >= right->x[(right->flags & ART_ACTIVE_FLAGS_BNEG) ^ 1] &&
 			        /* It may be that one of these conjuncts turns out to be always
@@ -1510,9 +1542,9 @@ static ArtActiveSeg *art_svp_intersect_add_point(ArtIntersectCtx *ctx, double x,
 					right = right->right;
 					right_live = (right != NULL);
 				} else
-					right_live = ART_FALSE;
+					right_live = false;
 			} else
-				right_live = ART_FALSE;
+				right_live = false;
 		}
 	}
 
@@ -1571,7 +1603,7 @@ static void art_svp_intersect_swap_active(ArtIntersectCtx *ctx,
  * Return value: True if the intersection took place at the current
  * scan line, indicating further iteration is needed.
  **/
-static art_boolean art_svp_intersect_test_cross(ArtIntersectCtx *ctx,
+static bool art_svp_intersect_test_cross(ArtIntersectCtx *ctx,
                              ArtActiveSeg *left_seg, ArtActiveSeg *right_seg,
                              ArtBreakFlags break_flags) {
 	double left_x0, left_y0, left_x1;
@@ -1597,17 +1629,17 @@ static art_boolean art_svp_intersect_test_cross(ArtIntersectCtx *ctx,
 			if (left_x1 <
 			        right_seg->x[(right_seg->flags & ART_ACTIVE_FLAGS_BNEG) ^ 1] ||
 			        left_y1 == right_seg->y0)
-				return ART_FALSE;
+				return false;
 			d = left_x1 * right_seg->a + left_y1 * right_seg->b + right_seg->c;
 			if (d < -EPSILON_A)
-				return ART_FALSE;
+				return false;
 			else if (d < EPSILON_A) {
 				/* I'm unsure about the break flags here. */
 				double right_x1 = art_svp_intersect_break(ctx, right_seg,
 				                  left_x1, left_y1,
 				                  ART_BREAK_RIGHT);
 				if (left_x1 <= right_x1)
-					return ART_FALSE;
+					return false;
 			}
 		} else if (left_y1 > right_y1) {
 			/* Test right (x1, y1) against left segment */
@@ -1615,27 +1647,27 @@ static art_boolean art_svp_intersect_test_cross(ArtIntersectCtx *ctx,
 
 			if (right_x1 > left_seg->x[left_seg->flags & ART_ACTIVE_FLAGS_BNEG] ||
 			        right_y1 == left_seg->y0)
-				return ART_FALSE;
+				return false;
 			d = right_x1 * left_seg->a + right_y1 * left_seg->b + left_seg->c;
 			if (d > EPSILON_A)
-				return ART_FALSE;
+				return false;
 			else if (d > -EPSILON_A) {
 				/* See above regarding break flags. */
 				left_x1 = art_svp_intersect_break(ctx, left_seg,
 				                 right_x1, right_y1,
 				                 ART_BREAK_LEFT);
 				if (left_x1 <= right_x1)
-					return ART_FALSE;
+					return false;
 			}
 		} else { /* left_y1 == right_y1 */
 			left_x1 = left_seg->x[1];
 			double right_x1 = right_seg->x[1];
 
 			if (left_x1 <= right_x1)
-				return ART_FALSE;
+				return false;
 		}
 		art_svp_intersect_swap_active(ctx, left_seg, right_seg);
-		return ART_TRUE;
+		return true;
 	}
 
 	if (left_y1 < right_y1) {
@@ -1645,16 +1677,16 @@ static art_boolean art_svp_intersect_test_cross(ArtIntersectCtx *ctx,
 		if (left_x1 <
 		        right_seg->x[(right_seg->flags & ART_ACTIVE_FLAGS_BNEG) ^ 1] ||
 		        left_y1 == right_seg->y0)
-			return ART_FALSE;
+			return false;
 		d = left_x1 * right_seg->a + left_y1 * right_seg->b + right_seg->c;
 		if (d < -EPSILON_A)
-			return ART_FALSE;
+			return false;
 		else if (d < EPSILON_A) {
 			double right_x1 = art_svp_intersect_break(ctx, right_seg,
 			                  left_x1, left_y1,
 			                  ART_BREAK_RIGHT);
 			if (left_x1 <= right_x1)
-				return ART_FALSE;
+				return false;
 		}
 	} else if (left_y1 > right_y1) {
 		/* Test right (x1, y1) against left segment */
@@ -1662,23 +1694,23 @@ static art_boolean art_svp_intersect_test_cross(ArtIntersectCtx *ctx,
 
 		if (right_x1 > left_seg->x[left_seg->flags & ART_ACTIVE_FLAGS_BNEG] ||
 		        right_y1 == left_seg->y0)
-			return ART_FALSE;
+			return false;
 		d = right_x1 * left_seg->a + right_y1 * left_seg->b + left_seg->c;
 		if (d > EPSILON_A)
-			return ART_FALSE;
+			return false;
 		else if (d > -EPSILON_A) {
 			left_x1 = art_svp_intersect_break(ctx, left_seg,
 			                 right_x1, right_y1,
 			                 ART_BREAK_LEFT);
 			if (left_x1 <= right_x1)
-				return ART_FALSE;
+				return false;
 		}
 	} else { /* left_y1 == right_y1 */
 		left_x1 = left_seg->x[1];
 		double right_x1 = right_seg->x[1];
 
 		if (left_x1 <= right_x1)
-			return ART_FALSE;
+			return false;
 	}
 
 	/* The segments cross. Find the intersection point. */
@@ -1748,7 +1780,7 @@ static art_boolean art_svp_intersect_test_cross(ArtIntersectCtx *ctx,
 			winner->horiz_delta_wind -= loser->delta_wind;
 
 			art_svp_intersect_swap_active(ctx, left_seg, right_seg);
-			return ART_TRUE;
+			return true;
 		}
 	} else if (y == right_seg->y0) {
 		art_svp_intersect_push_pt(ctx, left_seg, x, y);
@@ -1764,7 +1796,7 @@ static art_boolean art_svp_intersect_test_cross(ArtIntersectCtx *ctx,
 		if ((break_flags & ART_BREAK_RIGHT) && right_seg->right != NULL)
 			art_svp_intersect_add_point(ctx, x, y, right_seg->right, break_flags);
 	}
-	return ART_FALSE;
+	return false;
 }
 
 /**
@@ -1858,6 +1890,8 @@ static void art_svp_intersect_horiz(ArtIntersectCtx *ctx, ArtActiveSeg *seg,
 		return;
 
 	hs = art_new(ArtActiveSeg, 1);
+	if (!hs)
+		error("[art_svp_intersect_horiz] Cannot allocate memory");
 
 	hs->flags = ART_ACTIVE_FLAGS_DEL | (seg->flags & ART_ACTIVE_FLAGS_OUT);
 	if (seg->flags & ART_ACTIVE_FLAGS_OUT) {
@@ -1885,7 +1919,7 @@ static void art_svp_intersect_horiz(ArtIntersectCtx *ctx, ArtActiveSeg *seg,
 
 	if (x0 > x1) {
 		ArtActiveSeg *left;
-		art_boolean first = ART_TRUE;
+		bool first = true;
 
 		for (left = seg->left; left != NULL; left = seg->left) {
 			int left_bneg = left->flags & ART_ACTIVE_FLAGS_BNEG;
@@ -1902,12 +1936,12 @@ static void art_svp_intersect_horiz(ArtIntersectCtx *ctx, ArtActiveSeg *seg,
 			if (first && left->right != NULL) {
 				art_svp_intersect_test_cross(ctx, left, left->right,
 				                             ART_BREAK_RIGHT);
-				first = ART_FALSE;
+				first = false;
 			}
 		}
 	} else {
 		ArtActiveSeg *right;
-		art_boolean first = ART_TRUE;
+		bool first = true;
 
 		for (right = seg->right; right != NULL; right = seg->right) {
 			int right_bneg = right->flags & ART_ACTIVE_FLAGS_BNEG;
@@ -1925,7 +1959,7 @@ static void art_svp_intersect_horiz(ArtIntersectCtx *ctx, ArtActiveSeg *seg,
 			if (first && right->left != NULL) {
 				art_svp_intersect_test_cross(ctx, right->left, right,
 				                             ART_BREAK_RIGHT);
-				first = ART_FALSE;
+				first = false;
 			}
 		}
 	}
@@ -1996,10 +2030,11 @@ static void art_svp_intersect_add_seg(ArtIntersectCtx *ctx, const ArtSVPSeg *in_
 	ArtActiveSeg *seg = art_new(ArtActiveSeg, 1);
 	ArtActiveSeg *test;
 	double x0, y0;
-	ArtActiveSeg *beg_range;
 	ArtActiveSeg *last = NULL;
 	ArtActiveSeg *left, *right;
 	ArtPriPoint *pri_pt = art_new(ArtPriPoint, 1);
+	if (!pri_pt)
+		error("[art_svp_intersect_add_seg] Cannot allocate memory");
 
 	seg->flags = 0;
 	seg->in_seg = in_seg;
@@ -2022,7 +2057,6 @@ static void art_svp_intersect_add_seg(ArtIntersectCtx *ctx, const ArtSVPSeg *in_
 
 	x0 = in_seg->points[0].x;
 	y0 = in_seg->points[0].y;
-	beg_range = NULL;
 	for (test = ctx->active_head; test != NULL; test = test->right) {
 		double d;
 		int test_bneg = test->flags & ART_ACTIVE_FLAGS_BNEG;
@@ -2169,6 +2203,9 @@ void art_svp_intersector(const ArtSVP *in, ArtSvpWriter *out) {
 		return;
 
 	ctx = art_new(ArtIntersectCtx, 1);
+	if (!ctx)
+		error("[art_svp_intersector] Cannot allocate memory");
+
 	ctx->in = in;
 	ctx->out = out;
 	pq = art_pri_new();
@@ -2181,6 +2218,9 @@ void art_svp_intersector(const ArtSVP *in, ArtSvpWriter *out) {
 
 	ctx->in_curs = 0;
 	first_point = art_new(ArtPriPoint, 1);
+	if (!first_point)
+		error("[art_svp_intersector] Cannot allocate memory");
+
 	first_point->x = in->segs[0].points[0].x;
 	first_point->y = in->segs[0].points[0].y;
 	first_point->user_data = NULL;
@@ -2231,7 +2271,7 @@ void art_svp_intersector(const ArtSVP *in, ArtSvpWriter *out) {
 
 typedef double artfloat;
 
-struct _ArtSVPRenderAAIter {
+struct ArtSVPRenderAAIter {
 	const ArtSVP *svp;
 	int x0, x1;
 	int y;
@@ -2322,6 +2362,8 @@ static void art_svp_render_delete_active(int *active_segs, int j, int n_active_s
 ArtSVPRenderAAIter *art_svp_render_aa_iter(const ArtSVP *svp,
                        int x0, int y0, int x1, int y1) {
 	ArtSVPRenderAAIter *iter = art_new(ArtSVPRenderAAIter, 1);
+	if (!iter)
+		error("[art_svp_render_aa_iter] Cannot allocate memory");
 
 	iter->svp = svp;
 	iter->y = y0;
@@ -2502,7 +2544,7 @@ void art_svp_render_aa_iter_step(ArtSVPRenderAAIter *iter, int *p_start,
 						ADD_STEP(x, xdelta)
 					}
 					if (x < x1) {
-						this_ = 
+						this_ =
 						    (int)(delta * (1 - 0.5 *
 						             (x_max - ix_max) * (x_max - ix_max) *
 						             rslope));

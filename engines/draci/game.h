@@ -18,9 +18,6 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
- * $URL$
- * $Id$
- *
  */
 
 #ifndef DRACI_GAME_H
@@ -31,7 +28,7 @@
 #include "draci/walking.h"
 
 namespace Common {
-	class Serializer;
+class Serializer;
 }
 
 namespace Draci {
@@ -145,7 +142,7 @@ public:
 
 struct Person {
 	uint _x, _y;
-	byte _fontColour;
+	byte _fontColor;
 };
 
 struct Dialogue {
@@ -348,7 +345,7 @@ private:
 	void enterNewRoom();
 	void initWalkingOverlays();
 	void loadRoomObjects();
-	void redrawWalkingPath(Animation *anim, byte colour, const WalkingPath &path);
+	void redrawWalkingPath(Animation *anim, byte color, const WalkingPath &path);
 
 	DraciEngine *_vm;
 

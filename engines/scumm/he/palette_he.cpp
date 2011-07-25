@@ -18,14 +18,12 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
- * $URL$
- * $Id$
- *
  */
 
 #ifdef ENABLE_HE
 
 #include "common/system.h"
+#include "graphics/palette.h"
 #include "scumm/scumm.h"
 #include "scumm/he/intern_he.h"
 #include "scumm/resource.h"
@@ -192,7 +190,7 @@ void ScummEngine_v90he::setHEPaletteFromCostume(int palSlot, int resId) {
 	assertRange(1, palSlot, _numPalettes, "palette");
 	const uint8 *data = getResourceAddress(rtCostume, resId);
 	assert(data);
-	const uint8 *rgbs = findResourceData(MKID_BE('RGBS'), data);
+	const uint8 *rgbs = findResourceData(MKTAG('R','G','B','S'), data);
 	assert(rgbs);
 	setHEPaletteFromPtr(palSlot, rgbs);
 }
@@ -202,7 +200,7 @@ void ScummEngine_v90he::setHEPaletteFromImage(int palSlot, int resId, int state)
 	assertRange(1, palSlot, _numPalettes, "palette");
 	uint8 *data = getResourceAddress(rtImage, resId);
 	assert(data);
-	const uint8 *rgbs = findWrappedBlock(MKID_BE('RGBS'), data, state, 0);
+	const uint8 *rgbs = findWrappedBlock(MKTAG('R','G','B','S'), data, state, 0);
 	if (rgbs)
 		setHEPaletteFromPtr(palSlot, rgbs);
 }
@@ -212,7 +210,7 @@ void ScummEngine_v90he::setHEPaletteFromRoom(int palSlot, int resId, int state) 
 	assertRange(1, palSlot, _numPalettes, "palette");
 	const uint8 *data = getResourceAddress(rtRoom, resId);
 	assert(data);
-	const uint8 *pals = findResourceData(MKID_BE('PALS'), data);
+	const uint8 *pals = findResourceData(MKTAG('P','A','L','S'), data);
 	assert(pals);
 	const uint8 *rgbs = findPalInPals(pals, state);
 	assert(rgbs);

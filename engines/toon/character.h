@@ -18,9 +18,6 @@
 * along with this program; if not, write to the Free Software
 * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
 *
-* $URL$
-* $Id$
-*
 */
 
 #ifndef TOON_CHARACTER_H
@@ -48,7 +45,6 @@ struct SpecialCharacterAnimation {
 	byte _flags8;      // 24
 	byte _flags9;      // 25
 };
-
 
 class Character {
 public:
@@ -105,7 +101,6 @@ public:
 
 	int32 getFacingFromDirection(int32 dx, int32 dy);
 	static const SpecialCharacterAnimation *getSpecialAnimation(int32 characterId, int32 animationId);
-
 
 protected:
 	ToonEngine *_vm;

@@ -18,14 +18,14 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
- * $URL$
- * $Id$
- *
  */
 
 #include "mohawk/sound.h"
 
+#include "common/debug.h"
+#include "common/system.h"
 #include "common/util.h"
+#include "common/textconsole.h"
 
 #include "audio/musicplugin.h"
 #include "audio/audiostream.h"
@@ -90,11 +90,11 @@ Audio::AudioStream *Sound::makeAudioStream(uint16 id, CueList *cueList) {
 		audStream = makeMohawkWaveStream(_vm->getResource(ID_SND, id));
 		break;
 	case GType_LIVINGBOOKSV1:
-		audStream = makeOldMohawkWaveStream(_vm->getResource(ID_WAV, id));
+		audStream = makeLivingBooksWaveStream_v1(_vm->getResource(ID_WAV, id));
 		break;
 	case GType_LIVINGBOOKSV2:
 		if (_vm->getPlatform() == Common::kPlatformMacintosh) {
-			audStream = makeOldMohawkWaveStream(_vm->getResource(ID_WAV, id));
+			audStream = makeLivingBooksWaveStream_v1(_vm->getResource(ID_WAV, id));
 			break;
 		}
 		// fall through
@@ -140,6 +140,19 @@ Audio::SoundHandle *Sound::replaceSoundMyst(uint16 id, byte volume, bool loop) {
 				&& _vm->_mixer->isSoundHandleActive(_handles[i].handle)
 				&& name.equals(_vm->getResourceName(ID_MSND, convertMystID(_handles[i].id))))
 			return &_handles[i].handle;
+
+	// The original engine also forces looping for those sounds
+	switch (id) {
+	case 2205:
+	case 2207:
+	case 5378:
+	case 7220:
+	case 9119: 	// Elevator engine sound in mechanical age is looping.
+	case 9120:
+	case 9327:
+		loop = true;
+		break;
+	}
 
 	stopSound();
 	return playSound(id, volume, loop);
@@ -479,7 +492,7 @@ Audio::AudioStream *Sound::makeMohawkWaveStream(Common::SeekableReadStream *stre
 		return Audio::makeRawStream(dataChunk.audioData, dataChunk.sampleRate, flags);
 	} else if (dataChunk.encoding == kCodecADPCM) {
 		uint32 blockAlign = dataChunk.channels * dataChunk.bitsPerSample / 8;
-		return Audio::makeADPCMStream(dataChunk.audioData, DisposeAfterUse::YES, dataSize, Audio::kADPCMIma, dataChunk.sampleRate, dataChunk.channels, blockAlign);
+		return Audio::makeADPCMStream(dataChunk.audioData, DisposeAfterUse::YES, dataSize, Audio::kADPCMDVI, dataChunk.sampleRate, dataChunk.channels, blockAlign);
 	} else if (dataChunk.encoding == kCodecMPEG2) {
 #ifdef USE_MAD
 		return Audio::makeMP3Stream(dataChunk.audioData, DisposeAfterUse::YES);
@@ -493,7 +506,7 @@ Audio::AudioStream *Sound::makeMohawkWaveStream(Common::SeekableReadStream *stre
 	return NULL;
 }
 
-Audio::AudioStream *Sound::makeOldMohawkWaveStream(Common::SeekableReadStream *stream) {
+Audio::AudioStream *Sound::makeLivingBooksWaveStream_v1(Common::SeekableReadStream *stream) {
 	uint16 header = stream->readUint16BE();
 	uint16 rate = 0;
 	uint32 size = 0;
@@ -576,6 +589,15 @@ bool Sound::isPlaying(uint16 id) {
 	return false;
 }
 
+bool Sound::isPlaying() {
+	for (uint32 i = 0; i < _handles.size(); i++)
+		if (_handles[i].type == kUsedHandle)
+			if (_vm->_mixer->isSoundHandleActive(_handles[i].handle))
+				return true;
+
+	return false;
+}
+
 uint Sound::getNumSamplesPlayed(uint16 id) {
 	for (uint32 i = 0; i < _handles.size(); i++)
 		if (_handles[i].type == kUsedHandle && _handles[i].id == id) {
@@ -607,9 +629,16 @@ Audio::SoundHandle *Sound::replaceBackgroundMyst(uint16 id, uint16 volume) {
 
 	Common::String name = _vm->getResourceName(ID_MSND, convertMystID(id));
 
+	// Only the first eight characters need to be the same to have a match
+	Common::String prefix;
+	if (name.size() >= 8)
+		prefix = Common::String(name.c_str(), name.c_str() + 8);
+	else
+		prefix = name;
+
 	// Check if sound is already playing
 	if (_mystBackgroundSound.type == kUsedHandle && _vm->_mixer->isSoundHandleActive(_mystBackgroundSound.handle)
-			&& name.equals(_vm->getResourceName(ID_MSND, convertMystID(_mystBackgroundSound.id))))
+			&& _vm->getResourceName(ID_MSND, convertMystID(_mystBackgroundSound.id)).hasPrefix(prefix))
 		return &_mystBackgroundSound.handle;
 
 	// Stop old background sound

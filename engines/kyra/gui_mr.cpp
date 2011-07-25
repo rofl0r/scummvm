@@ -18,20 +18,16 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
- * $URL$
- * $Id$
- *
  */
 
 #include "kyra/gui_mr.h"
 #include "kyra/kyra_mr.h"
 #include "kyra/text_mr.h"
-#include "kyra/wsamovie.h"
 #include "kyra/resource.h"
-#include "kyra/sound.h"
 #include "kyra/timer.h"
+#include "kyra/sound.h"
 
-#include "common/savefile.h"
+#include "common/system.h"
 
 #include "graphics/scaler.h"
 
@@ -721,25 +717,25 @@ void KyraEngine_MR::showAlbum() {
 }
 
 void KyraEngine_MR::loadAlbumPage() {
-	char filename[16];
+	Common::String filename;
 	int num = _album.curPage / 2;
 
 	if (num == 0) {
-		strcpy(filename, "ALBUM0.CPS");
+		filename = "ALBUM0.CPS";
 	} else if (num >= 1 && num <= 6) {
 		--num;
 		num %= 2;
-		snprintf(filename, 16, "ALBUM%d.CPS", num+1);
+		filename = Common::String::format("ALBUM%d.CPS", num+1);
 	} else {
-		strcpy(filename, "ALBUM3.CPS");
+		filename = "ALBUM3.CPS";
 	}
 
 	_screen->copyRegion(0, 0, 0, 0, 320, 200, 2, 4, Screen::CR_NO_P_CHECK);
-	_screen->loadBitmap(filename, 3, 3, 0);
+	_screen->loadBitmap(filename.c_str(), 3, 3, 0);
 }
 
 void KyraEngine_MR::loadAlbumPageWSA() {
-	char filename[16];
+	Common::String filename;
 
 	_album.leftPage.curFrame = 0;
 	_album.leftPage.maxFrame = 0;
@@ -750,14 +746,14 @@ void KyraEngine_MR::loadAlbumPageWSA() {
 	_album.rightPage.wsa->close();
 
 	if (_album.curPage) {
-		snprintf(filename, 16, "PAGE%x.WSA", _album.curPage);
-		_album.leftPage.wsa->open(filename, 1, 0);
+		filename = Common::String::format("PAGE%x.WSA", _album.curPage);
+		_album.leftPage.wsa->open(filename.c_str(), 1, 0);
 		_album.leftPage.maxFrame = _album.leftPage.wsa->frames()-1;
 	}
 
 	if (_album.curPage != 14) {
-		snprintf(filename, 16, "PAGE%x.WSA", _album.curPage+1);
-		_album.rightPage.wsa->open(filename, 1, 0);
+		filename = Common::String::format("PAGE%x.WSA", _album.curPage+1);
+		_album.rightPage.wsa->open(filename.c_str(), 1, 0);
 		_album.rightPage.maxFrame = _album.leftPage.wsa->frames()-1;
 	}
 }
@@ -829,8 +825,6 @@ void KyraEngine_MR::processAlbum() {
 		updateInput();
 		checkInput(buttonList);
 		removeInputTop();
-
-		musicUpdate(0);
 
 		if (_album.curPage != _album.nextPage) {
 			int oldPage = _album.curPage;
@@ -1085,11 +1079,6 @@ void GUI_MR::flagButtonDisable(Button *button) {
 	}
 }
 
-void GUI_MR::getInput() {
-	_vm->musicUpdate(0);
-	GUI_v2::getInput();
-}
-
 const char *GUI_MR::getMenuTitle(const Menu &menu) {
 	if (!menu.menuNameId)
 		return 0;
@@ -1173,8 +1162,6 @@ int GUI_MR::quitGame(Button *caller) {
 int GUI_MR::optionsButton(Button *button) {
 	PauseTimer pause(*_vm->_timer);
 
-	_vm->musicUpdate(0);
-
 	_screen->hideMouse();
 	updateButton(&_vm->_mainButtonData[0]);
 	_screen->showMouse();
@@ -1200,7 +1187,6 @@ int GUI_MR::optionsButton(Button *button) {
 
 	int oldHandItem = _vm->_itemInHand;
 	_screen->setMouseCursor(0, 0, _vm->getShapePtr(0));
-	_vm->musicUpdate(0);
 
 	_displayMenu = true;
 	for (int i = 0; i < 4; ++i) {
@@ -1225,8 +1211,6 @@ int GUI_MR::optionsButton(Button *button) {
 	initMenuLayout(_deathMenu);
 
 	_currentMenu = &_mainMenu;
-
-	_vm->musicUpdate(0);
 
 	if (_vm->_menuDirectlyToLoad) {
 		backUpPage1(_vm->_screenBuffer);
@@ -1256,7 +1240,6 @@ int GUI_MR::optionsButton(Button *button) {
 		_isDeathMenu = false;
 	}
 
-	_vm->musicUpdate(0);
 	backUpPage1(_vm->_screenBuffer);
 	initMenu(*_currentMenu);
 	_madeSave = false;
@@ -1407,7 +1390,6 @@ int GUI_MR::gameOptions(Button *caller) {
 }
 
 void GUI_MR::setupOptionsButtons() {
-	_vm->musicUpdate(0);
 	if (_vm->_configWalkspeed == 3)
 		_gameOptions.item[0].itemId = 28;
 	else

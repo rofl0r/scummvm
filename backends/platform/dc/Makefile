@@ -1,5 +1,3 @@
-# $URL$
-# $Id$
 
 ronindir = /usr/local/ronin
 
@@ -13,9 +11,13 @@ CXX     = sh-elf-g++ -ml -m4-single-only
 LD      = $(CXX)
 CXXFLAGS= -O3 -Wno-multichar -funroll-loops -fschedule-insns2 -fomit-frame-pointer -fdelete-null-pointer-checks -fno-exceptions
 DEFINES = -D__DC__ -DNONSTANDARD_PORT -DUSE_MAD -DUSE_ZLIB -DDISABLE_DEFAULT_SAVEFILEMANAGER -DDISABLE_TEXT_CONSOLE -DDISABLE_COMMAND_LINE -DUSE_RGB_COLOR
+# For release builds:
+#DEFINES += -DNOSERIAL
 LDFLAGS = -Wl,-Ttext,0x8c010000 -nostartfiles $(ronindir)/lib/crt0.o
 INCLUDES= -I./ -I$(srcdir) -I$(ronindir)/include/ -I$(srcdir)/engines
 LIBS	= -L$(ronindir)/lib -lmad -lronin -lz -lm
+# For release builds:
+#LIBS	= -L$(ronindir)/lib -lmad -lronin-noserial -lz -lm
 EXECUTABLE = scummvm.elf
 DEPDIR = .deps
 CXX_UPDATE_DEP_FLAG = -Wp,-MMD,"$(*D)/$(DEPDIR)/$(*F).d",-MQ,"$@",-MP
@@ -65,7 +67,7 @@ ENABLE_TOUCHE = $(ENABLED)
 ENABLE_TUCKER = $(ENABLED)
 
 OBJS :=	dcmain.o time.o display.o audio.o input.o selector.o icon.o \
-	label.o vmsave.o softkbd.o dcloader.o cache.o dc-fs.o
+	label.o vmsave.o softkbd.o dcloader.o cache.o dc-fs.o plugins.o
 
 MODULE_DIRS += ./
 

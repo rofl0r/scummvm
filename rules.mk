@@ -1,8 +1,6 @@
 ###############################################
 # Common build rules, used by the sub modules and their module.mk files
 #
-# $URL$
-# $Id$
 ###############################################
 
 
@@ -22,18 +20,19 @@ ifdef TOOL_EXECUTABLE
 # TODO: Refactor this, so that even our master executable can use this rule?
 ################################################
 TOOL-$(MODULE) := $(MODULE)/$(TOOL_EXECUTABLE)$(EXEEXT)
-$(TOOL-$(MODULE)): $(MODULE_OBJS-$(MODULE))
+$(TOOL-$(MODULE)): $(MODULE_OBJS-$(MODULE)) $(TOOL_DEPS)
 	$(QUIET_CXX)$(CXX) $(LDFLAGS) $+ -o $@
 
-# Reset TOOL_EXECUTABLE var
+# Reset TOOL_* vars
 TOOL_EXECUTABLE:=
+TOOL_DEPS:=
 
-# Add to "tools" target
-tools: $(TOOL-$(MODULE))
+# Add to "devtools" target
+devtools: $(TOOL-$(MODULE))
 
-# Pseudo target for comfort, allows for "make tools/skycpt", etc.
+# Pseudo target for comfort, allows for "make devtools/skycpt", etc.
 $(MODULE): $(TOOL-$(MODULE))
-clean-tools: clean-$(MODULE)
+clean-devtools: clean-$(MODULE)
 
 else
 ifdef PLUGIN

@@ -18,13 +18,11 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
- * $URL$
- * $Id$
- *
  */
 
 #include "common/system.h"
 #include "common/config-manager.h"
+#include "common/textconsole.h"
 
 #include "parallaction/parallaction.h"
 #include "parallaction/exec.h"
@@ -166,9 +164,7 @@ Common::Error Parallaction_ns::init() {
 	_disk->init();
 
 	if (getPlatform() == Common::kPlatformPC) {
-		MidiDriver::DeviceHandle dev = MidiDriver::detectDevice(MDT_MIDI | MDT_ADLIB | MDT_PREFER_GM);
-		MidiDriver *driver = MidiDriver::createMidi(dev);
-		_soundManI = new DosSoundMan_ns(this, driver);
+		_soundManI = new DosSoundMan_ns(this);
 		_soundManI->setMusicVolume(ConfMan.getInt("music_volume"));
 	} else {
 		_soundManI = new AmigaSoundMan_ns(this);
@@ -355,7 +351,7 @@ void Parallaction_ns::changeLocation() {
 		// prevent music changes during the introduction
 		_soundManI->playLocationMusic(location);
 	}
-	
+
 	_input->stopHovering();
 	// this is still needed to remove the floatingLabel
 	_gfx->freeLabels();
@@ -475,7 +471,7 @@ void Parallaction_ns::changeCharacter(const char *name) {
 			// prevent music changes during the introduction
 			_soundManI->playCharacterMusic(_char.getBaseName());
 		}
-			
+
 		// The original engine used to reload 'common' only on loadgames. We are reloading here since 'common'
 		// contains character specific stuff. This causes crashes like bug #1816899, because parseLocation tries
 		// to reload scripts but the data archive selected is occasionally wrong. This has been solved by having

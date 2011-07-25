@@ -18,9 +18,6 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
- * $URL$
- * $Id$
- *
  */
 
 #ifndef GROOVIE_SCRIPT_H
@@ -75,6 +72,9 @@ private:
 	Common::RandomSource _random;
 
 	bool _firstbit;
+	uint8 _lastCursor;
+
+	EngineVersion _version;
 
 	// Script filename (for debugging purposes)
 	Common::String _scriptFile;
@@ -137,7 +137,7 @@ private:
 	uint16 readScript8or16bits();
 	uint8 readScriptChar(bool allow7C, bool limitVal, bool limitVar);
 	uint8 readScriptVar();
-	uint16 getVideoRefString();
+	uint32 getVideoRefString();
 
 	bool hotspot(Common::Rect rect, uint16 addr, uint8 cursor);
 

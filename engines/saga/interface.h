@@ -18,9 +18,6 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
- * $URL$
- * $Id$
- *
  */
 
 // Game interface module private header file
@@ -287,6 +284,8 @@ public:
 	void mapPanelDrawCrossHair();
 
 	int32 getProtectHash() { return _protectHash; }
+
+	void resetSaveReminder();
 
 private:
 	void handleMainUpdate(const Point& mousePoint);					// main panel update

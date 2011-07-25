@@ -18,15 +18,13 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
- * $URL$
- * $Id$
- *
  */
 
 
 
 #include "base/plugins.h"
 #include "common/savefile.h"
+#include "common/system.h"
 #include "engines/advancedDetector.h"
 
 #include "cruise/cruise.h"
@@ -74,7 +72,7 @@ static const CRUISEGameDescription gameDescriptions[] = {
 	{
 		{
 			"cruise",
-			"16 colours",
+			"16 colors",
 			AD_ENTRY1("D1", "cd29a4cd9162076e9a18495fe56a48f3"),
 			Common::EN_GRB,
 			Common::kPlatformPC,
@@ -219,37 +217,15 @@ static const CRUISEGameDescription gameDescriptions[] = {
 
 }
 
-static const ADParams detectionParams = {
-	// Pointer to ADGameDescription or its superset structure
-	(const byte *)Cruise::gameDescriptions,
-	// Size of that superset structure
-	sizeof(Cruise::CRUISEGameDescription),
-	// Number of bytes to compute MD5 sum for
-	5000,
-	// List of all engine targets
-	cruiseGames,
-	// Structure for autoupgrading obsolete targets
-	0,
-	// Name of single gameid (optional)
-	"cruise",
-	// List of files for file-based fallback detection (optional)
-	0,
-	// Flags
-	0,
-	// Additional GUI options (for every game}
-	Common::GUIO_NOSPEECH | Common::GUIO_NOMIDI,
-	// Maximum directory depth
-	1,
-	// List of directory globs
-	0
-};
-
 class CruiseMetaEngine : public AdvancedMetaEngine {
 public:
-	CruiseMetaEngine() : AdvancedMetaEngine(detectionParams) {}
+	CruiseMetaEngine() : AdvancedMetaEngine(Cruise::gameDescriptions, sizeof(Cruise::CRUISEGameDescription), cruiseGames) {
+		_singleid = "cruise";
+		_guioptions = Common::GUIO_NOSPEECH | Common::GUIO_NOMIDI;
+	}
 
 	virtual const char *getName() const {
-		return "Cinematique evo 2 engine";
+		return "CruisE";
 	}
 
 	virtual const char *getOriginalCopyright() const {

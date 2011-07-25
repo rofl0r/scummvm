@@ -18,9 +18,6 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
- * $URL$
- * $Id$
- *
  */
 
 #include "sky/music/gmmusic.h"
@@ -28,6 +25,7 @@
 #include "sky/sky.h"
 #include "common/util.h"
 #include "common/endian.h"
+#include "common/textconsole.h"
 #include "audio/mididrv.h"
 
 namespace Sky {
@@ -53,8 +51,8 @@ GmMusic::~GmMusic() {
 		stopMusic();
 	// Send All Sound Off and All Notes Off (for external synths)
 	for (int i = 0; i < 16; i++) {
-		_midiDrv->send ((120 << 8) | 0xB0 | i);
-		_midiDrv->send ((123 << 8) | 0xB0 | i);
+		_midiDrv->send((120 << 8) | 0xB0 | i);
+		_midiDrv->send((123 << 8) | 0xB0 | i);
 	}
 	_midiDrv->close();
 	delete _midiDrv;

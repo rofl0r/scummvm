@@ -18,12 +18,18 @@
 * along with this program; if not, write to the Free Software
 * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
 *
-* $URL$
-* $Id$
-*
 */
 
+#include "common/debug.h"
+#include "common/events.h"
+#include "common/keyboard.h"
+#include "common/stream.h"
+#include "common/system.h"
+#include "graphics/surface.h"
+
+#include "toon/audio.h"
 #include "toon/movie.h"
+#include "toon/toon.h"
 
 namespace Toon {
 
@@ -38,8 +44,8 @@ void ToonstruckSmackerDecoder::handleAudioTrack(byte track, uint32 chunkSize, ui
 		Video::SmackerDecoder::handleAudioTrack(track, chunkSize, unpackedSize);
 }
 
-bool ToonstruckSmackerDecoder::loadFile(const Common::String &filename, int forcedflags) {
-	debugC(1, kDebugMovie, "loadFile(%s, %d)", filename.c_str(), forcedflags);
+bool ToonstruckSmackerDecoder::loadFile(const Common::String &filename) {
+	debugC(1, kDebugMovie, "loadFile(%s)", filename.c_str());
 
 	_lowRes = false;
 
@@ -50,14 +56,12 @@ bool ToonstruckSmackerDecoder::loadFile(const Common::String &filename, int forc
 				delete _surface;
 			}
 			_surface = new Graphics::Surface();
-			_surface->create(640, 400, 1);
+			_surface->create(640, 400, Graphics::PixelFormat::createFormatCLUT8());
 			_header.flags = 4;
 		}
 
 		return true;
 	}
-	
-
 	return false;
 }
 
@@ -88,9 +92,9 @@ void Movie::play(Common::String video, int32 flags) {
 	_playing = true;
 	if (flags & 1)
 		_vm->getAudioManager()->setMusicVolume(0);
-	_decoder->loadFile(video.c_str(), flags);
+	_decoder->loadFile(video.c_str());
 	playVideo(isFirstIntroVideo);
-	_vm->flushPalette(false);
+	_vm->flushPalette(true);
 	if (flags & 1)
 		_vm->getAudioManager()->setMusicVolume(_vm->getAudioManager()->isMusicMuted() ? 0 : 255);
 	_decoder->close();
@@ -99,7 +103,6 @@ void Movie::play(Common::String video, int32 flags) {
 
 bool Movie::playVideo(bool isFirstIntroVideo) {
 	debugC(1, kDebugMovie, "playVideo(isFirstIntroVideo: %d)", isFirstIntroVideo);
-
 	while (!_vm->shouldQuit() && !_decoder->endOfVideo()) {
 		if (_decoder->needsUpdate()) {
 			const Graphics::Surface *frame = _decoder->decodeNextFrame();
@@ -107,9 +110,9 @@ bool Movie::playVideo(bool isFirstIntroVideo) {
 				if (_decoder->isLowRes()) {
 					// handle manually 2x scaling here
 					Graphics::Surface* surf = _vm->getSystem()->lockScreen();
-					for (int y = 0; y < frame->h/2; y++) {
-						memcpy(surf->getBasePtr(0, y*2+0), frame->getBasePtr(0, y), frame->pitch);
-						memcpy(surf->getBasePtr(0, y*2+1), frame->getBasePtr(0, y), frame->pitch);
+					for (int y = 0; y < frame->h / 2; y++) {
+						memcpy(surf->getBasePtr(0, y * 2 + 0), frame->getBasePtr(0, y), frame->pitch);
+						memcpy(surf->getBasePtr(0, y * 2 + 1), frame->getBasePtr(0, y), frame->pitch);
 					}
 					_vm->getSystem()->unlockScreen();
 				} else {
@@ -135,11 +138,13 @@ bool Movie::playVideo(bool isFirstIntroVideo) {
 		Common::Event event;
 		while (_vm->getSystem()->getEventManager()->pollEvent(event))
 			if ((event.type == Common::EVENT_KEYDOWN && event.kbd.keycode == Common::KEYCODE_ESCAPE)) {
+				_vm->dirtyAllScreen();
 				return false;
 			}
 
 		_vm->getSystem()->delayMillis(10);
 	}
+	_vm->dirtyAllScreen();
 	return !_vm->shouldQuit();
 }
 

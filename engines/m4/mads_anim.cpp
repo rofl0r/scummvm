@@ -18,10 +18,9 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
- * $URL$
- * $Id$
- *
  */
+
+#include "common/textconsole.h"
 
 #include "m4/mads_anim.h"
 #include "m4/m4.h"
@@ -60,7 +59,7 @@ TextviewView::TextviewView(MadsM4Engine *vm):
 	_vm->_palette->setPalette(&palData[0], 4, 3);
 	_vm->_palette->blockRange(4, 3);
 
-	_vm->_font->current()->setColours(5, 6, 4);
+	_vm->_font->current()->setColors(5, 6, 4);
 
 	clear();
 	_bgSurface.clear();
@@ -537,7 +536,7 @@ void AnimviewView::updateState() {
 		// Clear up current background and sprites
 		_backgroundSurface.reset();
 		clearLists();
-		
+
 		// Reset flags
 		_startFrame = -1;
 
@@ -604,7 +603,7 @@ static bool tempFlag = true;//****DEBUG - Temporarily allow me to skip several i
 		flags |= 0x100;
 
 	_activeAnimation = new MadsAnimation(_vm, this);
-	_activeAnimation->initialise(_currentLine, flags, &_backgroundSurface, &_codeSurface);
+	_activeAnimation->initialize(_currentLine, flags, &_backgroundSurface, &_codeSurface);
 
 	if (_startFrame != -1)
 		_activeAnimation->setCurrentFrame(_startFrame);

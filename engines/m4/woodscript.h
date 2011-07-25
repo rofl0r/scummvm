@@ -18,9 +18,6 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
- * $URL$
- * $Id$
- *
  */
 
 #ifndef M4_WOODSCRIPT_H
@@ -319,8 +316,8 @@ public:
 
 	RGB8 *getMainPalette() const;
 
-	void setInverseColourTable(byte *inverseColourTable) { _inverseColourTable = inverseColourTable; }
-	byte *getInverseColourTable() const { return _inverseColourTable; }
+	void setInverseColorTable(byte *inverseColorTable) { _inverseColorTable = inverseColorTable; }
+	byte *getInverseColorTable() const { return _inverseColorTable; }
 
 protected:
 	MadsM4Engine *_vm;
@@ -338,7 +335,7 @@ protected:
 
 	/* Misc */
 	int16 *_depthTable;
-	byte *_inverseColourTable;
+	byte *_inverseColorTable;
 	M4Surface *_backgroundSurface;
 	View *_surfaceView;
 

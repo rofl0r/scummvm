@@ -18,9 +18,6 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
- * $URL$
- * $Id$
- *
  */
 
 #include "common/scummsys.h"
@@ -30,6 +27,7 @@
 #include "backends/graphics/linuxmotosdl/linuxmotosdl-graphics.h"
 #include "backends/events/linuxmotosdl/linuxmotosdl-events.h"
 #include "common/mutex.h"
+#include "common/textconsole.h"
 #include "graphics/font.h"
 #include "graphics/fontman.h"
 #include "graphics/scaler.h"
@@ -48,7 +46,7 @@ static const OSystem::GraphicsMode s_supportedGraphicsModes[] = {
 };
 
 LinuxmotoSdlGraphicsManager::LinuxmotoSdlGraphicsManager(SdlEventSource *sdlEventSource)
- : SdlGraphicsManager(sdlEventSource) {
+ : SurfaceSdlGraphicsManager(sdlEventSource) {
 }
 
 const OSystem::GraphicsMode *LinuxmotoSdlGraphicsManager::getSupportedGraphicsModes() const {
@@ -143,14 +141,14 @@ void LinuxmotoSdlGraphicsManager::initSize(uint w, uint h) {
 }
 
 bool LinuxmotoSdlGraphicsManager::loadGFXMode() {
-	printf("Game ScreenMode = %d*%d\n",_videoMode.screenWidth, _videoMode.screenHeight);
+	debug("Game ScreenMode = %d*%d",_videoMode.screenWidth, _videoMode.screenHeight);
 	if (_videoMode.screenWidth > 320 || _videoMode.screenHeight > 240) {
 		_videoMode.aspectRatioCorrection = false;
 		setGraphicsMode(GFX_HALF);
-		printf("GraphicsMode set to HALF\n");
+		debug("GraphicsMode set to HALF");
 	} else {
 		setGraphicsMode(GFX_NORMAL);
-		printf("GraphicsMode set to NORMAL\n");
+		debug("GraphicsMode set to NORMAL");
 	}
 	if (_videoMode.mode == GFX_HALF && !_overlayVisible) {
 		_videoMode.overlayWidth = 320;
@@ -168,7 +166,7 @@ bool LinuxmotoSdlGraphicsManager::loadGFXMode() {
 		_videoMode.hardwareHeight = effectiveScreenHeight();
 	}
 
-	return SdlGraphicsManager::loadGFXMode();
+	return SurfaceSdlGraphicsManager::loadGFXMode();
 }
 
 void LinuxmotoSdlGraphicsManager::drawMouse() {
@@ -459,7 +457,7 @@ void LinuxmotoSdlGraphicsManager::showOverlay() {
 		_mouseCurState.x = _mouseCurState.x / 2;
 		_mouseCurState.y = _mouseCurState.y / 2;
 	}
-	SdlGraphicsManager::showOverlay();
+	SurfaceSdlGraphicsManager::showOverlay();
 }
 
 void LinuxmotoSdlGraphicsManager::hideOverlay() {
@@ -467,7 +465,7 @@ void LinuxmotoSdlGraphicsManager::hideOverlay() {
 		_mouseCurState.x = _mouseCurState.x * 2;
 		_mouseCurState.y = _mouseCurState.y * 2;
 	}
-	SdlGraphicsManager::hideOverlay();
+	SurfaceSdlGraphicsManager::hideOverlay();
 }
 
 void LinuxmotoSdlGraphicsManager::warpMouse(int x, int y) {
@@ -477,7 +475,7 @@ void LinuxmotoSdlGraphicsManager::warpMouse(int x, int y) {
 			y = y / 2;
 		}
 	}
-	SdlGraphicsManager::warpMouse(x, y);
+	SurfaceSdlGraphicsManager::warpMouse(x, y);
 }
 
 void LinuxmotoSdlGraphicsManager::adjustMouseEvent(const Common::Event &event) {

@@ -18,9 +18,6 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
- * $URL$
- * $Id$
- *
  */
 
 /*
@@ -32,8 +29,11 @@
 
 // Display.c - DIB related code for HUGOWIN
 
+#include "common/debug.h"
 #include "common/system.h"
+#include "common/textconsole.h"
 #include "graphics/cursorman.h"
+#include "graphics/palette.h"
 
 #include "hugo/hugo.h"
 #include "hugo/display.h"
@@ -189,13 +189,13 @@ void Screen::displayRect(const int16 x, const int16 y, const int16 dx, const int
  * Alse save the new color in the current palette.
  */
 void Screen::remapPal(const uint16 oldIndex, const uint16 newIndex) {
-	debugC(1, kDebugDisplay, "Remap_pal(%d, %d)", oldIndex, newIndex);
+	debugC(1, kDebugDisplay, "RemapPal(%d, %d)", oldIndex, newIndex);
 
 	_curPalette[3 * oldIndex + 0] = _mainPalette[newIndex * 3 + 0];
 	_curPalette[3 * oldIndex + 1] = _mainPalette[newIndex * 3 + 1];
 	_curPalette[3 * oldIndex + 2] = _mainPalette[newIndex * 3 + 2];
 
-	g_system->getPaletteManager()->setPalette(_curPalette, oldIndex, 1);
+	g_system->getPaletteManager()->setPalette(_curPalette, 0, _paletteSize / 3);
 }
 
 /**
@@ -233,24 +233,6 @@ void Screen::setBackgroundColor(const uint16 color) {
 }
 
 /**
- * Return the overlay state (Foreground/Background) of the currently
- * processed object by looking down the current column for an overlay
- * base bit set (in which case the object is foreground).
- */
-overlayState_t Screen::findOvl(seq_t *seq_p, image_pt dst_p, uint16 y) {
-	debugC(4, kDebugDisplay, "findOvl()");
-
-	for (; y < seq_p->lines; y++) {                 // Each line in object
-		byte ovb = _vm->_object->getBaseBoundary((uint16)(dst_p - _frontBuffer) >> 3); // Ptr into overlay bits
-		if (ovb & (0x80 >> ((uint16)(dst_p - _frontBuffer) & 7))) // Overlay bit is set
-			return kOvlForeground;                  // Found a bit - must be foreground
-		dst_p += kXPix;
-	}
-
-	return kOvlBackground;                          // No bits set, must be background
-}
-
-/**
  * Merge an object frame into _frontBuffer at sx, sy and update rectangle list.
  * If fore TRUE, force object above any overlay
  */
@@ -261,7 +243,7 @@ void Screen::displayFrame(const int sx, const int sy, seq_t *seq, const bool for
 	image_pt subFrontBuffer = &_frontBuffer[sy * kXPix + sx]; // Ptr to offset in _frontBuffer
 	int16 frontBufferwrap = kXPix - seq->x2 - 1;     // Wraps dest_p after each line
 	int16 imageWrap = seq->bytesPerLine8 - seq->x2 - 1;
-	overlayState_t overlayState = kOvlUndef;        // Overlay state of object
+	overlayState_t overlayState = (foreFl) ? kOvlForeground : kOvlUndef; // Overlay state of object
 	for (uint16 y = 0; y < seq->lines; y++) {       // Each line in object
 		for (uint16 x = 0; x <= seq->x2; x++) {
 			if (*image) {                           // Non-transparent
@@ -269,7 +251,7 @@ void Screen::displayFrame(const int sx, const int sy, seq_t *seq, const bool for
 				if (ovlBound & (0x80 >> ((uint16)(subFrontBuffer - _frontBuffer) & 7))) { // Overlay bit is set
 					if (overlayState == kOvlUndef)  // Overlay defined yet?
 						overlayState = findOvl(seq, subFrontBuffer, y);// No, find it.
-					if (foreFl || overlayState == kOvlForeground) // Object foreground
+					if (overlayState == kOvlForeground) // Object foreground
 						*subFrontBuffer = *image;   // Copy pixel
 				} else {                            // No overlay
 					*subFrontBuffer = *image;       // Copy pixel
@@ -497,7 +479,7 @@ void Screen::shadowStr(int16 sx, const int16 sy, const char *s, const byte color
  * present in the DOS versions
  */
 void Screen::userHelp() const {
-	Utils::Box(kBoxAny , "%s",
+	Utils::notifyBox(
 	           "F1  - Press F1 again\n"
 	           "      for instructions\n"
 	           "F2  - Sound on/off\n"
@@ -525,6 +507,9 @@ void Screen::drawStatusText() {
 
 	sdx = stringLength(_vm->_scoreLine);
 	posY = 0;
+
+	//Display a black behind the score line
+	_vm->_screen->drawRectangle(true, 0, 0, kXPix, 8, _TBLACK);
 	writeStr(posX, posY, _vm->_scoreLine, _TCYAN);
 	displayList(kDisplayAdd, posX, posY, sdx, sdy);
 }
@@ -659,13 +644,13 @@ bool Screen::isOverlapping(const rect_t *rectA, const rect_t *rectB) const {
 }
 
 /**
- * Display active boundaries in God Mode ('PPG')
+ * Display active boundaries (activated in the console)
  * Light Red   = Exit hotspots
  * Light Green = Visible objects
- * White       = Fixed objects, parts of background
+ * White       = Fix objects, parts of background
  */
 void Screen::drawBoundaries() {
-	if (!_vm->getGameStatus().godModeFl)
+	if (!_vm->getGameStatus().showBoundariesFl)
 		return;
 
 	_vm->_mouse->drawHotspots();
@@ -740,6 +725,25 @@ void Screen_v1d::loadFontArr(Common::ReadStream &in) {
 	}
 }
 
+/**
+ * Return the overlay state (Foreground/Background) of the currently
+ * processed object by looking down the current column for an overlay
+ * base byte set (in which case the object is foreground).
+ */
+overlayState_t Screen_v1d::findOvl(seq_t *seq_p, image_pt dst_p, uint16 y) {
+	debugC(4, kDebugDisplay, "findOvl()");
+
+	uint16 index = (uint16)(dst_p - _frontBuffer) >> 3;
+
+	for (int i = 0; i < seq_p->lines-y; i++) {      // Each line in object
+		if (_vm->_object->getBaseBoundary(index))   // If any overlay base byte is non-zero then the object is foreground, else back.
+			return kOvlForeground;
+		index += kCompLineSize;
+	}
+
+	return kOvlBackground;                          // No bits set, must be background
+}
+
 Screen_v1w::Screen_v1w(HugoEngine *vm) : Screen(vm) {
 }
 
@@ -788,6 +792,24 @@ void Screen_v1w::loadFontArr(Common::ReadStream &in) {
 		for (int j = 0; j < numElem; j++)
 			in.readByte();
 	}
+}
+
+/**
+ * Return the overlay state (Foreground/Background) of the currently
+ * processed object by looking down the current column for an overlay
+ * base bit set (in which case the object is foreground).
+ */
+overlayState_t Screen_v1w::findOvl(seq_t *seq_p, image_pt dst_p, uint16 y) {
+	debugC(4, kDebugDisplay, "findOvl()");
+
+	for (; y < seq_p->lines; y++) {                 // Each line in object
+		byte ovb = _vm->_object->getBaseBoundary((uint16)(dst_p - _frontBuffer) >> 3); // Ptr into overlay bits
+		if (ovb & (0x80 >> ((uint16)(dst_p - _frontBuffer) & 7))) // Overlay bit is set
+			return kOvlForeground;                  // Found a bit - must be foreground
+		dst_p += kXPix;
+	}
+
+	return kOvlBackground;                          // No bits set, must be background
 }
 
 } // End of namespace Hugo

@@ -18,12 +18,10 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
- * $URL$
- * $Id$
- *
  */
 
 #include "common/system.h"
+#include "common/textconsole.h"
 
 #include "m4/mads_scene.h"
 #include "m4/dialogs.h"
@@ -96,12 +94,12 @@ void MadsScene::loadScene2(const char *aaName, int sceneNumber) {
 	// Load scene walk paths
 	loadSceneCodes(_currentScene);
 
-	// Initialise the scene animation
+	// Initialize the scene animation
 	uint16 flags = 0x4100;
 	if (_madsVm->globals()->_config.textWindowStill)
 		flags |= 0x200;
 
-	_sceneAnimation->initialise(aaName, flags, _interfaceSurface, NULL);
+	_sceneAnimation->initialize(aaName, flags, _interfaceSurface, NULL);
 }
 
 /**
@@ -115,7 +113,7 @@ void MadsScene::loadSceneTemporary() {
 		{0x00<<2, 0x10<<2, 0x16<<2}};
 	_vm->_palette->setPalette(&sysColors[0], 4, 3);
 
-	_interfaceSurface->initialise();
+	_interfaceSurface->initialize();
 
 	loadSceneHotspots(_currentScene);
 
@@ -171,7 +169,7 @@ void MadsScene::loadScene(int sceneNumber) {
 	}
 	_abortTimers = 0;
 	_abortTimersMode2 = ABORTMODE_1;
-	
+
 
 	// Do any scene specific setup
 	if (_vm->getGameType() == GType_RexNebular)
@@ -378,7 +376,7 @@ void MadsScene::updateState() {
 
 	if (_madsVm->globals()->_config.easyMouse)
 		_action.refresh();
-	
+
 	if ((_activeAnimation) && !_abortTimers) {
 		_activeAnimation->update();
 		if (((MadsAnimation *) _activeAnimation)->freeFlag() || freeFlag) {
@@ -430,7 +428,29 @@ void MadsScene::doSceneStep() {
 }
 
 void MadsScene::doAction() {
-	warning("TODO MadsScene::doAction");
+	AbortTimerMode mode = ABORTMODE_0;
+	_abortTimersMode2 = mode;
+
+	if ((_action._inProgress || (_abortTimers != 0)) && !_action._v8453A) {
+		_sceneLogic.doAction();
+		mode = _action._inProgress ? ABORTMODE_0 : ABORTMODE_1;
+	}
+
+	if (_screenObjects._v832EC)
+		_action._inProgress = false;
+	else {
+		if ((_action._inProgress || (_abortTimers != 0)) && (mode == ABORTMODE_0) && (_action._v8453A == mode)) {
+			// TODO: sound_fn_p();
+			mode = _action._inProgress ? ABORTMODE_0 : ABORTMODE_1;
+
+		}
+
+		if ((_action._inProgress || (_abortTimers != 0)) && (mode == ABORTMODE_0) && (_action._v8453A == mode)) {
+			// Perform a core scene-indepedant action on an object
+			// object_do_action
+		}
+	}
+
 }
 
 
@@ -578,7 +598,7 @@ void MadsScene::loadAnimation(const Common::String &animName, int abortTimers) {
 
 bool MadsScene::getDepthHighBit(const Common::Point &pt) {
 	const byte *p = _depthSurface->getBasePtr(pt.x, pt.y);
-	if (_sceneResources._depthStyle == 2) 
+	if (_sceneResources._depthStyle == 2)
 		return ((*p << 4) & 0x80) != 0;
 
 	return (*p & 0x80) != 0;
@@ -598,7 +618,7 @@ void MadsSceneResources::load(int sceneNumber, const char *resName, int v0, M4Su
 	char buffer1[80];
 	const char *sceneName;
 
-	// TODO: Initialise spriteSet / xp_list
+	// TODO: Initialize spriteSet / xp_list
 
 	if (sceneNumber > 0) {
 		sceneName = MADSResourceManager::getResourceName(RESPREFIX_RM, sceneNumber, ".DAT");
@@ -633,7 +653,7 @@ void MadsSceneResources::load(int sceneNumber, const char *resName, int v0, M4Su
 	_depthStyle = stream->readUint16LE();
 	_width = stream->readUint16LE();
 	_height = stream->readUint16LE();
-	
+
 	stream->skip(24);
 
 	int nodeCount = stream->readUint16LE();
@@ -670,7 +690,7 @@ void MadsSceneResources::load(int sceneNumber, const char *resName, int v0, M4Su
 
 	delete stream;
 
-	// Initialise a copy of the surfaces if they weren't provided
+	// Initialize a copy of the surfaces if they weren't provided
 	bool dsFlag = false, ssFlag = false;
 	if (!surface) {
 		surface = new M4Surface(_width, _height);
@@ -751,7 +771,7 @@ void MadsSceneResources::setRouteNode(int nodeIndex, const Common::Point &pt, M4
 			if (hypotenuse >= 0x3FFF)
 				// Shouldn't ever be this large
 				hypotenuse = 0x3FFF;
-			
+
 			entry = hypotenuse | flags;
 			_nodes[idx].indexes[nodeIndex] = entry;
 			_nodes[nodeIndex].indexes[idx] = entry;
@@ -774,7 +794,7 @@ int MadsSceneResources::getRouteFlags(const Common::Point &src, const Common::Po
 	++yDiff;
 
 	byte *srcP = depthSurface->getBasePtr(src.x, src.y);
-	
+
 	int totalCtr = majorDiff;
 	for (int xCtr = 0; xCtr < xDiff; ++xCtr, srcP += xDirection) {
 		totalCtr += yDiff;
@@ -817,7 +837,7 @@ int MadsSceneResources::getRouteFlags(const Common::Point &src, const Common::Po
  *--------------------------------------------------------------------------
  */
 
-MadsInterfaceView::MadsInterfaceView(MadsM4Engine *vm): GameInterfaceView(vm, 
+MadsInterfaceView::MadsInterfaceView(MadsM4Engine *vm): GameInterfaceView(vm,
 		Common::Rect(0, MADS_SURFACE_HEIGHT, vm->_screen->width(), vm->_screen->height())) {
 	_screenType = VIEWID_INTERFACE;
 	_highlightedElement = -1;
@@ -855,24 +875,24 @@ MadsInterfaceView::~MadsInterfaceView() {
 void MadsInterfaceView::setFontMode(InterfaceFontMode newMode) {
 	switch (newMode) {
 	case ITEM_NORMAL:
-		_vm->_font->current()->setColours(4, 4, 0xff);
+		_vm->_font->current()->setColors(4, 4, 0xff);
 		break;
 	case ITEM_HIGHLIGHTED:
-		_vm->_font->current()->setColours(5, 5, 0xff);
+		_vm->_font->current()->setColors(5, 5, 0xff);
 		break;
 	case ITEM_SELECTED:
-		_vm->_font->current()->setColours(6, 6, 0xff);
+		_vm->_font->current()->setColors(6, 6, 0xff);
 		break;
 	}
 }
 
-void MadsInterfaceView::initialise() {
+void MadsInterfaceView::initialize() {
 	// Build up the inventory list
 	_inventoryList.clear();
 
 	for (uint i = 0; i < _madsVm->globals()->getObjectsSize(); ++i) {
 		MadsObject *obj = _madsVm->globals()->getObject(i);
-		if (obj->roomNumber == PLAYER_INVENTORY)
+		if (obj->_roomNumber == PLAYER_INVENTORY)
 			_inventoryList.push_back(i);
 	}
 
@@ -921,7 +941,7 @@ void MadsInterfaceView::setSelectedObject(int objectNumber) {
 
 void MadsInterfaceView::addObjectToInventory(int objectNumber) {
 	if (_inventoryList.indexOf(objectNumber) == -1) {
-		_madsVm->globals()->getObject(objectNumber)->roomNumber = PLAYER_INVENTORY;
+		_madsVm->globals()->getObject(objectNumber)->_roomNumber = PLAYER_INVENTORY;
 		_inventoryList.push_back(objectNumber);
 	}
 
@@ -939,7 +959,7 @@ void MadsInterfaceView::onRefresh(RectList *rects, M4Surface *destSurface) {
 	int actionIndex = 0;
 	for (int x = 0; x < 2; ++x) {
 		for (int y = 0; y < 5; ++y, ++actionIndex) {
-			// Determine the font colour depending on whether an item is selected. Note that the first action,
+			// Determine the font color depending on whether an item is selected. Note that the first action,
 			// 'Look', is always 'selected', even when another action is clicked on
 			setFontMode((_highlightedElement == actionIndex) ? ITEM_HIGHLIGHTED :
 				((actionIndex == 0) ? ITEM_SELECTED : ITEM_NORMAL));
@@ -974,7 +994,7 @@ void MadsInterfaceView::onRefresh(RectList *rects, M4Surface *destSurface) {
 			break;
 
 		const char *descStr = _madsVm->globals()->getVocab(_madsVm->globals()->getObject(
-			_inventoryList[_topIndex + i])->descId);
+			_inventoryList[_topIndex + i])->_descId);
 		strcpy(buffer, descStr);
 		if ((buffer[0] >= 'a') && (buffer[0] <= 'z')) buffer[0] -= 'a' - 'A';
 
@@ -994,7 +1014,7 @@ void MadsInterfaceView::onRefresh(RectList *rects, M4Surface *destSurface) {
 		// Display object sprite. Note that the frame number isn't used directly, because it would result
 		// in too fast an animation
 		M4Sprite *spr = _objectSprites->getFrame(_objectFrameNumber / INV_ANIM_FRAME_SPEED);
-		spr->copyTo(destSurface, INVENTORY_X, INVENTORY_Y, TRANSPARENT_COLOUR_INDEX);
+		spr->copyTo(destSurface, INVENTORY_X, INVENTORY_Y, TRANSPARENT_COLOR_INDEX);
 
 		if (!_madsVm->globals()->_config.invObjectsStill && !dialogVisible) {
 			// If objects need to be animated, move to the next frame
@@ -1004,13 +1024,13 @@ void MadsInterfaceView::onRefresh(RectList *rects, M4Surface *destSurface) {
 
 		// List the vocab actions for the currently selected object
 		MadsObject *obj = _madsVm->globals()->getObject(_selectedObject);
-		int yIndex = MIN(_highlightedElement - VOCAB_START, obj->vocabCount - 1);
+		int yIndex = MIN(_highlightedElement - VOCAB_START, obj->_vocabCount - 1);
 
-		for (int i = 0; i < obj->vocabCount; ++i) {
+		for (int i = 0; i < obj->_vocabCount; ++i) {
 			const Common::Rect r(_screenObjects[VOCAB_START + i]);
 
 			// Get the vocab description and capitalise it
-			const char *descStr = _madsVm->globals()->getVocab(obj->vocabList[i].vocabId);
+			const char *descStr = _madsVm->globals()->getVocab(obj->_vocabList[i].vocabId);
 			strcpy(buffer, descStr);
 			if ((buffer[0] >= 'a') && (buffer[0] <= 'z')) buffer[0] -= 'a' - 'A';
 
@@ -1058,16 +1078,16 @@ bool MadsInterfaceView::onEvent(M4EventType eventType, int32 param1, int x, int 
 				// A standard action was selected
 				int verbId = kVerbLook + (_highlightedElement - ACTIONS_START);
 				warning("Selected action #%d", verbId);
-				
+
 			} else if ((_highlightedElement >= VOCAB_START) && (_highlightedElement < (VOCAB_START + 5))) {
 				// A vocab action was selected
 				MadsObject *obj = _madsVm->globals()->getObject(_selectedObject);
-				int vocabIndex = MIN(_highlightedElement - VOCAB_START, obj->vocabCount - 1);
+				int vocabIndex = MIN(_highlightedElement - VOCAB_START, obj->_vocabCount - 1);
 				if (vocabIndex >= 0) {
 					act._actionMode = ACTMODE_OBJECT;
 					act._actionMode2 = ACTMODE2_2;
-					act._flags1 = obj->vocabList[1].flags1;
-					act._flags2 = obj->vocabList[1].flags2;
+					act._flags1 = obj->_vocabList[1].flags1;
+					act._flags2 = obj->_vocabList[1].flags2;
 
 					act._action.verbId = _selectedObject;
 					act._articleNumber = act._flags2;
@@ -1127,12 +1147,10 @@ bool MadsInterfaceView::handleCheatKey(int32 keycode) {
 		_madsVm->scene()->_showMousePos = !_madsVm->scene()->_showMousePos;
 		break;
 
-	case Common::KEYCODE_t | (Common::KEYCODE_LALT << 24):
-	case Common::KEYCODE_t | (Common::KEYCODE_RALT << 24):
-	{
+	case Common::KEYCODE_t | (Common::KBD_ALT << 24): {
 		// Teleport to room
 		//Scene *sceneView = (Scene *)vm->_viewManager->getView(VIEWID_SCENE);
-
+		// TODO: Implement teleport code
 
 		return true;
 	}
@@ -1241,8 +1259,8 @@ void MadsInterfaceView::leaveScene() {
 
 //--------------------------------------------------------------------------
 
-int getActiveAnimationBool() { 
-	return (_madsVm->scene()->activeAnimation()) ? 1 : 0; 
+int getActiveAnimationBool() {
+	return (_madsVm->scene()->activeAnimation()) ? 1 : 0;
 }
 
 int getAnimationCurrentFrame() {

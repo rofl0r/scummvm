@@ -18,9 +18,6 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
- * $URL$
- * $Id$
- *
  */
 
 
@@ -28,6 +25,8 @@
 #include "common/endian.h"
 #include "common/list.h"
 #include "common/rect.h"
+
+#include "graphics/palette.h"
 
 #include "cruise/cruise.h"
 #include "cruise/cruise_main.h"
@@ -203,7 +202,7 @@ void gfxModuleData_gfxWaitVSync() {
 void gfxModuleData_flip() {
 }
 
-void gfxCopyRect(const uint8 *sourceBuffer, int width, int height, byte *dest, int x, int y, int colour) {
+void gfxCopyRect(const uint8 *sourceBuffer, int width, int height, byte *dest, int x, int y, int color) {
 	int xp, yp;
 
 	for (yp = 0; yp < height; ++yp) {
@@ -216,7 +215,7 @@ void gfxCopyRect(const uint8 *sourceBuffer, int width, int height, byte *dest, i
 			int yDest = y + yp;
 
 			if ((v != 0) && (xDest >= 0) && (yDest >= 0) && (xDest < 320) && (yDest < 200))
-				*destP = (v == 1) ? 0 : colour;
+				*destP = (v == 1) ? 0 : color;
 		}
 	}
 }
@@ -324,10 +323,10 @@ void flip() {
 	g_system->updateScreen();
 }
 
-void drawSolidBox(int32 x1, int32 y1, int32 x2, int32 y2, uint8 colour) {
+void drawSolidBox(int32 x1, int32 y1, int32 x2, int32 y2, uint8 color) {
 	for (int y = y1; y < y2; ++y) {
 		byte *p = &gfxModuleData.pPage00[y * 320 + x1];
-		Common::set_to(p, p + (x2 - x1), colour);
+		Common::set_to(p, p + (x2 - x1), color);
 	}
 }
 

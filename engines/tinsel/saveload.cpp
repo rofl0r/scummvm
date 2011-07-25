@@ -18,9 +18,6 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
- * $URL$
- * $Id$
- *
  * Save and restore scene and game.
  */
 
@@ -36,6 +33,8 @@
 
 #include "common/serializer.h"
 #include "common/savefile.h"
+#include "common/textconsole.h"
+#include "common/translation.h"
 
 #include "gui/message.h"
 
@@ -76,9 +75,6 @@ SRSTATE SRstate = SR_IDLE;
 
 // in DOS_DW.C
 extern void syncSCdata(Common::Serializer &s);
-
-// in DOS_MAIN.C
-//char HardDriveLetter();
 
 // in PCODE.C
 extern void syncGlobInfo(Common::Serializer &s);
@@ -167,8 +163,7 @@ static bool syncSaveGameHeader(Common::Serializer &s, SaveGameHeader &hdr) {
 }
 
 static void syncSavedMover(Common::Serializer &s, SAVED_MOVER &sm) {
-	SCNHANDLE *pList[3] = { (SCNHANDLE *)&sm.walkReels,
-		(SCNHANDLE *)&sm.standReels, (SCNHANDLE *)&sm.talkReels };
+	int i, j;
 
 	s.syncAsUint32LE(sm.bActive);
 	s.syncAsSint32LE(sm.actorID);
@@ -176,17 +171,27 @@ static void syncSavedMover(Common::Serializer &s, SAVED_MOVER &sm) {
 	s.syncAsSint32LE(sm.objY);
 	s.syncAsUint32LE(sm.hLastfilm);
 
-	for (int pIndex = 0; pIndex < 3; ++pIndex) {
-		SCNHANDLE *p = pList[pIndex];
-		for (int i = 0; i < TOTAL_SCALES * 4; ++i)
-			s.syncAsUint32LE(*p++);
-	}
+	// Sync walk reels
+	for (i = 0; i < TOTAL_SCALES; ++i)
+		for (j = 0; j < 4; ++j)
+			s.syncAsUint32LE(sm.walkReels[i][j]);
+
+	// Sync stand reels
+	for (i = 0; i < TOTAL_SCALES; ++i)
+		for (j = 0; j < 4; ++j)
+			s.syncAsUint32LE(sm.standReels[i][j]);
+
+	// Sync talk reels
+	for (i = 0; i < TOTAL_SCALES; ++i)
+		for (j = 0; j < 4; ++j)
+			s.syncAsUint32LE(sm.talkReels[i][j]);
+
 
 	if (TinselV2) {
 		s.syncAsByte(sm.bHidden);
 
 		s.syncAsSint32LE(sm.brightness);
-		s.syncAsSint32LE(sm.startColour);
+		s.syncAsSint32LE(sm.startColor);
 		s.syncAsSint32LE(sm.paletteLength);
 	}
 }
@@ -281,32 +286,6 @@ static void syncSavedData(Common::Serializer &s, SAVED_DATA &sd) {
 		for (int i = 0; i < MAX_SOUNDREELS; ++i)
 			syncSoundReel(s, sd.SavedSoundReels[i]);
 	}
-}
-
-
-/**
- * Called when saving a game to a new file.
- * Generates a new, unique, filename.
- */
-static char *NewName() {
-	static char result[FNAMELEN];	// FIXME: Avoid non-const global vars
-	int	i;
-	int	ano = 1;	// Allocated number
-
-	while (1) {
-		Common::String fname = _vm->getSavegameFilename(ano);
-		strcpy(result, fname.c_str());
-
-		for (i = 0; i < numSfiles; i++)
-			if (!strcmp(savedFiles[i].name, result))
-				break;
-
-		if (i == numSfiles)
-			break;
-		ano++;
-	}
-
-	return result;
 }
 
 /**
@@ -486,7 +465,7 @@ static bool DoRestore() {
 	delete f;
 
 	if (failed) {
-		GUI::MessageDialog dialog("Failed to load game state from file.");
+		GUI::MessageDialog dialog(_("Failed to load game state from file."));
 		dialog.runModal();
 	}
 
@@ -498,19 +477,37 @@ static bool DoRestore() {
  */
 static void DoSave() {
 	Common::OutSaveFile *f;
-	const char *fname;
+	char tmpName[FNAMELEN];
 
 	// Next getList() must do its stuff again
 	NeedLoad = true;
 
-	if (SaveSceneName == NULL)
-		SaveSceneName = NewName();
+	if (SaveSceneName == NULL) {
+		// Generate a new unique save name
+		int	i;
+		int	ano = 1;	// Allocated number
+
+		while (1) {
+			Common::String fname = _vm->getSavegameFilename(ano);
+			strcpy(tmpName, fname.c_str());
+
+			for (i = 0; i < numSfiles; i++)
+				if (!strcmp(savedFiles[i].name, tmpName))
+					break;
+
+			if (i == numSfiles)
+				break;
+			ano++;
+		}
+
+		SaveSceneName = tmpName;
+	}
+
+
 	if (SaveSceneDesc[0] == 0)
 		SaveSceneDesc = "unnamed";
 
-	fname = SaveSceneName;
-
-	f = _vm->getSaveFileMan()->openForSaving(fname);
+	f = _vm->getSaveFileMan()->openForSaving(SaveSceneName);
 	Common::Serializer s(0, f);
 
 	if (f == NULL)
@@ -537,14 +534,16 @@ static void DoSave() {
 
 	f->finalize();
 	delete f;
+	SaveSceneName = NULL;	// Invalidate save name
 	return;
 
 save_failure:
 	if (f) {
 		delete f;
-		_vm->getSaveFileMan()->removeSavefile(fname);
+		_vm->getSaveFileMan()->removeSavefile(SaveSceneName);
+		SaveSceneName = NULL;	// Invalidate save name
 	}
-	GUI::MessageDialog dialog("Failed to save game state to file.");
+	GUI::MessageDialog dialog(_("Failed to save game state to file."));
 	dialog.runModal();
 }
 

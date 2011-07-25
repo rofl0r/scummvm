@@ -18,9 +18,6 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
- * $URL$
- * $Id$
- *
  * Should really be called "moving actors.h"
  */
 
@@ -38,7 +35,7 @@ struct PROCESS;
 
 enum NPS {NOT_IN, GOING_UP, GOING_DOWN, LEAVING, ENTERING};
 
-enum IND {NO_PROB, TRY_CENTRE, TRY_CORNER, TRY_NEXTCORNER};
+enum IND {NO_PROB, TRY_CENTER, TRY_CORNER, TRY_NEXTCORNER};
 
 enum DIRECTION { LEFTREEL, RIGHTREEL, FORWARD, AWAY };
 
@@ -119,7 +116,7 @@ struct MOVER {
 	int32		zOverride;
 	bool		bHidden;
 	int			brightness;	// Current brightness
-	int			startColour;
+	int			startColor;
 	int			paletteLength;
 	HPOLYGON	hRpath;		// Recent path
 };
@@ -140,7 +137,7 @@ void MoverProcessCreate(int X, int Y, int id, PMOVER pMover);
 
 enum AR_FUNCTION { AR_NORMAL, AR_PUSHREEL, AR_POPREEL, AR_WALKREEL };
 
-void StoreMoverPalette(PMOVER pMover, int startColour, int length);
+void StoreMoverPalette(PMOVER pMover, int startColor, int length);
 
 void MoverBrightness(PMOVER pMover, int brightness);
 
@@ -204,7 +201,7 @@ struct SAVED_MOVER {
 	bool	bActive;
 	bool	bHidden;
 	int		brightness;
-	int		startColour;
+	int		startColor;
 	int		paletteLength;
 };
 

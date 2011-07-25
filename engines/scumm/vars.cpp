@@ -18,9 +18,6 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
- * $URL$
- * $Id$
- *
  */
 
 
@@ -707,8 +704,12 @@ void ScummEngine_v99he::resetScummVars() {
 	VAR(VAR_NUM_UNK) = _numUnk;
 
 	if (_game.heversion >= 100 && (_game.features & GF_16BIT_COLOR)) {
-		// Disable Bink and Smacker video in 16bit color games
+		// Enable Bink video in 16bit color games
+#ifdef USE_BINK
+		VAR(140) = 1;
+#else
 		VAR(140) = 0;
+#endif
 	}
 }
 #endif

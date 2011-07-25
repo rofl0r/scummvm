@@ -18,9 +18,6 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
- * $URL$
- * $Id$
- *
  */
 
 #ifndef M4_M4_SCENE_H
@@ -53,11 +50,11 @@ private:
 	M4SceneResources _sceneResources;
 	SpriteAsset *_sceneSprites;
 	SpriteAsset *_walkerSprite;
-	byte *_inverseColourTable;
+	byte *_inverseColorTable;
 
 	void loadSceneSprites(int sceneNumber);
 	void loadSceneResources(int sceneNumber);
-	void loadSceneInverseColourTable(int sceneNumber);
+	void loadSceneInverseColorTable(int sceneNumber);
 	void loadSceneSpriteCodes(int sceneNumber);
 	void nextCommonCursor();
 public:
@@ -75,7 +72,7 @@ public:
 	virtual void update();
 	virtual void showHotSpots();
 
-	byte *getInverseColourTable() const { return _inverseColourTable; }
+	byte *getInverseColorTable() const { return _inverseColorTable; }
 	M4InterfaceView *getInterface() { return (M4InterfaceView *)_interfaceSurface; }
 	M4SceneResources &getSceneResources() { return _sceneResources; }
 	void setStatusText(const char *text);

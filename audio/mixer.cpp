@@ -18,13 +18,11 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
- * $URL$
- * $Id$
- *
  */
 
 #include "common/util.h"
 #include "common/system.h"
+#include "common/textconsole.h"
 
 #include "audio/mixer_intern.h"
 #include "audio/rate.h"
@@ -54,8 +52,9 @@ public:
 	 * @param len  number of sample *pairs*. So a value of
 	 *             10 means that the buffer contains twice 10 sample, each
 	 *             16 bits, for a total of 40 bytes.
+	 * @return number of sample pairs processed (which can still be silence!)
 	 */
-	void mix(int16 *data, uint len);
+	int mix(int16 *data, uint len);
 
 	/**
 	 * Queries whether the channel is still playing or not.
@@ -95,11 +94,25 @@ public:
 	void setVolume(const byte volume);
 
 	/**
+	 * Gets the channel's own volume.
+	 *
+	 * @return volume
+	 */
+	byte getVolume();
+
+	/**
 	 * Sets the channel's balance setting.
 	 *
 	 * @param balance new balance
 	 */
 	void setBalance(const int8 balance);
+
+	/**
+	 * Gets the channel's balance setting.
+	 *
+	 * @return balance
+	 */
+	int8 getBalance();
 
 	/**
 	 * Notifies the channel that the global sound type
@@ -161,16 +174,11 @@ private:
 
 
 MixerImpl::MixerImpl(OSystem *system, uint sampleRate)
-	: _syst(system), _sampleRate(sampleRate), _mixerReady(false), _handleSeed(0) {
+	: _syst(system), _mutex(), _sampleRate(sampleRate), _mixerReady(false), _handleSeed(0), _soundTypeSettings() {
 
 	assert(sampleRate > 0);
 
-	int i;
-
-	for (i = 0; i < ARRAYSIZE(_volumeForSoundType); i++)
-		_volumeForSoundType[i] = kMaxMixerVolume;
-
-	for (i = 0; i != NUM_CHANNELS; i++)
+	for (int i = 0; i != NUM_CHANNELS; i++)
 		_channels[i] = 0;
 }
 
@@ -257,12 +265,14 @@ void MixerImpl::playStream(
 	insertChannel(handle, chan);
 }
 
-void MixerImpl::mixCallback(byte *samples, uint len) {
+int MixerImpl::mixCallback(byte *samples, uint len) {
 	assert(samples);
 
 	Common::StackLock lock(_mutex);
 
 	int16 *buf = (int16 *)samples;
+	// we store stereo, 16-bit samples
+	assert(len % 4 == 0);
 	len >>= 2;
 
 	// Since the mixer callback has been called, the mixer must be ready...
@@ -272,14 +282,21 @@ void MixerImpl::mixCallback(byte *samples, uint len) {
 	memset(buf, 0, 2 * len * sizeof(int16));
 
 	// mix all channels
+	int res = 0, tmp;
 	for (int i = 0; i != NUM_CHANNELS; i++)
 		if (_channels[i]) {
 			if (_channels[i]->isFinished()) {
 				delete _channels[i];
 				_channels[i] = 0;
-			} else if (!_channels[i]->isPaused())
-				_channels[i]->mix(buf, len);
+			} else if (!_channels[i]->isPaused()) {
+				tmp = _channels[i]->mix(buf, len);
+
+				if (tmp > res)
+					res = tmp;
+			}
 		}
+
+	return res;
 }
 
 void MixerImpl::stopAll() {
@@ -314,6 +331,21 @@ void MixerImpl::stopHandle(SoundHandle handle) {
 	_channels[index] = 0;
 }
 
+void MixerImpl::muteSoundType(SoundType type, bool mute) {
+	assert(0 <= type && type < ARRAYSIZE(_soundTypeSettings));
+	_soundTypeSettings[type].mute = mute;
+
+	for (int i = 0; i != NUM_CHANNELS; ++i) {
+		if (_channels[i] && _channels[i]->getType() == type)
+			_channels[i]->notifyGlobalVolChange();
+	}
+}
+
+bool MixerImpl::isSoundTypeMuted(SoundType type) const {
+	assert(0 <= type && type < ARRAYSIZE(_soundTypeSettings));
+	return _soundTypeSettings[type].mute;
+}
+
 void MixerImpl::setChannelVolume(SoundHandle handle, byte volume) {
 	Common::StackLock lock(_mutex);
 
@@ -324,6 +356,14 @@ void MixerImpl::setChannelVolume(SoundHandle handle, byte volume) {
 	_channels[index]->setVolume(volume);
 }
 
+byte MixerImpl::getChannelVolume(SoundHandle handle) {
+	const int index = handle._val % NUM_CHANNELS;
+	if (!_channels[index] || _channels[index]->getHandle()._val != handle._val)
+		return 0;
+
+	return _channels[index]->getVolume();
+}
+
 void MixerImpl::setChannelBalance(SoundHandle handle, int8 balance) {
 	Common::StackLock lock(_mutex);
 
@@ -332,6 +372,14 @@ void MixerImpl::setChannelBalance(SoundHandle handle, int8 balance) {
 		return;
 
 	_channels[index]->setBalance(balance);
+}
+
+int8 MixerImpl::getChannelBalance(SoundHandle handle) {
+	const int index = handle._val % NUM_CHANNELS;
+	if (!_channels[index] || _channels[index]->getHandle()._val != handle._val)
+		return 0;
+
+	return _channels[index]->getBalance();
 }
 
 uint32 MixerImpl::getSoundElapsedTime(SoundHandle handle) {
@@ -409,7 +457,7 @@ bool MixerImpl::hasActiveChannelOfType(SoundType type) {
 }
 
 void MixerImpl::setVolumeForSoundType(SoundType type, int volume) {
-	assert(0 <= type && type < ARRAYSIZE(_volumeForSoundType));
+	assert(0 <= type && type < ARRAYSIZE(_soundTypeSettings));
 
 	// Check range
 	if (volume > kMaxMixerVolume)
@@ -421,7 +469,7 @@ void MixerImpl::setVolumeForSoundType(SoundType type, int volume) {
 	// scaling? See also Player_V2::setMasterVolume
 
 	Common::StackLock lock(_mutex);
-	_volumeForSoundType[type] = volume;
+	_soundTypeSettings[type].volume = volume;
 
 	for (int i = 0; i != NUM_CHANNELS; ++i) {
 		if (_channels[i] && _channels[i]->getType() == type)
@@ -430,9 +478,9 @@ void MixerImpl::setVolumeForSoundType(SoundType type, int volume) {
 }
 
 int MixerImpl::getVolumeForSoundType(SoundType type) const {
-	assert(0 <= type && type < ARRAYSIZE(_volumeForSoundType));
+	assert(0 <= type && type < ARRAYSIZE(_soundTypeSettings));
 
-	return _volumeForSoundType[type];
+	return _soundTypeSettings[type].volume;
 }
 
 
@@ -464,9 +512,17 @@ void Channel::setVolume(const byte volume) {
 	updateChannelVolumes();
 }
 
+byte Channel::getVolume() {
+	return _volume;
+}
+
 void Channel::setBalance(const int8 balance) {
 	_balance = balance;
 	updateChannelVolumes();
+}
+
+int8 Channel::getBalance() {
+	return _balance;
 }
 
 void Channel::updateChannelVolumes() {
@@ -478,17 +534,21 @@ void Channel::updateChannelVolumes() {
 	// volume is in the range 0 - kMaxMixerVolume.
 	// Hence, the vol_l/vol_r values will be in that range, too
 
-	int vol = _mixer->getVolumeForSoundType(_type) * _volume;
+	if (!_mixer->isSoundTypeMuted(_type)) {
+		int vol = _mixer->getVolumeForSoundType(_type) * _volume;
 
-	if (_balance == 0) {
-		_volL = vol / Mixer::kMaxChannelVolume;
-		_volR = vol / Mixer::kMaxChannelVolume;
-	} else if (_balance < 0) {
-		_volL = vol / Mixer::kMaxChannelVolume;
-		_volR = ((127 + _balance) * vol) / (Mixer::kMaxChannelVolume * 127);
+		if (_balance == 0) {
+			_volL = vol / Mixer::kMaxChannelVolume;
+			_volR = vol / Mixer::kMaxChannelVolume;
+		} else if (_balance < 0) {
+			_volL = vol / Mixer::kMaxChannelVolume;
+			_volR = ((127 + _balance) * vol) / (Mixer::kMaxChannelVolume * 127);
+		} else {
+			_volL = ((127 - _balance) * vol) / (Mixer::kMaxChannelVolume * 127);
+			_volR = vol / Mixer::kMaxChannelVolume;
+		}
 	} else {
-		_volL = ((127 - _balance) * vol) / (Mixer::kMaxChannelVolume * 127);
-		_volR = vol / Mixer::kMaxChannelVolume;
+		_volL = _volR = 0;
 	}
 }
 
@@ -538,19 +598,23 @@ Timestamp Channel::getElapsedTime() {
 	return ts;
 }
 
-void Channel::mix(int16 *data, uint len) {
+int Channel::mix(int16 *data, uint len) {
 	assert(_stream);
+
+	int res = 0;
 
 	if (_stream->endOfData()) {
 		// TODO: call drain method
 	} else {
 		assert(_converter);
-
 		_samplesConsumed = _samplesDecoded;
 		_mixerTimeStamp = g_system->getMillis();
 		_pauseTime = 0;
-		_samplesDecoded += _converter->flow(*_stream, data, len, _volL, _volR);
+		res = _converter->flow(*_stream, data, len, _volL, _volR);
+		_samplesDecoded += res;
 	}
+
+	return res;
 }
 
 } // End of namespace Audio

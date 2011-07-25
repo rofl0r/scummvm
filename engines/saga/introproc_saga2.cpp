@@ -18,9 +18,6 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
- * $URL$
- * $Id$
- *
  */
 
 #ifdef ENABLE_SAGA2
@@ -31,7 +28,10 @@
 #include "saga/scene.h"
 #include "saga/gfx.h"
 
-#include "audio/mixer.h"
+#include "common/events.h"
+#include "common/keyboard.h"
+#include "common/system.h"
+#include "common/textconsole.h"
 #include "graphics/surface.h"
 #include "video/smk_decoder.h"
 
@@ -113,7 +113,7 @@ void Scene::playMovie(const char *filename) {
 				_vm->_system->updateScreen();
 			}
 		}
-	
+
 		Common::Event event;
 		while (_vm->_system->getEventManager()->pollEvent(event)) {
 			if ((event.type == Common::EVENT_KEYDOWN && event.kbd.keycode == Common::KEYCODE_ESCAPE) || event.type == Common::EVENT_LBUTTONUP)

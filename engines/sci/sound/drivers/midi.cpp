@@ -18,9 +18,6 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
- * $URL$
- * $Id$
- *
  */
 
 #include "sci/sci.h"
@@ -28,9 +25,9 @@
 #include "common/config-manager.h"
 #include "common/file.h"
 #include "common/memstream.h"
+#include "common/system.h"
 
 #include "audio/fmopl.h"
-#include "audio/softsynth/emumidi.h"
 
 #include "sci/resource.h"
 #include "sci/engine/features.h"
@@ -104,7 +101,7 @@ private:
 		uint8 volume;
 
 		Channel() : mappedPatch(MIDI_UNMAPPED), patch(MIDI_UNMAPPED), velocityMapIdx(0), playing(false),
-			keyShift(0), volAdjust(0), pan(0x80), hold(0), volume(0x7f) { }
+			keyShift(0), volAdjust(0), pan(0x40), hold(0), volume(0x7f) { }
 	};
 
 	bool _isMt32;
@@ -132,7 +129,7 @@ private:
 
 MidiPlayer_Midi::MidiPlayer_Midi(SciVersion version) : MidiPlayer(version), _playSwitch(true), _masterVolume(15), _isMt32(false), _hasReverb(false), _useMT32Track(true) {
 	MidiDriver::DeviceHandle dev = MidiDriver::detectDevice(MDT_MIDI);
-	_driver = createMidi(dev);
+	_driver = MidiDriver::createMidi(dev);
 
 	if (MidiDriver::getMusicType(dev) == MT_MT32 || ConfMan.getBool("native_mt32"))
 		_isMt32 = true;
@@ -248,11 +245,17 @@ void MidiPlayer_Midi::controlChange(int channel, int control, int value) {
 
 		_channels[channel].hold = value;
 		break;
+	case 0x4b:	// voice mapping
+		break;
+	case 0x4e:	// velocity
+		break;
 	case 0x7b:
 		if (!_channels[channel].playing)
 			return;
 
 		_channels[channel].playing = false;
+	default:
+		break;
 	}
 
 	_driver->send(0xb0 | channel, control, value);
@@ -387,7 +390,7 @@ int MidiPlayer_Midi::getVolume() {
 
 void MidiPlayer_Midi::setReverb(int8 reverb) {
 	assert(reverb < kReverbConfigNr);
-	
+
 	if (_hasReverb && (_reverb != reverb))
 		sendMt32SysEx(0x100001, _reverbConfig[reverb], 3, true);
 
@@ -605,7 +608,7 @@ void MidiPlayer_Midi::readMt32DrvData() {
 		int size = f.size();
 
 		// Skip before-SysEx text
-		if (size == 1773 || size == 1759)	// XMAS88 / KQ4 early
+		if (size == 1773 || size == 1759 || size == 1747)	// XMAS88 / KQ4 early (0.000.253 / 0.000.274)
 			f.seek(0x59);
 		else if (size == 2771)				// LSL2 early
 			f.seek(0x29);
@@ -616,14 +619,23 @@ void MidiPlayer_Midi::readMt32DrvData() {
 		if (f.readUint16LE() != 0)
 			f.seek(-2, SEEK_CUR);
 
+		// Send before-SysEx text
 		sendMt32SysEx(0x200000, static_cast<Common::SeekableReadStream *>(&f), 20);
 
-		// Send after-SysEx text (SSCI sends this before every song)
-		sendMt32SysEx(0x200000, static_cast<Common::SeekableReadStream *>(&f), 20);
+		if (size != 2271) {
+			// Send after-SysEx text (SSCI sends this before every song).
+			// There aren't any SysEx calls in old drivers, so this can
+			// be sent right after the before-SysEx text.
+			sendMt32SysEx(0x200000, static_cast<Common::SeekableReadStream *>(&f), 20);
+		} else {
+			// Skip the after-SysEx text in the newer patch version, we'll send
+			// it after the SysEx messages are sent.
+			f.skip(20);
+		}
 
-		// Save goodbye message
+		// Save goodbye message. This isn't a C string, so it may not be
+		// nul-terminated.
 		f.read(_goodbyeMsg, 20);
-		_goodbyeMsg[19] = 0;	// make sure that the message is nul-terminated
 
 		// Set volume
 		byte volume = CLIP<uint16>(f.readUint16LE(), 0, 100);
@@ -653,12 +665,9 @@ void MidiPlayer_Midi::readMt32DrvData() {
 
 			setReverb(reverb);
 
-			// Send after-SysEx text
-			f.seek(0);
+			// Send the after-SysEx text
+			f.seek(0x3d);
 			sendMt32SysEx(0x200000, static_cast<Common::SeekableReadStream *>(&f), 20);
-
-			// Send the mystery SysEx
-			sendMt32SysEx(0x52000a, (const byte *)"\x16\x16\x16\x16\x16\x16", 6);
 		} else {
 			byte reverbSysEx[13];
 			// This old driver should have a full reverb SysEx
@@ -733,7 +742,7 @@ uint8 MidiPlayer_Midi::getGmInstrument(const Mt32ToGmMap &Mt32Ins) {
 void MidiPlayer_Midi::mapMt32ToGm(byte *data, size_t size) {
 	// FIXME: Clean this up
 	int memtimbres, patches;
-	uint8 group, number, keyshift, finetune, bender_range;
+	uint8 group, number, keyshift, /*finetune,*/ bender_range;
 	uint8 *patchpointer;
 	uint32 pos;
 	int i;
@@ -772,7 +781,7 @@ void MidiPlayer_Midi::mapMt32ToGm(byte *data, size_t size) {
 		group = *patchpointer;
 		number = *(patchpointer + 1);
 		keyshift = *(patchpointer + 2);
-		finetune = *(patchpointer + 3);
+		//finetune = *(patchpointer + 3);
 		bender_range = *(patchpointer + 4);
 
 		debugCN(kDebugLevelSound, "  [%03d] ", i);
@@ -807,11 +816,13 @@ void MidiPlayer_Midi::mapMt32ToGm(byte *data, size_t size) {
 		if (_patchMap[i] == MIDI_UNMAPPED) {
 			debugC(kDebugLevelSound, "[Unmapped]");
 		} else {
+#ifndef REDUCE_MEMORY_USAGE
 			if (_patchMap[i] >= 128) {
 				debugC(kDebugLevelSound, "%s [Rhythm]", GmPercussionNames[_patchMap[i] - 128]);
 			} else {
 				debugC(kDebugLevelSound, "%s", GmInstrumentNames[_patchMap[i]]);
 			}
+#endif
 		}
 
 		_keyShift[i] = CLIP<uint8>(keyshift, 0, 48) - 24;
@@ -843,10 +854,12 @@ void MidiPlayer_Midi::mapMt32ToGm(byte *data, size_t size) {
 				}
 			}
 
+#ifndef REDUCE_MEMORY_USAGE
 			if (_percussionMap[ins] == MIDI_UNMAPPED)
 				debugC(kDebugLevelSound, "[Unmapped]");
 			else
 				debugC(kDebugLevelSound, "%s", GmPercussionNames[_percussionMap[ins]]);
+#endif
 
 			_percussionVelocityScale[ins] = *(data + pos + 4 * i + 3) * 127 / 100;
 		}
@@ -949,7 +962,7 @@ int MidiPlayer_Midi::open(ResourceManager *resMan) {
 
 			// TODO: The MT-32 <-> GM mapping hasn't been worked on for SCI1 games. Throw
 			// a warning to the user
-			if (getSciVersion() >= SCI_VERSION_1_EGA)
+			if (getSciVersion() >= SCI_VERSION_1_EGA_ONLY)
 				warning("The automatic mapping for General MIDI hasn't been worked on for "
 						"SCI1 games. Music might sound wrong or broken. Please choose another "
 						"music driver for this game (e.g. Adlib or MT-32) if you are "

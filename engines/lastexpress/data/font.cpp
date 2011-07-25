@@ -18,15 +18,14 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
- * $URL$
- * $Id$
- *
  */
 
 #include "lastexpress/data/font.h"
 
+#include "common/rect.h"
 #include "common/stream.h"
 #include "common/system.h"
+#include "common/textconsole.h"
 
 namespace LastExpress {
 
@@ -90,17 +89,17 @@ bool Font::load(Common::SeekableReadStream *stream) {
 uint16 Font::getCharGlyph(uint16 c) const {
 	//warning("%c", c);
 	if (c >= 0x200)
-		error("Express::Font: Invalid character %d", c);
+		error("[Font::getCharGlyph] Invalid character %d", c);
 
 	return _charMap[c];
 }
 
 byte *Font::getGlyphImg(uint16 g) {
 	if (!_glyphs)
-		error("Express::getGlyphImg: Invalid glyphs!");
+		error("[Font::getGlyphImg] Invalid glyphs");
 
 	if (g >= _numGlyphs)
-		error("Express::getGlyphImg: Invalid glyph %d (%d available)", g, _numGlyphs);
+		error("[Font::getGlyphImg] Invalid glyph %d (%d available)", g, _numGlyphs);
 
 	return _glyphs + g * 18 * 8;
 }
@@ -141,7 +140,7 @@ uint8 Font::getCharWidth(uint16 c) const{
 		return 10;
 	} else {
 		if (!_glyphWidths)
-			error("Express::getCharWidth: Invalid glyphs widths!");
+			error("[Font::getCharWidth] Invalid glyphs widths");
 
 		return _glyphWidths[getCharGlyph(c)];
 	}

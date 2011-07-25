@@ -18,9 +18,6 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
- * $URL$
- * $Id$
- *
  */
 
 // Code is based on:
@@ -36,7 +33,7 @@
 // Timing is not perfect, yet. It plays correct, when I use the
 // Gravis-Midiplayer, but the songs are too fast when I use playmidi on
 // Linux.
-// 
+//
 // Original program developed by Jens. Christian Restemeier
 //
 
@@ -49,6 +46,7 @@
 #include "common/file.h"
 #include "common/memstream.h"
 #include "common/stream.h"
+#include "common/textconsole.h"
 
 #include "agi/agi.h"
 
@@ -71,139 +69,52 @@ MIDISound::MIDISound(uint8 *data, uint32 len, int resnum, SoundMgr &manager) : A
 		warning("Error creating MIDI sound from resource %d (Type %d, length %d)", resnum, _type, len);
 }
 
-SoundGenMIDI::SoundGenMIDI(AgiEngine *vm, Audio::Mixer *pMixer) : SoundGen(vm, pMixer), _parser(0), _isPlaying(false), _passThrough(false), _isGM(false) {
-	DeviceHandle dev = MidiDriver::detectDevice(MDT_MIDI | MDT_ADLIB);
-	_driver = MidiDriver::createMidi(dev);
-
-	if (ConfMan.getBool("native_mt32") || MidiDriver::getMusicType(dev) == MT_MT32) {
-		_nativeMT32 = true;
-		_driver->property(MidiDriver::PROP_CHANNEL_MASK, 0x03FE);
-	} else {
-		_nativeMT32 = false;
-	}
-
-	memset(_channel, 0, sizeof(_channel));
-	memset(_channelVolume, 127, sizeof(_channelVolume));
-	_masterVolume = 0;
-	this->open();
-	_smfParser = MidiParser::createParser_SMF();
-	_midiMusicData = NULL;
-}
-
-SoundGenMIDI::~SoundGenMIDI() {
-	_driver->setTimerCallback(NULL, NULL);
-	stop();
-	this->close();
-	_smfParser->setMidiDriver(NULL);
-	delete _smfParser;
-	delete[] _midiMusicData;
-}
-
-void SoundGenMIDI::setChannelVolume(int channel) {
-	int newVolume = _channelVolume[channel] * _masterVolume / 255;
-	_channel[channel]->volume(newVolume);
-}
-
-void SoundGenMIDI::setVolume(int volume) {
-	Common::StackLock lock(_mutex);
-
-	volume = CLIP(volume, 0, 255);
-	if (_masterVolume == volume)
-		return;
-	_masterVolume = volume;
-
-	for (int i = 0; i < 16; ++i) {
-		if (_channel[i]) {
-			setChannelVolume(i);
-		}
-	}
-}
-
-int SoundGenMIDI::open() {
-	// Don't ever call open without first setting the output driver!
-	if (!_driver)
-		return 255;
+SoundGenMIDI::SoundGenMIDI(AgiEngine *vm, Audio::Mixer *pMixer) : SoundGen(vm, pMixer), _isGM(false) {
+	MidiPlayer::createDriver(MDT_MIDI | MDT_ADLIB);
 
 	int ret = _driver->open();
-	if (ret)
-		return ret;
+	if (ret == 0) {
+		if (_nativeMT32)
+			_driver->sendMT32Reset();
+		else
+			_driver->sendGMReset();
 
-	_driver->setTimerCallback(this, &onTimer);
-
-	if (_nativeMT32)
-		_driver->sendMT32Reset();
-	else
-		_driver->sendGMReset();
-
-	return 0;
-}
-
-void SoundGenMIDI::close() {
-	stop();
-	if (_driver)
-		_driver->close();
-	_driver = 0;
+		// FIXME: We need to cast "this" here due to the effects of
+		// multiple inheritance. This hack can go away once this
+		// setTimerCallback() has been moved inside Audio::MidiPlayer code.
+		_driver->setTimerCallback(static_cast<Audio::MidiPlayer *>(this), &timerCallback);
+	}
 }
 
 void SoundGenMIDI::send(uint32 b) {
-	if (_passThrough) {
-		_driver->send(b);
-		return;
-	}
-
-	byte channel = (byte)(b & 0x0F);
-	if ((b & 0xFFF0) == 0x07B0) {
-		// Adjust volume changes by master volume
-		byte volume = (byte)((b >> 16) & 0x7F);
-		_channelVolume[channel] = volume;
-		volume = volume * _masterVolume / 255;
-		b = (b & 0xFF00FFFF) | (volume << 16);
-	} else if ((b & 0xF0) == 0xC0 && !_isGM && !_nativeMT32) {
+	if ((b & 0xF0) == 0xC0 && !_isGM && !_nativeMT32) {
 		b = (b & 0xFFFF00FF) | MidiDriver::_mt32ToGm[(b >> 8) & 0xFF] << 8;
 	}
-	else if ((b & 0xFFF0) == 0x007BB0) {
-		//Only respond to All Notes Off if this channel
-		//has currently been allocated
-		if (_channel[b & 0x0F])
-			return;
-	}
 
-	if (!_channel[channel]) {
-		_channel[channel] = (channel == 9) ? _driver->getPercussionChannel() : _driver->allocateChannel();
+	Audio::MidiPlayer::send(b);
+}
+
+void SoundGenMIDI::sendToChannel(byte channel, uint32 b) {
+	if (!_channelsTable[channel]) {
+		_channelsTable[channel] = (channel == 9) ? _driver->getPercussionChannel() : _driver->allocateChannel();
 		// If a new channel is allocated during the playback, make sure
 		// its volume is correctly initialized.
-		if (_channel[channel])
-			setChannelVolume(channel);
+		if (_channelsTable[channel])
+			_channelsTable[channel]->volume(_channelsVolume[channel] * _masterVolume / 255);
 	}
 
-	if (_channel[channel])
-		_channel[channel]->send(b);
+	if (_channelsTable[channel])
+		_channelsTable[channel]->send(b);
 }
 
-void SoundGenMIDI::metaEvent(byte type, byte *data, uint16 length) {
-
-	switch (type) {
-	case 0x2F:	// End of Track
-		stop();
-		_vm->_sound->soundIsFinished();
-		break;
-	default:
-		//warning("Unhandled meta event: %02x", type);
-		break;
-	}
-}
-
-void SoundGenMIDI::onTimer(void *refCon) {
-	SoundGenMIDI *music = (SoundGenMIDI *)refCon;
-	Common::StackLock lock(music->_mutex);
-
-	if (music->_parser)
-		music->_parser->onTimer();
+void SoundGenMIDI::endOfTrack() {
+	stop();
+	_vm->_sound->soundIsFinished();
 }
 
 void SoundGenMIDI::play(int resnum) {
 	MIDISound *track;
- 
+
 	stop();
 
 	_isGM = true;
@@ -211,13 +122,13 @@ void SoundGenMIDI::play(int resnum) {
 	track = (MIDISound *)_vm->_game.sounds[resnum];
 
 	// Convert AGI Sound data to MIDI
-	int midiMusicSize = convertSND2MIDI(track->_data, &_midiMusicData);
+	int midiMusicSize = convertSND2MIDI(track->_data, &_midiData);
 
-	if (_smfParser->loadMusic(_midiMusicData, midiMusicSize)) {
-		MidiParser *parser = _smfParser;
+	MidiParser *parser = MidiParser::createParser_SMF();
+	if (parser->loadMusic(_midiData, midiMusicSize)) {
 		parser->setTrack(0);
 		parser->setMidiDriver(this);
-		parser->setTimerRate(getBaseTempo());
+		parser->setTimerRate(_driver->getBaseTempo());
 		parser->property(MidiParser::mpCenterPitchWheelOnUnload, 1);
 
 		_parser = parser;
@@ -225,38 +136,9 @@ void SoundGenMIDI::play(int resnum) {
 		syncVolume();
 
 		_isPlaying = true;
+	} else {
+		delete parser;
 	}
-}
-
-void SoundGenMIDI::stop() {
-	Common::StackLock lock(_mutex);
-
-	if (!_isPlaying)
-		return;
-
-	_isPlaying = false;
-	if (_parser) {
-		_parser->unloadMusic();
-		_parser = NULL;
-	}
-}
-
-void SoundGenMIDI::pause() {
-	setVolume(-1);
-	_isPlaying = false;
-}
-
-void SoundGenMIDI::resume() {
-	syncVolume();
-	_isPlaying = true;
-}
-
-void SoundGenMIDI::syncVolume() {
-	int volume = ConfMan.getInt("music_volume");
-	if (ConfMan.getBool("mute")) {
-		volume = -1;
-	}
-	setVolume(volume);
 }
 
 /* channel / intrument setup: */
@@ -271,7 +153,7 @@ unsigned char instr[] = {50, 51, 19};
 static void writeDelta(Common::MemoryWriteStreamDynamic *st, int32 delta) {
 	int32 i;
 
-	i = delta >> 21; if (i > 0) st->writeByte((i & 127) | 128); 
+	i = delta >> 21; if (i > 0) st->writeByte((i & 127) | 128);
 	i = delta >> 14; if (i > 0) st->writeByte((i & 127) | 128);
 	i = delta >> 7;  if (i > 0) st->writeByte((i & 127) | 128);
 	st->writeByte(delta & 127);
@@ -314,7 +196,7 @@ static uint32 convertSND2MIDI(byte *snddata, byte **data) {
 				int note;
 				/* I don't know,  what frequency equals midi note 0 ... */
 				/* This moves the song 4 octaves down: */
-				fr = (log10(111860.0 / (double)freq) / ll) - 48; 
+				fr = (log10(111860.0 / (double)freq) / ll) - 48;
 				note = (int)floor(fr + 0.5);
 				if (note < 0) note = 0;
 				if (note > 127) note = 127;
@@ -340,7 +222,7 @@ static uint32 convertSND2MIDI(byte *snddata, byte **data) {
 				st.writeByte(0);
 				st.writeByte(0);
 			}
-		}       
+		}
 		writeDelta(&st, 0);
 		st.writeByte(0xff);
 		st.writeByte(0x2f);

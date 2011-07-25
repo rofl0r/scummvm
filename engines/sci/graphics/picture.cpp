@@ -18,9 +18,6 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
- * $URL$
- * $Id$
- *
  */
 
 #include "common/stack.h"
@@ -35,6 +32,8 @@
 #include "sci/graphics/picture.h"
 
 namespace Sci {
+
+//#define DEBUG_PICTURE_DRAW
 
 GfxPicture::GfxPicture(ResourceManager *resMan, GfxCoordAdjuster *coordAdjuster, GfxPorts *ports, GfxScreen *screen, GfxPalette *palette, GuiResourceId resourceId, bool EGAdrawingVisualize)
 	: _resMan(resMan), _coordAdjuster(coordAdjuster), _ports(ports), _screen(screen), _palette(palette), _resourceId(resourceId), _EGAdrawingVisualize(EGAdrawingVisualize) {
@@ -222,19 +221,20 @@ void GfxPicture::drawSci32Vga(int16 celNo, int16 drawX, int16 drawY, int16 pictu
 }
 #endif
 
+extern void unpackCelData(byte *inBuffer, byte *celBitmap, byte clearColor, int pixelCount, int rlePos, int literalPos, ViewType viewType, uint16 width, bool isMacSci11ViewData);
+
 void GfxPicture::drawCelData(byte *inbuffer, int size, int headerPos, int rlePos, int literalPos, int16 drawX, int16 drawY, int16 pictureX) {
 	byte *celBitmap = NULL;
 	byte *ptr = NULL;
 	byte *headerPtr = inbuffer + headerPos;
 	byte *rlePtr = inbuffer + rlePos;
-	byte *literalPtr = inbuffer + literalPos;
 	int16 displaceX, displaceY;
 	byte priority = _addToFlag ? _priority : 0;
 	byte clearColor;
 	bool compression = true;
-	byte curByte, runLength;
+	byte curByte;
 	int16 y, lastY, x, leftX, rightX;
-	int pixelNr, pixelCount;
+	int pixelCount;
 	uint16 width, height;
 
 #ifdef ENABLE_SCI32
@@ -245,12 +245,11 @@ void GfxPicture::drawCelData(byte *inbuffer, int size, int headerPos, int rlePos
 		height = READ_LE_UINT16(headerPtr + 2);
 		displaceX = (signed char)headerPtr[4];
 		displaceY = (unsigned char)headerPtr[5];
-		if (_resourceType == SCI_PICTURE_TYPE_SCI11) {
+		if (_resourceType == SCI_PICTURE_TYPE_SCI11)
 			// SCI1.1 uses hardcoded clearcolor for pictures, even if cel header specifies otherwise
 			clearColor = _screen->getColorWhite();
-		} else {
+		else
 			clearColor = headerPtr[6];
-		}
 #ifdef ENABLE_SCI32
 	} else {
 		width = READ_SCI11ENDIAN_UINT16(headerPtr + 0);
@@ -266,90 +265,37 @@ void GfxPicture::drawCelData(byte *inbuffer, int size, int headerPos, int rlePos
 	if (displaceX || displaceY)
 		error("unsupported embedded cel-data in picture");
 
+	// We will unpack cel-data into a temporary buffer and then plot it to screen
+	//  That needs to be done cause a mirrored picture may be requested
 	pixelCount = width * height;
 	celBitmap = new byte[pixelCount];
 	if (!celBitmap)
 		error("Unable to allocate temporary memory for picture drawing");
 
-	if (compression) {
-		// We will unpack cel-data into a temporary buffer and then plot it to screen
-		//  That needs to be done cause a mirrored picture may be requested
-		memset(celBitmap, clearColor, pixelCount);
-		pixelNr = 0;
-		ptr = celBitmap;
-		if (literalPos == 0) {
-			// decompression for data that has only one stream (vecor embedded view data)
-			switch (_resMan->getViewType()) {
-			case kViewEga:
-				while (pixelNr < pixelCount) {
-					curByte = *rlePtr++;
-					runLength = curByte >> 4;
-					memset(ptr + pixelNr, curByte & 0x0F, MIN<uint16>(runLength, pixelCount - pixelNr));
-					pixelNr += runLength;
-				}
-				break;
-			case kViewVga:
-			case kViewVga11:
-				while (pixelNr < pixelCount) {
-					curByte = *rlePtr++;
-					runLength = curByte & 0x3F;
-					switch (curByte & 0xC0) {
-					case 0: // copy bytes as-is
-						while (runLength-- && pixelNr < pixelCount)
-							ptr[pixelNr++] = *rlePtr++;
-						break;
-					case 0x80: // fill with color
-						memset(ptr + pixelNr, *rlePtr++, MIN<uint16>(runLength, pixelCount - pixelNr));
-						pixelNr += runLength;
-						break;
-					case 0xC0: // fill with transparent
-						pixelNr += runLength;
-						break;
-					}
-				}
-				break;
-			case kViewAmiga:
-				while (pixelNr < pixelCount) {
-					curByte = *rlePtr++;
-					if (curByte & 0x07) { // fill with color
-						runLength = curByte & 0x07;
-						curByte = curByte >> 3;
-						while (runLength-- && pixelNr < pixelCount) {
-							ptr[pixelNr++] = curByte;
-						}
-					} else { // fill with transparent
-						runLength = curByte >> 3;
-						pixelNr += runLength;
-					}
-				}
-				break;
+	if (g_sci->getPlatform() == Common::kPlatformMacintosh && getSciVersion() >= SCI_VERSION_2) {
+		// See GfxView::unpackCel() for why this black/white swap is done
+		// This picture swap is only needed in SCI32, not SCI1.1
+		if (clearColor == 0)
+			clearColor = 0xff;
+		else if (clearColor == 0xff)
+			clearColor = 0;
+	}
 
-			default:
-				error("Unsupported picture viewtype");
-			}
-		} else {
-			// decompression for data that has two separate streams (probably SCI 1.1 picture)
-			while (pixelNr < pixelCount) {
-				curByte = *rlePtr++;
-				runLength = curByte & 0x3F;
-				switch (curByte & 0xC0) {
-				case 0: // copy bytes as-is
-					while (runLength-- && pixelNr < pixelCount)
-						ptr[pixelNr++] = *literalPtr++;
-					break;
-				case 0x80: // fill with color
-					memset(ptr + pixelNr, *literalPtr++, MIN<uint16>(runLength, pixelCount - pixelNr));
-					pixelNr += runLength;
-					break;
-				case 0xC0: // fill with transparent
-					pixelNr += runLength;
-					break;
-				}
-			}
-		}
-	} else {
+	if (compression)
+		unpackCelData(inbuffer, celBitmap, clearColor, pixelCount, rlePos, literalPos, _resMan->getViewType(), width, false);
+	else
 		// No compression (some SCI32 pictures)
 		memcpy(celBitmap, rlePtr, pixelCount);
+
+	if (g_sci->getPlatform() == Common::kPlatformMacintosh && getSciVersion() >= SCI_VERSION_2) {
+		// See GfxView::unpackCel() for why this black/white swap is done
+		// This picture swap is only needed in SCI32, not SCI1.1
+		for (int i = 0; i < pixelCount; i++) {
+			if (celBitmap[i] == 0)
+				celBitmap[i] = 0xff;
+			else if (celBitmap[i] == 0xff)
+				celBitmap[i] = 0;
+		}
 	}
 
 	Common::Rect displayArea = _coordAdjuster->pictureGetDisplayArea();
@@ -377,13 +323,14 @@ void GfxPicture::drawCelData(byte *inbuffer, int size, int headerPos, int rlePos
 			sourcePixelSkipPerRow = width - (rightX - leftX);
 
 		// Change clearcolor to white, if we dont add to an existing picture. That way we will paint everything on screen
-		//  but white and that wont matter because the screen is supposed to be already white. It seems that most (if not all)
-		//  SCI1.1 games use color 0 as transparency and SCI1 games use color 255 as transparency. Sierra SCI seems to paint
-		//  the whole data to screen and wont skip over transparent pixels. So this will actually make it work like Sierra
-		if (!_addToFlag)
+		// but white and that won't matter because the screen is supposed to be already white. It seems that most (if not all)
+		// SCI1.1 games use color 0 as transparency and SCI1 games use color 255 as transparency. Sierra SCI seems to paint
+		// the whole data to screen and wont skip over transparent pixels. So this will actually make it work like Sierra.
+		// SCI32 doesn't use _addToFlag at all.
+		if (!_addToFlag && _resourceType != SCI_PICTURE_TYPE_SCI32)
 			clearColor = _screen->getColorWhite();
 
-		byte drawMask = priority == 255 ? GFX_SCREEN_MASK_VISUAL : GFX_SCREEN_MASK_VISUAL | GFX_SCREEN_MASK_PRIORITY;
+		byte drawMask = priority > 15 ? GFX_SCREEN_MASK_VISUAL : GFX_SCREEN_MASK_VISUAL | GFX_SCREEN_MASK_PRIORITY;
 
 		ptr = celBitmap;
 		ptr += skipCelBitmapPixels;
@@ -410,7 +357,7 @@ void GfxPicture::drawCelData(byte *inbuffer, int size, int headerPos, int rlePos
 				curByte = *ptr++;
 				if ((curByte != clearColor) && (priority >= _screen->getPriority(x, y)))
 					_screen->putPixel(x, y, drawMask, curByte, priority, 0);
-			
+
 				if (x == leftX) {
 					ptr += sourcePixelSkipPerRow;
 					x = rightX;
@@ -443,6 +390,7 @@ enum {
 	PIC_OP_OPX = 0xfe,
 	PIC_OP_TERMINATE = 0xff
 };
+
 #define PIC_OP_FIRST PIC_OP_SET_COLOR
 
 enum {
@@ -464,6 +412,47 @@ enum {
 	PIC_OPX_VGA_PRIORITY_TABLE_EQDIST = 3,
 	PIC_OPX_VGA_PRIORITY_TABLE_EXPLICIT = 4
 };
+
+#ifdef DEBUG_PICTURE_DRAW
+const char *picOpcodeNames[] = {
+	"Set color",
+	"Disable visual",
+	"Set priority",
+	"Disable priority",
+	"Short patterns",
+	"Medium lines",
+	"Long lines",
+	"Short lines",
+	"Fill",
+	"Set pattern",
+	"Absolute pattern",
+	"Set control",
+	"Disable control",
+	"Medium patterns",
+	"Extended opcode",
+	"Terminate"
+};
+
+const char *picExOpcodeNamesEGA[] = {
+	"Set palette entries",
+	"Set palette",
+	"Mono0",
+	"Mono1",
+	"Mono2",
+	"Mono3",
+	"Mono4",
+	"Embedded view",
+	"Set priority table"
+};
+
+const char *picExOpcodeNamesVGA[] = {
+	"Set palette entries",
+	"Embedded view",
+	"Set palette",
+	"Set priority table (eqdist)",
+	"Set priority table (explicit)"
+};
+#endif
 
 #define PIC_EGAPALETTE_COUNT 4
 #define PIC_EGAPALETTE_SIZE  40
@@ -517,14 +506,16 @@ void GfxPicture::drawVectorData(byte *data, int dataSize) {
 		memcpy(&EGApriority, &vector_defaultEGApriority, sizeof(vector_defaultEGApriority));
 
 		if (g_sci->getGameId() == GID_ICEMAN) {
-			// WORKAROUND: we remove certain visual&priority lines in underwater rooms of iceman, when not dithering the
-			//              picture. Normally those lines aren't shown, because they share the same color as the dithered
-			//              fill color combination. When not dithering, those lines would appear and get distracting.
-			if ((_screen->getUnditherState()) && ((_resourceId >= 53 && _resourceId <= 58) || (_resourceId == 61)))
+			// WORKAROUND: we remove certain visual&priority lines in underwater
+			// rooms of iceman, when not dithering the picture. Normally those
+			// lines aren't shown, because they share the same color as the
+			// dithered fill color combination. When not dithering, those lines
+			// would appear and get distracting.
+			if ((_screen->isUnditheringEnabled()) && ((_resourceId >= 53 && _resourceId <= 58) || (_resourceId == 61)))
 				icemanDrawFix = true;
 		}
 		if (g_sci->getGameId() == GID_KQ5) {
-			// WORKAROUND: ignore the seemingly broken priority of picture 48 
+			// WORKAROUND: ignore the seemingly broken priority of picture 48
 			// (island overview). Fixes bug #3041044.
 			if (_resourceId == 48)
 				ignoreBrokenPriority = true;
@@ -543,7 +534,9 @@ void GfxPicture::drawVectorData(byte *data, int dataSize) {
 
 	// Drawing
 	while (curPos < dataSize) {
-		//warning("%X at %d", data[curPos], curPos);
+#ifdef DEBUG_PICTURE_DRAW
+		debug("Picture op: %X (%s) at %d", data[curPos], picOpcodeNames[data[curPos] - 0xF0], curPos);
+#endif
 		switch (pic_op = data[curPos++]) {
 		case PIC_OP_SET_COLOR:
 			pic_color = data[curPos++];
@@ -558,7 +551,7 @@ void GfxPicture::drawVectorData(byte *data, int dataSize) {
 
 		case PIC_OP_SET_PRIORITY:
 			pic_priority = data[curPos++] & 0x0F;
-			if (isEGA) 
+			if (isEGA)
 				pic_priority = EGApriority[pic_priority];
 			if (ignoreBrokenPriority)
 				pic_priority = 255;
@@ -624,14 +617,17 @@ void GfxPicture::drawVectorData(byte *data, int dataSize) {
 			}
 			break;
 
-		// Pattern opcodes are handled in sierra sci1.1+ as actual NOPs and normally they definitely should not occur
-		//  inside picture data for such games
+		// Pattern opcodes are handled in sierra sci1.1+ as actual NOPs and
+		// normally they definitely should not occur inside picture data for
+		// such games.
 		case PIC_OP_SET_PATTERN:
 			if (_resourceType >= SCI_PICTURE_TYPE_SCI11) {
 				if (g_sci->getGameId() == GID_SQ4) {
-					// WORKAROUND: For SQ4 / for some pictures handle this like a terminator
-					//  This picture includes garbage data, first a set pattern w/o parameter and then short pattern
-					//  I guess that garbage is a left over from the sq4-floppy (sci1) to sq4-cd (sci1.1) conversion
+					// WORKAROUND: For SQ4 / for some pictures handle this like
+					// a terminator. This picture includes garbage data, first a
+					// set pattern w/o parameter and then short pattern. I guess
+					// that garbage is a left over from the sq4-floppy (sci1) to
+					// sq4-cd (sci1.1) conversion.
 					switch (_resourceId) {
 					case 35:
 					case 381:
@@ -681,6 +677,9 @@ void GfxPicture::drawVectorData(byte *data, int dataSize) {
 
 		case PIC_OP_OPX: // Extended functions
 			if (isEGA) {
+#ifdef DEBUG_PICTURE_DRAW
+				debug("* Picture ex op: %X (%s) at %d", data[curPos], picExOpcodeNamesEGA[data[curPos]], curPos);
+#endif
 				switch (pic_op = data[curPos++]) {
 				case PIC_OPX_EGA_SET_PALETTE_ENTRIES:
 					while (vectorIsNonOpcode(data[curPos])) {
@@ -726,6 +725,9 @@ void GfxPicture::drawVectorData(byte *data, int dataSize) {
 					error("Unsupported sci1 extended pic-operation %X", pic_op);
 				}
 			} else {
+#ifdef DEBUG_PICTURE_DRAW
+				debug("* Picture ex op: %X (%s) at %d", data[curPos], picExOpcodeNamesVGA[data[curPos]], curPos);
+#endif
 				switch (pic_op = data[curPos++]) {
 				case PIC_OPX_VGA_SET_PALETTE_ENTRIES:
 					while (vectorIsNonOpcode(data[curPos])) {
@@ -733,7 +735,7 @@ void GfxPicture::drawVectorData(byte *data, int dataSize) {
 					}
 					break;
 				case PIC_OPX_VGA_SET_PALETTE:
-					if (_resMan->isAmiga32color()) {
+					if (_resMan->getViewType() == kViewAmiga || _resMan->getViewType() == kViewAmiga64) {
 						if ((data[curPos] == 0x00) && (data[curPos + 1] == 0x01) && ((data[curPos + 32] & 0xF0) != 0xF0)) {
 							// Left-Over VGA palette, we simply ignore it
 							curPos += 256 + 4 + 1024;
@@ -780,7 +782,7 @@ void GfxPicture::drawVectorData(byte *data, int dataSize) {
 				case GID_SQ3:
 					switch (_resourceId) {
 					case 154: // SQ3: intro, ship gets sucked in
-						_screen->ditherForceMemorial(0xD0);
+						_screen->ditherForceDitheredColor(0xD0);
 						break;
 					default:
 						break;
@@ -857,7 +859,8 @@ void GfxPicture::vectorGetPatternTexture(byte *data, int &curPos, int16 pattern_
 	}
 }
 
-// Do not replace w/ some generic code. This algo really needs to behave exactly as the one from sierra
+// WARNING: Do not replace the following code with something else, like generic
+// code. This algo really needs to behave exactly as the one from sierra.
 void GfxPicture::vectorFloodFill(int16 x, int16 y, byte color, byte priority, byte control) {
 	Port *curPort = _ports->getPort();
 	Common::Stack<Common::Point> stack;
@@ -866,6 +869,8 @@ void GfxPicture::vectorFloodFill(int16 x, int16 y, byte color, byte priority, by
 	byte matchedMask, matchMask;
 	int16 w, e, a_set, b_set;
 
+	bool isEGA = (_resMan->getViewType() == kViewEga);
+
 	p.x = x + curPort->left;
 	p.y = y + curPort->top;
 	stack.push(p);
@@ -873,6 +878,18 @@ void GfxPicture::vectorFloodFill(int16 x, int16 y, byte color, byte priority, by
 	byte searchColor = _screen->getVisual(p.x, p.y);
 	byte searchPriority = _screen->getPriority(p.x, p.y);
 	byte searchControl = _screen->getControl(p.x, p.y);
+
+	if (isEGA) {
+		// In EGA games a pixel in the framebuffer is only 4 bits. We store
+		// a full byte per pixel to allow undithering, but when comparing
+		// pixels for flood-fill purposes, we should only compare the
+		// visible color of a pixel.
+
+		if ((x ^ y) & 1)
+			searchColor = (searchColor ^ (searchColor >> 4)) & 0x0F;
+		else
+			searchColor = searchColor & 0x0F;
+	}
 
 	// This logic was taken directly from sierra sci, floodfill will get aborted on various occations
 	if (screenMask & GFX_SCREEN_MASK_VISUAL) {
@@ -913,20 +930,20 @@ void GfxPicture::vectorFloodFill(int16 x, int16 y, byte color, byte priority, by
 	int b = curPort->rect.bottom + curPort->top - 1;
 	while (stack.size()) {
 		p = stack.pop();
-		if ((matchedMask = _screen->isFillMatch(p.x, p.y, matchMask, searchColor, searchPriority, searchControl)) == 0) // already filled
+		if ((matchedMask = _screen->isFillMatch(p.x, p.y, matchMask, searchColor, searchPriority, searchControl, isEGA)) == 0) // already filled
 			continue;
 		_screen->putPixel(p.x, p.y, screenMask, color, priority, control);
 		w = p.x;
 		e = p.x;
 		// moving west and east pointers as long as there is a matching color to fill
-		while (w > l && (matchedMask = _screen->isFillMatch(w - 1, p.y, matchMask, searchColor, searchPriority, searchControl)))
+		while (w > l && (matchedMask = _screen->isFillMatch(w - 1, p.y, matchMask, searchColor, searchPriority, searchControl, isEGA)))
 			_screen->putPixel(--w, p.y, screenMask, color, priority, control);
-		while (e < r && (matchedMask = _screen->isFillMatch(e + 1, p.y, matchMask, searchColor, searchPriority, searchControl)))
+		while (e < r && (matchedMask = _screen->isFillMatch(e + 1, p.y, matchMask, searchColor, searchPriority, searchControl, isEGA)))
 			_screen->putPixel(++e, p.y, screenMask, color, priority, control);
 		// checking lines above and below for possible flood targets
 		a_set = b_set = 0;
 		while (w <= e) {
-			if (p.y > t && (matchedMask = _screen->isFillMatch(w, p.y - 1, matchMask, searchColor, searchPriority, searchControl))) { // one line above
+			if (p.y > t && (matchedMask = _screen->isFillMatch(w, p.y - 1, matchMask, searchColor, searchPriority, searchControl, isEGA))) { // one line above
 				if (a_set == 0) {
 					p1.x = w;
 					p1.y = p.y - 1;
@@ -936,7 +953,7 @@ void GfxPicture::vectorFloodFill(int16 x, int16 y, byte color, byte priority, by
 			} else
 				a_set = 0;
 
-			if (p.y < b && (matchedMask = _screen->isFillMatch(w, p.y + 1, matchMask, searchColor, searchPriority, searchControl))) { // one line below
+			if (p.y < b && (matchedMask = _screen->isFillMatch(w, p.y + 1, matchMask, searchColor, searchPriority, searchControl, isEGA))) { // one line below
 				if (b_set == 0) {
 					p1.x = w;
 					p1.y = p.y + 1;

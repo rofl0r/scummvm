@@ -18,18 +18,35 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
- * $URL$
- * $Id$
- *
  */
 
 #if defined(__ANDROID__)
 
+// Allow use of stuff in <time.h>
+#define FORBIDDEN_SYMBOL_EXCEPTION_time_h
+
+// Disable printf override in common/forbidden.h to avoid
+// clashes with log.h from the Android SDK.
+// That header file uses
+//   __attribute__ ((format(printf, 3, 4)))
+// which gets messed up by our override mechanism; this could
+// be avoided by either changing the Android SDK to use the equally
+// legal and valid
+//   __attribute__ ((format(printf, 3, 4)))
+// or by refining our printf override to use a varadic macro
+// (which then wouldn't be portable, though).
+// Anyway, for now we just disable the printf override globally
+// for the Android port
+#define FORBIDDEN_SYMBOL_EXCEPTION_printf
+
 #include <sys/time.h>
+#include <sys/resource.h>
+#include <sys/system_properties.h>
 #include <time.h>
 #include <unistd.h>
 
 #include "common/util.h"
+#include "common/textconsole.h"
 #include "common/rect.h"
 #include "common/queue.h"
 #include "common/mutex.h"
@@ -54,7 +71,8 @@ extern "C" {
 								 expr, file, line);
 	}
 
-	void __assert2(const char *file, int line, const char *func, const char *expr) {
+	void __assert2(const char *file, int line, const char *func,
+					const char *expr) {
 		__android_log_assert(expr, android_log_tag,
 								"Assertion failure: '%s' in %s:%d (%s)",
 								 expr, file, line, func);
@@ -92,61 +110,226 @@ void checkGlError(const char *expr, const char *file, int line) {
 }
 #endif
 
-// floating point. use sparingly
-template <class T>
-static inline T scalef(T in, float numerator, float denominator) {
-	return static_cast<float>(in) * numerator / denominator;
-}
-
-OSystem_Android::OSystem_Android() :
+OSystem_Android::OSystem_Android(int audio_sample_rate, int audio_buffer_size) :
+	_audio_sample_rate(audio_sample_rate),
+	_audio_buffer_size(audio_buffer_size),
 	_screen_changeid(0),
+	_egl_surface_width(0),
+	_egl_surface_height(0),
+	_htc_fail(false),
 	_force_redraw(false),
 	_game_texture(0),
 	_overlay_texture(0),
 	_mouse_texture(0),
+	_mouse_texture_palette(0),
+	_mouse_texture_rgb(0),
+	_mouse_hotspot(),
+	_mouse_keycolor(0),
 	_use_mouse_palette(false),
+	_graphicsMode(0),
+	_fullscreen(true),
+	_ar_correction(true),
 	_show_mouse(false),
 	_show_overlay(false),
 	_enable_zoning(false),
-	_savefile(0),
 	_mixer(0),
-	_timer(0),
-	_fsFactory(new POSIXFilesystemFactory()),
 	_shake_offset(0),
-	_event_queue_lock(createMutex()) {
+	_event_queue_lock(createMutex()),
+	_touch_pt_down(),
+	_touch_pt_scroll(),
+	_touch_pt_dt(),
+	_eventScaleX(100),
+	_eventScaleY(100),
+	// TODO put these values in some option dlg?
+	_touchpad_mode(true),
+	_touchpad_scale(66),
+	_dpad_scale(4),
+	_fingersDown(0),
+	_trackball_scale(2) {
+
+	_fsFactory = new POSIXFilesystemFactory();
+
+	Common::String mf = getSystemProperty("ro.product.manufacturer");
+
+	LOGI("Running on: [%s] [%s] [%s] [%s] [%s] SDK:%s ABI:%s",
+			mf.c_str(),
+			getSystemProperty("ro.product.model").c_str(),
+			getSystemProperty("ro.product.brand").c_str(),
+			getSystemProperty("ro.build.fingerprint").c_str(),
+			getSystemProperty("ro.build.display.id").c_str(),
+			getSystemProperty("ro.build.version.sdk").c_str(),
+			getSystemProperty("ro.product.cpu.abi").c_str());
+
+	mf.toLowercase();
+	_htc_fail = mf.contains("htc");
+
+	if (_htc_fail)
+		LOGI("Enabling HTC workaround");
 }
 
 OSystem_Android::~OSystem_Android() {
 	ENTER();
 
-	delete _game_texture;
-	delete _overlay_texture;
-	delete _mouse_texture;
-
-	JNI::destroySurface();
-
-	delete _savefile;
 	delete _mixer;
-	delete _timer;
+	_mixer = 0;
 	delete _fsFactory;
+	_fsFactory = 0;
 
 	deleteMutex(_event_queue_lock);
 }
 
 void *OSystem_Android::timerThreadFunc(void *arg) {
 	OSystem_Android *system = (OSystem_Android *)arg;
-	DefaultTimerManager *timer = (DefaultTimerManager *)(system->_timer);
+	DefaultTimerManager *timer = (DefaultTimerManager *)(system->_timerManager);
+
+	// renice this thread to boost the audio thread
+	if (setpriority(PRIO_PROCESS, 0, 19) < 0)
+		LOGW("couldn't renice the timer thread");
 
 	JNI::attachThread();
 
 	struct timespec tv;
 	tv.tv_sec = 0;
-	tv.tv_nsec = 100 * 1000 * 1000;	// 100ms
+	tv.tv_nsec = 10 * 1000 * 1000; // 10ms
 
 	while (!system->_timer_thread_exit) {
+		if (JNI::pause) {
+			LOGD("timer thread going to sleep");
+			sem_wait(&JNI::pause_sem);
+			LOGD("timer thread woke up");
+		}
+
 		timer->handler();
 		nanosleep(&tv, 0);
 	}
+
+	JNI::detachThread();
+
+	return 0;
+}
+
+void *OSystem_Android::audioThreadFunc(void *arg) {
+	JNI::attachThread();
+
+	OSystem_Android *system = (OSystem_Android *)arg;
+	Audio::MixerImpl *mixer = system->_mixer;
+
+	uint buf_size = system->_audio_buffer_size;
+
+	JNIEnv *env = JNI::getEnv();
+
+	jbyteArray bufa = env->NewByteArray(buf_size);
+
+	bool paused = true;
+
+	byte *buf;
+	int offset, left, written;
+	int samples, i;
+
+	struct timespec tv_delay;
+	tv_delay.tv_sec = 0;
+	tv_delay.tv_nsec = 20 * 1000 * 1000;
+
+	uint msecs_full = buf_size * 1000 / (mixer->getOutputRate() * 2 * 2);
+
+	struct timespec tv_full;
+	tv_full.tv_sec = 0;
+	tv_full.tv_nsec = msecs_full * 1000 * 1000;
+
+	bool silence;
+	uint silence_count = 33;
+
+	while (!system->_audio_thread_exit) {
+		if (JNI::pause) {
+			JNI::setAudioStop();
+
+			paused = true;
+			silence_count = 33;
+
+			LOGD("audio thread going to sleep");
+			sem_wait(&JNI::pause_sem);
+			LOGD("audio thread woke up");
+		}
+
+		buf = (byte *)env->GetPrimitiveArrayCritical(bufa, 0);
+		assert(buf);
+
+		samples = mixer->mixCallback(buf, buf_size);
+
+		silence = samples < 1;
+
+		// looks stupid, and it is, but currently there's no way to detect
+		// silence-only buffers from the mixer
+		if (!silence) {
+			silence = true;
+
+			for (i = 0; i < samples; i += 2)
+				// SID streams constant crap
+				if (READ_UINT16(buf + i) > 32) {
+					silence = false;
+					break;
+				}
+		}
+
+		env->ReleasePrimitiveArrayCritical(bufa, buf, 0);
+
+		if (silence) {
+			if (!paused)
+				silence_count++;
+
+			// only pause after a while to prevent toggle mania
+			if (silence_count > 32) {
+				if (!paused) {
+					LOGD("AudioTrack pause");
+
+					JNI::setAudioPause();
+					paused = true;
+				}
+
+				nanosleep(&tv_full, 0);
+
+				continue;
+			}
+		}
+
+		if (paused) {
+			LOGD("AudioTrack play");
+
+			JNI::setAudioPlay();
+			paused = false;
+
+			silence_count = 0;
+		}
+
+		offset = 0;
+		left = buf_size;
+		written = 0;
+
+		while (left > 0) {
+			written = JNI::writeAudio(env, bufa, offset, left);
+
+			if (written < 0) {
+				LOGE("AudioTrack error: %d", written);
+				break;
+			}
+
+			// buffer full
+			if (written < left)
+				nanosleep(&tv_delay, 0);
+
+			offset += written;
+			left -= written;
+		}
+
+		if (written < 0)
+			break;
+
+		// prepare the next buffer, and run into the blocking AudioTrack.write
+	}
+
+	JNI::setAudioStop();
+
+	env->DeleteLocalRef(bufa);
 
 	JNI::detachThread();
 
@@ -158,8 +341,16 @@ void OSystem_Android::initBackend() {
 
 	_main_thread = pthread_self();
 
+	ConfMan.registerDefault("fullscreen", true);
+	ConfMan.registerDefault("aspect_ratio", true);
+
 	ConfMan.setInt("autosave_period", 0);
-	ConfMan.setInt("FM_medium_quality", true);
+	ConfMan.setBool("FM_high_quality", false);
+	ConfMan.setBool("FM_medium_quality", true);
+
+	// TODO hackity hack
+	if (ConfMan.hasKey("multi_midi"))
+		_touchpad_mode = !ConfMan.getBool("multi_midi");
 
 	// must happen before creating TimerManager to avoid race in
 	// creating EventManager
@@ -168,22 +359,37 @@ void OSystem_Android::initBackend() {
 	// BUG: "transient" ConfMan settings get nuked by the options
 	// screen. Passing the savepath in this way makes it stick
 	// (via ConfMan.registerDefault)
-	_savefile = new DefaultSaveFileManager(ConfMan.get("savepath"));
-	_timer = new DefaultTimerManager();
+	_savefileManager = new DefaultSaveFileManager(ConfMan.get("savepath"));
+	_timerManager = new DefaultTimerManager();
 
 	gettimeofday(&_startTime, 0);
 
-	_mixer = new Audio::MixerImpl(this, JNI::getAudioSampleRate());
+	_mixer = new Audio::MixerImpl(this, _audio_sample_rate);
 	_mixer->setReady(true);
-
-	JNI::initBackend();
 
 	_timer_thread_exit = false;
 	pthread_create(&_timer_thread, 0, timerThreadFunc, this);
 
-	OSystem::initBackend();
+	_audio_thread_exit = false;
+	pthread_create(&_audio_thread, 0, audioThreadFunc, this);
 
-	setupSurface();
+	initSurface();
+	initViewport();
+
+	_game_texture = new GLESFakePalette565Texture();
+	_overlay_texture = new GLES4444Texture();
+	_mouse_texture_palette = new GLESFakePalette5551Texture();
+	_mouse_texture = _mouse_texture_palette;
+
+	initOverlay();
+
+	// renice this thread to boost the audio thread
+	if (setpriority(PRIO_PROCESS, 0, 19) < 0)
+		warning("couldn't renice the main thread");
+
+	JNI::setReadyForEvents(true);
+
+	EventsBaseBackend::initBackend();
 }
 
 void OSystem_Android::addPluginDirectories(Common::FSList &dirs) const {
@@ -193,7 +399,9 @@ void OSystem_Android::addPluginDirectories(Common::FSList &dirs) const {
 }
 
 bool OSystem_Android::hasFeature(Feature f) {
-	return (f == kFeatureCursorHasPalette ||
+	return (f == kFeatureFullscreenMode ||
+			f == kFeatureAspectRatioCorrection ||
+			f == kFeatureCursorPalette ||
 			f == kFeatureVirtualKeyboard ||
 			f == kFeatureOverlaySupportsAlpha);
 }
@@ -202,9 +410,22 @@ void OSystem_Android::setFeatureState(Feature f, bool enable) {
 	ENTER("%d, %d", f, enable);
 
 	switch (f) {
+	case kFeatureFullscreenMode:
+		_fullscreen = enable;
+		updateScreenRect();
+		break;
+	case kFeatureAspectRatioCorrection:
+		_ar_correction = enable;
+		updateScreenRect();
+		break;
 	case kFeatureVirtualKeyboard:
 		_virtkeybd_on = enable;
 		showVirtualKeyboard(enable);
+		break;
+	case kFeatureCursorPalette:
+		_use_mouse_palette = enable;
+		if (!enable)
+			disableCursorPalette();
 		break;
 	default:
 		break;
@@ -213,128 +434,17 @@ void OSystem_Android::setFeatureState(Feature f, bool enable) {
 
 bool OSystem_Android::getFeatureState(Feature f) {
 	switch (f) {
+	case kFeatureFullscreenMode:
+		return _fullscreen;
+	case kFeatureAspectRatioCorrection:
+		return _ar_correction;
 	case kFeatureVirtualKeyboard:
 		return _virtkeybd_on;
+	case kFeatureCursorPalette:
+		return _use_mouse_palette;
 	default:
 		return false;
 	}
-}
-
-void OSystem_Android::setupKeymapper() {
-#ifdef ENABLE_KEYMAPPER
-	using namespace Common;
-
-	Keymapper *mapper = getEventManager()->getKeymapper();
-
-	HardwareKeySet *keySet = new HardwareKeySet();
-
-	keySet->addHardwareKey(
-		new HardwareKey("n", KeyState(KEYCODE_n), "n (vk)",
-				kTriggerLeftKeyType,
-				kVirtualKeyboardActionType));
-
-	mapper->registerHardwareKeySet(keySet);
-
-	Keymap *globalMap = new Keymap("global");
-	Action *act;
-
-	act = new Action(globalMap, "VIRT", "Display keyboard",
-						kVirtualKeyboardActionType);
-	act->addKeyEvent(KeyState(KEYCODE_F7, ASCII_F7, 0));
-
-	mapper->addGlobalKeymap(globalMap);
-
-	mapper->pushKeymap("global");
-#endif
-}
-
-bool OSystem_Android::pollEvent(Common::Event &event) {
-	//ENTER();
-
-	lockMutex(_event_queue_lock);
-
-	if (_event_queue.empty()) {
-		unlockMutex(_event_queue_lock);
-		return false;
-	}
-
-	event = _event_queue.pop();
-	unlockMutex(_event_queue_lock);
-
-	switch (event.type) {
-	case Common::EVENT_MOUSEMOVE:
-		// TODO: only dirty/redraw move bounds
-		_force_redraw = true;
-		// fallthrough
-	case Common::EVENT_LBUTTONDOWN:
-	case Common::EVENT_LBUTTONUP:
-	case Common::EVENT_RBUTTONDOWN:
-	case Common::EVENT_RBUTTONUP:
-	case Common::EVENT_WHEELUP:
-	case Common::EVENT_WHEELDOWN:
-	case Common::EVENT_MBUTTONDOWN:
-	case Common::EVENT_MBUTTONUP: {
-		// relative mouse hack
-		if (event.kbd.flags == 1) {
-			// Relative (trackball) mouse hack.
-			const Common::Point& mouse_pos =
-				getEventManager()->getMousePos();
-			event.mouse.x += mouse_pos.x;
-			event.mouse.y += mouse_pos.y;
-			event.mouse.x = CLIP(event.mouse.x, (int16)0, _show_overlay ?
-									getOverlayWidth() : getWidth());
-			event.mouse.y = CLIP(event.mouse.y, (int16)0, _show_overlay ?
-									getOverlayHeight() : getHeight());
-		} else {
-			// Touchscreen events need to be converted
-			// from device to game coords first.
-			const GLESTexture *tex = _show_overlay
-				? static_cast<GLESTexture *>(_overlay_texture)
-				: static_cast<GLESTexture *>(_game_texture);
-			event.mouse.x = scalef(event.mouse.x, tex->width(),
-									_egl_surface_width);
-			event.mouse.y = scalef(event.mouse.y, tex->height(),
-									_egl_surface_height);
-			event.mouse.x -= _shake_offset;
-		}
-		break;
-	}
-	case Common::EVENT_SCREEN_CHANGED:
-		debug("EVENT_SCREEN_CHANGED");
-		_screen_changeid++;
-		JNI::destroySurface();
-		setupSurface();
-		break;
-	default:
-		break;
-	}
-
-	return true;
-}
-
-void OSystem_Android::pushEvent(const Common::Event& event) {
-	lockMutex(_event_queue_lock);
-
-	// Try to combine multiple queued mouse move events
-	if (event.type == Common::EVENT_MOUSEMOVE &&
-			!_event_queue.empty() &&
-			_event_queue.back().type == Common::EVENT_MOUSEMOVE) {
-		Common::Event tail = _event_queue.back();
-		if (event.kbd.flags) {
-			// relative movement hack
-			tail.mouse.x += event.mouse.x;
-			tail.mouse.y += event.mouse.y;
-		} else {
-			// absolute position, clear relative flag
-			tail.kbd.flags = 0;
-			tail.mouse.x = event.mouse.x;
-			tail.mouse.y = event.mouse.y;
-		}
-	} else {
-	  _event_queue.push(event);
-	}
-
-	unlockMutex(_event_queue_lock);
 }
 
 uint32 OSystem_Android::getMillis() {
@@ -342,7 +452,7 @@ uint32 OSystem_Android::getMillis() {
 
 	gettimeofday(&curTime, 0);
 
-	return (uint32)(((curTime.tv_sec - _startTime.tv_sec) * 1000) + \
+	return (uint32)(((curTime.tv_sec - _startTime.tv_sec) * 1000) +
 			((curTime.tv_usec - _startTime.tv_usec) / 1000));
 }
 
@@ -391,8 +501,20 @@ void OSystem_Android::deleteMutex(MutexRef mutex) {
 void OSystem_Android::quit() {
 	ENTER();
 
+	JNI::setReadyForEvents(false);
+
+	_audio_thread_exit = true;
+	pthread_join(_audio_thread, 0);
+
 	_timer_thread_exit = true;
 	pthread_join(_timer_thread, 0);
+
+	delete _game_texture;
+	delete _overlay_texture;
+	delete _mouse_texture_palette;
+	delete _mouse_texture_rgb;
+
+	deinitSurface();
 }
 
 void OSystem_Android::setWindowCaption(const char *caption) {
@@ -413,19 +535,9 @@ void OSystem_Android::showVirtualKeyboard(bool enable) {
 	JNI::showVirtualKeyboard(enable);
 }
 
-Common::SaveFileManager *OSystem_Android::getSavefileManager() {
-	assert(_savefile);
-	return _savefile;
-}
-
 Audio::Mixer *OSystem_Android::getMixer() {
 	assert(_mixer);
 	return _mixer;
-}
-
-Common::TimerManager *OSystem_Android::getTimerManager() {
-	assert(_timer);
-	return _timer;
 }
 
 void OSystem_Android::getTimeAndDate(TimeDate &td) const {
@@ -441,10 +553,6 @@ void OSystem_Android::getTimeAndDate(TimeDate &td) const {
 	td.tm_year = tm.tm_year;
 }
 
-FilesystemFactory *OSystem_Android::getFilesystemFactory() {
-	return _fsFactory;
-}
-
 void OSystem_Android::addSysArchivesToSearchSet(Common::SearchSet &s,
 												int priority) {
 	ENTER("");
@@ -452,8 +560,13 @@ void OSystem_Android::addSysArchivesToSearchSet(Common::SearchSet &s,
 	JNI::addSysArchivesToSearchSet(s, priority);
 }
 
-void OSystem_Android::logMessage(LogMessageType::Type type, const char *message) {
+void OSystem_Android::logMessage(LogMessageType::Type type,
+									const char *message) {
 	switch (type) {
+	case LogMessageType::kInfo:
+		__android_log_write(ANDROID_LOG_INFO, android_log_tag, message);
+		break;
+
 	case LogMessageType::kDebug:
 		__android_log_write(ANDROID_LOG_DEBUG, android_log_tag, message);
 		break;
@@ -466,6 +579,20 @@ void OSystem_Android::logMessage(LogMessageType::Type type, const char *message)
 		__android_log_write(ANDROID_LOG_ERROR, android_log_tag, message);
 		break;
 	}
+}
+
+Common::String OSystem_Android::getSystemLanguage() const {
+	return Common::String::format("%s_%s",
+							getSystemProperty("persist.sys.language").c_str(),
+							getSystemProperty("persist.sys.country").c_str());
+}
+
+Common::String OSystem_Android::getSystemProperty(const char *name) const {
+	char value[PROP_VALUE_MAX];
+
+	int len = __system_property_get(name, value);
+
+	return Common::String(value, len);
 }
 
 #ifdef DYNAMIC_MODULES

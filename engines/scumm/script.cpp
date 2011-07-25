@@ -18,9 +18,6 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
- * $URL$
- * $Id$
- *
  */
 
 #include "common/config-manager.h"
@@ -39,7 +36,7 @@ namespace Scumm {
 /* Start executing script 'script' with the given parameters */
 void ScummEngine::runScript(int script, bool freezeResistant, bool recursive, int *lvarptr, int cycle) {
 	ScriptSlot *s;
-	byte *scriptPtr;
+	//byte *scriptPtr;
 	uint32 scriptOffs;
 	byte scriptType;
 	int slot;
@@ -51,7 +48,8 @@ void ScummEngine::runScript(int script, bool freezeResistant, bool recursive, in
 		stopScript(script);
 
 	if (script < _numGlobalScripts) {
-		scriptPtr = getResourceAddress(rtScript, script);
+		// Call getResourceAddress to ensure the resource is loaded & its usage count reset
+		/*scriptPtr =*/ getResourceAddress(rtScript, script);
 		scriptOffs = _resourceHeaderSize;
 		scriptType = WIO_GLOBAL;
 
@@ -174,7 +172,7 @@ int ScummEngine::getVerbEntrypoint(int obj, int entry) {
 	else if (_game.features & GF_SMALL_HEADER)
 		verbptr = objptr + 19;
 	else
-		verbptr = findResource(MKID_BE('VERB'), objptr);
+		verbptr = findResource(MKTAG('V','E','R','B'), objptr);
 
 	assert(verbptr);
 
@@ -261,8 +259,7 @@ void ScummEngine::stopScript(int script) {
 /* Stop an object script 'script'*/
 void ScummEngine::stopObjectScript(int script) {
 	ScriptSlot *ss;
-	NestedScript *nest;
-	int i, num;
+	int i;
 
 	if (script == 0)
 		return;
@@ -282,19 +279,14 @@ void ScummEngine::stopObjectScript(int script) {
 		}
 	}
 
-	nest = vm.nest;
-	num = vm.numNestedScripts;
-
-	while (num > 0) {
-		if (nest->number == script &&
-				(nest->where == WIO_ROOM || nest->where == WIO_INVENTORY || nest->where == WIO_FLOBJECT)) {
-			nukeArrays(nest->slot);
-			nest->number = 0xFF;
-			nest->slot = 0xFF;
-			nest->where = 0xFF;
+	for (i = 0; i < vm.numNestedScripts; ++i) {
+		if (vm.nest[i].number == script &&
+				(vm.nest[i].where == WIO_ROOM || vm.nest[i].where == WIO_INVENTORY || vm.nest[i].where == WIO_FLOBJECT)) {
+			nukeArrays(vm.nest[i].slot);
+			vm.nest[i].number = 0xFF;
+			vm.nest[i].slot = 0xFF;
+			vm.nest[i].where = 0xFF;
 		}
-		nest++;
-		num--;
 	}
 }
 
@@ -319,6 +311,9 @@ void ScummEngine::runScriptNested(int script) {
 
 	updateScriptPtr();
 
+	if (vm.numNestedScripts >= kMaxScriptNesting)
+		error("Too many nested scripts");
+
 	nest = &vm.nest[vm.numNestedScripts];
 
 	if (_currentScript == 0xFF) {
@@ -333,9 +328,6 @@ void ScummEngine::runScriptNested(int script) {
 	}
 
 	vm.numNestedScripts++;
-
-	if (vm.numNestedScripts > ARRAYSIZE(vm.nest))
-		error("Too many nested scripts");
 
 	_currentScript = script;
 	getScriptBaseAddress();
@@ -399,26 +391,26 @@ void ScummEngine::getScriptBaseAddress() {
 				break;
 		_scriptOrgPointer = getResourceAddress(rtInventory, idx);
 		assert(idx < _numInventory);
-		_lastCodePtr = &_res->address[rtInventory][idx];
+		_lastCodePtr = &_res->_types[rtInventory][idx]._address;
 		break;
 
 	case WIO_LOCAL:
 	case WIO_ROOM:								/* room script */
 		if (_game.version == 8) {
 			_scriptOrgPointer = getResourceAddress(rtRoomScripts, _roomResource);
-			assert(_roomResource < _res->num[rtRoomScripts]);
-			_lastCodePtr = &_res->address[rtRoomScripts][_roomResource];
+			assert(_roomResource < (int)_res->_types[rtRoomScripts].size());
+			_lastCodePtr = &_res->_types[rtRoomScripts][_roomResource]._address;
 		} else {
 			_scriptOrgPointer = getResourceAddress(rtRoom, _roomResource);
 			assert(_roomResource < _numRooms);
-			_lastCodePtr = &_res->address[rtRoom][_roomResource];
+			_lastCodePtr = &_res->_types[rtRoom][_roomResource]._address;
 		}
 		break;
 
 	case WIO_GLOBAL:							/* global script */
 		_scriptOrgPointer = getResourceAddress(rtScript, ss->number);
 		assert(ss->number < _numScripts);
-		_lastCodePtr = &_res->address[rtScript][ss->number];
+		_lastCodePtr = &_res->_types[rtScript][ss->number]._address;
 		break;
 
 	case WIO_FLOBJECT:						/* flobject script */
@@ -427,7 +419,7 @@ void ScummEngine::getScriptBaseAddress() {
 		idx = _objs[idx].fl_object_index;
 		_scriptOrgPointer = getResourceAddress(rtFlObject, idx);
 		assert(idx < _numFlObject);
-		_lastCodePtr = &_res->address[rtFlObject][idx];
+		_lastCodePtr = &_res->_types[rtFlObject][idx]._address;
 		break;
 	default:
 		error("Bad type while getting base address");
@@ -454,7 +446,7 @@ void ScummEngine::resetScriptPointer() {
  * collected by ResourceManager::expireResources.
  */
 void ScummEngine::refreshScriptPointer() {
-	if (*_lastCodePtr + sizeof(MemBlkHeader) != _scriptOrgPointer) {
+	if (*_lastCodePtr != _scriptOrgPointer) {
 		long oldoffs = _scriptPointer - _scriptOrgPointer;
 		getScriptBaseAddress();
 		_scriptPointer = _scriptOrgPointer + oldoffs;
@@ -502,7 +494,11 @@ void ScummEngine::executeOpcode(byte i) {
 }
 
 const char *ScummEngine::getOpcodeDesc(byte i) {
+#ifndef REDUCE_MEMORY_USAGE
 	return _opcodes[i].desc;
+#else
+	return "";
+#endif
 }
 
 byte ScummEngine::fetchScriptByte() {
@@ -927,7 +923,7 @@ void ScummEngine::runExitScript() {
 		// be limiting ourselves to strictly reading the size from the header?
 		if (_game.id == GID_INDY3 && !(_game.features & GF_OLD_BUNDLE)) {
 			byte *roomptr = getResourceAddress(rtRoom, _roomResource);
-			const byte *excd = findResourceData(MKID_BE('EXCD'), roomptr) - _resourceHeaderSize;
+			const byte *excd = findResourceData(MKTAG('E','X','C','D'), roomptr) - _resourceHeaderSize;
 			if (!excd || (getResourceDataSize(excd) < 1)) {
 				debug(2, "Exit-%d is empty", _roomResource);
 				return;
@@ -1108,7 +1104,7 @@ void ScummEngine::checkAndRunSentenceScript() {
 			// For now we assume that if there are more than 460 scripts, then
 			// the pair 29/104 is used, else the pair 28/103.
 
-			if (_res->num[rtScript] > 460) {
+			if (_res->_types[rtScript].size() > 460) {
 				if (sentenceScript == 104)
 					sentenceScript = 29;
 			} else {
@@ -1283,7 +1279,8 @@ void ScummEngine::beginCutscene(int *args) {
 	int scr = _currentScript;
 	vm.slot[scr].cutsceneOverride++;
 
-	if (++vm.cutSceneStackPointer > ARRAYSIZE(vm.cutSceneData))
+	++vm.cutSceneStackPointer;
+	if (vm.cutSceneStackPointer >= kMaxCutsceneNum)
 		error("Cutscene stack overflow");
 
 	vm.cutSceneData[vm.cutSceneStackPointer] = args[0];
@@ -1313,6 +1310,9 @@ void ScummEngine::endCutscene() {
 
 	vm.cutSceneScript[vm.cutSceneStackPointer] = 0;
 	vm.cutScenePtr[vm.cutSceneStackPointer] = 0;
+
+	if (0 == vm.cutSceneStackPointer)
+		error("Cutscene stack underflow");
 	vm.cutSceneStackPointer--;
 
 	if (VAR(VAR_CUTSCENE_END_SCRIPT))
@@ -1321,7 +1321,7 @@ void ScummEngine::endCutscene() {
 
 void ScummEngine::abortCutscene() {
 	const int idx = vm.cutSceneStackPointer;
-	assert(0 <= idx && idx < 5);
+	assert(0 <= idx && idx < kMaxCutsceneNum);
 
 	uint32 offs = vm.cutScenePtr[idx];
 	if (offs) {
@@ -1340,7 +1340,7 @@ void ScummEngine::abortCutscene() {
 
 void ScummEngine::beginOverride() {
 	const int idx = vm.cutSceneStackPointer;
-	assert(0 <= idx && idx < 5);
+	assert(0 <= idx && idx < kMaxCutsceneNum);
 
 	vm.cutScenePtr[idx] = _scriptPointer - _scriptOrgPointer;
 	vm.cutSceneScript[idx] = _currentScript;
@@ -1357,7 +1357,7 @@ void ScummEngine::beginOverride() {
 
 void ScummEngine::endOverride() {
 	const int idx = vm.cutSceneStackPointer;
-	assert(0 <= idx && idx < 5);
+	assert(0 <= idx && idx < kMaxCutsceneNum);
 
 	vm.cutScenePtr[idx] = 0;
 	vm.cutSceneScript[idx] = 0;

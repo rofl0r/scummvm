@@ -18,9 +18,6 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
- * $URL$
- * $Id$
- *
  */
 
 /*
@@ -30,7 +27,9 @@
  *
  */
 
+#include "common/debug.h"
 #include "common/system.h"
+#include "common/textconsole.h"
 
 #include "hugo/hugo.h"
 #include "hugo/file.h"
@@ -137,7 +136,7 @@ void FileManager_v2d::readOverlay(const int screenNum, image_pt image, ovl_t ove
 		break;
 	}
 	if (i == 0) {
-		memset(image, 0, sizeof(image));
+		memset(image, 0, kOvlSize);
 		return;
 	}
 
@@ -167,10 +166,10 @@ const char *FileManager_v2d::fetchString(const int index) {
 
 	// Get offset to string[index] (and next for length calculation)
 	_stringArchive.seek((uint32)index * sizeof(uint32), SEEK_SET);
-	uint32 off1, off2;
-	if (_stringArchive.read((char *)&off1, sizeof(uint32)) == 0)
-		error("An error has occurred: bad String offset");
-	if (_stringArchive.read((char *)&off2, sizeof(uint32)) == 0)
+
+	uint32 off1 = _stringArchive.readUint32LE();
+	uint32 off2 = _stringArchive.readUint32LE();
+	if (!off1 || !off2)
 		error("An error has occurred: bad String offset");
 
 	// Check size of string

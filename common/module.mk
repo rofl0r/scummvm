@@ -17,7 +17,7 @@ MODULE_OBJS := \
 	memorypool.o \
 	md5.o \
 	mutex.o \
-	ne_exe.o \
+	quicktime.o \
 	random.o \
 	rational.o \
 	str.o \
@@ -29,8 +29,22 @@ MODULE_OBJS := \
 	unarj.o \
 	unzip.o \
 	util.o \
+	winexe.o \
+	winexe_ne.o \
+	winexe_pe.o \
 	xmlparser.o \
 	zlib.o
+
+ifdef USE_BINK
+MODULE_OBJS += \
+	bitstream.o \
+	cosinetables.o \
+	dct.o \
+	fft.o \
+	huffman.o \
+	rdft.o \
+	sinetables.o
+endif
 
 # Include common rules
 include $(srcdir)/rules.mk

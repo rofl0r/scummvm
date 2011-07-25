@@ -19,6 +19,8 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  */
 
+#define FORBIDDEN_SYMBOL_EXCEPTION_printf
+
 #include <unistd.h>
 #include <malloc.h>
 
@@ -33,6 +35,7 @@
 #endif
 
 #include "common/config-manager.h"
+#include "backends/timer/default/default-timer.h"
 
 #define TIMER_THREAD_STACKSIZE (1024 * 32)
 #define TIMER_THREAD_PRIO 64

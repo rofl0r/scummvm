@@ -18,14 +18,12 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
- * $URL$
- * $Id$
- *
  */
 
 #include "common/system.h"	// for setFocusRectangle/clearFocusRectangle
 #include "scumm/scumm.h"
 #include "scumm/actor.h"
+#include "scumm/actor_he.h"
 #include "scumm/akos.h"
 #include "scumm/boxes.h"
 #include "scumm/charset.h"
@@ -75,7 +73,7 @@ void ActorHE::initActor(int mode) {
 	if (_vm->_game.heversion >= 61)
 		_flip = 0;
 
-	_clipOverride = _vm->_actorClipOverride;
+	_clipOverride = ((ScummEngine_v60he *)_vm)->_actorClipOverride;
 
 	_auxBlock.reset();
 }
@@ -176,9 +174,21 @@ void Actor::setBox(int box) {
 }
 
 void Actor_v3::setupActorScale() {
-	// TODO: The following could probably be removed
-	_scalex = 0xFF;
-	_scaley = 0xFF;
+	// WORKAROUND bug #1463598: Under certain circumstances, it is possible
+	// for Henry Sr. to reach the front side of Castle Brunwald (following
+	// Indy there). But it seems the game has no small costume for Henry,
+	// hence he is shown as a giant, triple in size compared to Indy.
+	// To workaround this, we override the scale of Henry. Since V3 games
+	// like Indy3 don't use the costume scale otherwise, this works fine.
+	// The scale factor 0x50 was determined by some guess work.
+	if (_number == 2 && _costume == 7 && _vm->_game.id == GID_INDY3 && _vm->_currentRoom == 12) {
+		_scalex = 0x50;
+		_scaley = 0x50;
+	} else {
+		// TODO: The following could probably be removed
+		_scalex = 0xFF;
+		_scaley = 0xFF;
+	}
 }
 
 void Actor::setupActorScale() {
@@ -241,7 +251,7 @@ void Actor::setActorWalkSpeed(uint newSpeedX, uint newSpeedY) {
 int getAngleFromPos(int x, int y, bool useATAN) {
 	if (useATAN) {
 		double temp = atan2((double)x, (double)-y);
-		return normalizeAngle((int)(temp * 180 / PI));
+		return normalizeAngle((int)(temp * 180 / M_PI));
 	} else {
 		if (ABS(y) * 2 < ABS(x)) {
 			if (x > 0)
@@ -1056,7 +1066,7 @@ static int checkXYInBoxBounds(int boxnum, int x, int y, int &destX, int &destY) 
 	int dist;
 
 	// MM C64: This fixes the trunk bug (#3070065), as well
-	// as the fruit bowl, however im not sure if its 
+	// as the fruit bowl, however im not sure if its
 	// the proper solution or not.
 	if( g_scumm->_game.version == 0 )
 		yDist = ABS(y - destY);
@@ -1852,8 +1862,8 @@ void Actor::animateLimb(int limb, int f) {
 		byte *akos = _vm->getResourceAddress(rtCostume, _costume);
 		assert(akos);
 
-		aksq = _vm->findResourceData(MKID_BE('AKSQ'), akos);
-		akfo = _vm->findResourceData(MKID_BE('AKFO'), akos);
+		aksq = _vm->findResourceData(MKTAG('A','K','S','Q'), akos);
+		akfo = _vm->findResourceData(MKTAG('A','K','F','O'), akos);
 
 		size = _vm->getResourceDataSize(akfo) / 2;
 
@@ -2373,7 +2383,7 @@ void Actor::remapActorPaletteColor(int color, int new_color) {
 		return;
 	}
 
-	akpl = _vm->findResourceData(MKID_BE('AKPL'), akos);
+	akpl = _vm->findResourceData(MKTAG('A','K','P','L'), akos);
 	if (!akpl) {
 		debugC(DEBUG_ACTORS, "Actor::remapActorPaletteColor: Can't remap actor %d, costume %d doesn't contain an AKPL block", _number, _costume);
 		return;
@@ -2408,7 +2418,7 @@ void Actor::remapActorPalette(int r_fact, int g_fact, int b_fact, int threshold)
 		return;
 	}
 
-	akpl = _vm->findResourceData(MKID_BE('AKPL'), akos);
+	akpl = _vm->findResourceData(MKTAG('A','K','P','L'), akos);
 	if (!akpl) {
 		debugC(DEBUG_ACTORS, "Actor::remapActorPalette: Can't remap actor %d, costume %d doesn't contain an AKPL block", _number, _costume);
 		return;
@@ -2417,7 +2427,7 @@ void Actor::remapActorPalette(int r_fact, int g_fact, int b_fact, int threshold)
 	// Get the number palette entries
 	akpl_size = _vm->getResourceDataSize(akpl);
 
-	rgbs = _vm->findResourceData(MKID_BE('RGBS'), akos);
+	rgbs = _vm->findResourceData(MKTAG('R','G','B','S'), akos);
 
 	if (!rgbs) {
 		debugC(DEBUG_ACTORS, "Actor::remapActorPalette: Can't remap actor %d costume %d doesn't contain an RGB block", _number, _costume);
@@ -2534,19 +2544,19 @@ void ScummEngine_v71he::postProcessAuxQueue() {
 				if (_game.heversion >= 72)
 					dy -= a->getElevation();
 
-				const uint8 *akax = findResource(MKID_BE('AKAX'), cost);
+				const uint8 *akax = findResource(MKTAG('A','K','A','X'), cost);
 				assert(akax);
 				const uint8 *auxd = findPalInPals(akax, ae->subIndex) - _resourceHeaderSize;
 				assert(auxd);
-				const uint8 *frel = findResourceData(MKID_BE('FREL'), auxd);
+				const uint8 *frel = findResourceData(MKTAG('F','R','E','L'), auxd);
 				if (frel) {
 					error("unhandled FREL block");
 				}
-				const uint8 *disp = findResourceData(MKID_BE('DISP'), auxd);
+				const uint8 *disp = findResourceData(MKTAG('D','I','S','P'), auxd);
 				if (disp) {
 					error("unhandled DISP block");
 				}
-				const uint8 *axfd = findResourceData(MKID_BE('AXFD'), auxd);
+				const uint8 *axfd = findResourceData(MKTAG('A','X','F','D'), auxd);
 				assert(axfd);
 
 				uint16 comp = READ_LE_UINT16(axfd);
@@ -2566,7 +2576,7 @@ void ScummEngine_v71he::postProcessAuxQueue() {
 						error("unimplemented compression type %d", comp);
 					}
 				}
-				const uint8 *axur = findResourceData(MKID_BE('AXUR'), auxd);
+				const uint8 *axur = findResourceData(MKTAG('A','X','U','R'), auxd);
 				if (axur) {
 					uint16 n = READ_LE_UINT16(axur); axur += 2;
 					while (n--) {
@@ -2578,7 +2588,7 @@ void ScummEngine_v71he::postProcessAuxQueue() {
 						axur += 8;
 					}
 				}
-				const uint8 *axer = findResourceData(MKID_BE('AXER'), auxd);
+				const uint8 *axer = findResourceData(MKTAG('A','X','E','R'), auxd);
 				if (axer) {
 					a->_auxBlock.visible  = true;
 					a->_auxBlock.r.left   = (int16)READ_LE_UINT16(axer + 0) + dx;
@@ -2737,7 +2747,7 @@ void Actor::saveLoadWithSerializer(Serializer *ser) {
 
 	if (ser->isLoading()) {
 		// Not all actor data is saved; so when loading, we first reset
-		// the actor, to ensure completely reproducible behaviour (else,
+		// the actor, to ensure completely reproducible behavior (else,
 		// some not saved value in the actor class can cause odd things)
 		initActor(-1);
 	}

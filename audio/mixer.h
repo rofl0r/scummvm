@@ -18,29 +18,19 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
- * $URL$
- * $Id$
- *
  */
 
 #ifndef SOUND_MIXER_H
 #define SOUND_MIXER_H
 
 #include "common/types.h"
-#include "common/mutex.h"
 #include "common/noncopyable.h"
-
-#include "audio/timestamp.h"
-
-class OSystem;
-
 
 namespace Audio {
 
 class AudioStream;
 class Channel;
-class Mixer;
-class MixerImpl;
+class Timestamp;
 
 /**
  * A SoundHandle instances corresponds to a specific sound
@@ -197,6 +187,20 @@ public:
 	virtual bool isSoundHandleActive(SoundHandle handle) = 0;
 
 
+	/**
+	 * Set the mute state for a given sound type.
+	 *
+	 * @param type the sound type
+	 * @param mute Whether to mute (= true) or not (= false).
+	 */
+	virtual void muteSoundType(SoundType type, bool mute) = 0;
+
+	/**
+	 * Query the mute state for a given sound type.
+	 *
+	 * @param type the sound type
+	 */
+	virtual bool isSoundTypeMuted(SoundType type) const = 0;
 
 	/**
 	 * Set the channel volume for the given handle.
@@ -207,6 +211,14 @@ public:
 	virtual void setChannelVolume(SoundHandle handle, byte volume) = 0;
 
 	/**
+	 * Get the channel volume for the given handle.
+	 *
+	 * @param handle the sound to affect
+	 * @return channel volume
+	 */
+	virtual byte getChannelVolume(SoundHandle handle) = 0;
+
+	/**
 	 * Set the channel balance for the given handle.
 	 *
 	 * @param handle the sound to affect
@@ -214,6 +226,14 @@ public:
 	 *        (-127 ... 0 ... 127) corresponds to (left ... center ... right)
 	 */
 	virtual void setChannelBalance(SoundHandle handle, int8 balance) = 0;
+
+	/**
+	 * Get the channel balance for the given handle.
+	 *
+	 * @param handle the sound to affect
+	 * @return channel balance
+	 */
+	virtual int8 getChannelBalance(SoundHandle handle) = 0;
 
 	/**
 	 * Get approximation of for how long the channel has been playing.

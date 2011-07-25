@@ -18,24 +18,33 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
- * $URL$
- * $Id$
- *
  */
 
 #include "mohawk/resource.h"
 #include "mohawk/graphics.h"
-#include "mohawk/myst.h"
-#include "mohawk/riven.h"
 #include "mohawk/livingbooks.h"
-#include "mohawk/cstime.h"
 #include "mohawk/zoombini.h"
 
 #include "common/substream.h"
+#include "common/system.h"
+#include "common/textconsole.h"
 #include "engines/util.h"
-#include "graphics/jpeg.h"
+#include "graphics/palette.h"
 #include "graphics/primitives.h"
 #include "gui/message.h"
+
+#ifdef ENABLE_CSTIME
+#include "mohawk/cstime.h"
+#endif
+
+#ifdef ENABLE_MYST
+#include "mohawk/myst.h"
+#include "graphics/jpeg.h"
+#endif
+
+#ifdef ENABLE_RIVEN
+#include "mohawk/riven.h"
+#endif
 
 namespace Mohawk {
 
@@ -62,14 +71,14 @@ MohawkSurface::~MohawkSurface() {
 void MohawkSurface::convertToTrueColor() {
 	assert(_surface);
 
-	if (_surface->bytesPerPixel > 1)
+	if (_surface->format.bytesPerPixel > 1)
 		return;
 
 	assert(_palette);
 
 	Graphics::PixelFormat pixelFormat = g_system->getScreenFormat();
 	Graphics::Surface *surface = new Graphics::Surface();
-	surface->create(_surface->w, _surface->h, pixelFormat.bytesPerPixel);
+	surface->create(_surface->w, _surface->h, pixelFormat);
 
 	for (uint16 i = 0; i < _surface->h; i++) {
 		for (uint16 j = 0; j < _surface->w; j++) {
@@ -247,6 +256,15 @@ void GraphicsManager::copyAnimImageSectionToScreen(MohawkSurface *image, Common:
 	getVM()->_system->unlockScreen();
 }
 
+void GraphicsManager::addImageToCache(uint16 id, MohawkSurface *surface) {
+	if (_cache.contains(id))
+		error("Image %d already in cache", id);
+
+	_cache[id] = surface;
+}
+
+#ifdef ENABLE_MYST
+
 MystGraphics::MystGraphics(MohawkEngine_Myst* vm) : GraphicsManager(), _vm(vm) {
 	_bmpDecoder = new MystBitmap();
 
@@ -275,7 +293,10 @@ MystGraphics::MystGraphics(MohawkEngine_Myst* vm) : GraphicsManager(), _vm(vm) {
 
 	// Initialize our buffer
 	_backBuffer = new Graphics::Surface();
-	_backBuffer->create(_vm->_system->getWidth(), _vm->_system->getHeight(), _pixelFormat.bytesPerPixel);
+	_backBuffer->create(_vm->_system->getWidth(), _vm->_system->getHeight(), _pixelFormat);
+
+	_nextAllowedDrawTime = _vm->_system->getMillis();
+	_enableDrawingTimeSimulation = 0;
 }
 
 MystGraphics::~MystGraphics() {
@@ -427,6 +448,8 @@ void MystGraphics::copyImageSectionToScreen(uint16 image, Common::Rect src, Comm
 	debug(3, "\twidth: %d", width);
 	debug(3, "\theight: %d", height);
 
+	simulatePreviousDrawDelay(dest);
+
 	_vm->_system->copyRectToScreen((byte *)surface->getBasePtr(src.left, top), surface->pitch, dest.left, dest.top, width, height);
 }
 
@@ -469,7 +492,7 @@ void MystGraphics::copyImageSectionToBackBuffer(uint16 image, Common::Rect src, 
 	debug(3, "\theight: %d", height);
 
 	for (uint16 i = 0; i < height; i++)
-		memcpy(_backBuffer->getBasePtr(dest.left, i + dest.top), surface->getBasePtr(src.left, top + i), width * surface->bytesPerPixel);
+		memcpy(_backBuffer->getBasePtr(dest.left, i + dest.top), surface->getBasePtr(src.left, top + i), width * surface->format.bytesPerPixel);
 }
 
 void MystGraphics::copyImageToScreen(uint16 image, Common::Rect dest) {
@@ -482,10 +505,18 @@ void MystGraphics::copyImageToBackBuffer(uint16 image, Common::Rect dest) {
 
 void MystGraphics::copyBackBufferToScreen(Common::Rect r) {
 	r.clip(_viewport);
+
+	simulatePreviousDrawDelay(r);
+
 	_vm->_system->copyRectToScreen((byte *)_backBuffer->getBasePtr(r.left, r.top), _backBuffer->pitch, r.left, r.top, r.width(), r.height());
 }
 
 void MystGraphics::runTransition(uint16 type, Common::Rect rect, uint16 steps, uint16 delay) {
+
+	// Do not artificially delay during transitions
+	int oldEnableDrawingTimeSimulation = _enableDrawingTimeSimulation;
+	_enableDrawingTimeSimulation = 0;
+
 	switch (type) {
 	case 0:	{
 			debugC(kDebugScript, "Left to Right");
@@ -587,6 +618,8 @@ void MystGraphics::runTransition(uint16 type, Common::Rect rect, uint16 steps, u
 		_vm->_system->updateScreen();
 		break;
 	}
+
+	_enableDrawingTimeSimulation = oldEnableDrawingTimeSimulation;
 }
 
 void MystGraphics::drawRect(Common::Rect rect, RectState state) {
@@ -612,6 +645,38 @@ void MystGraphics::drawLine(const Common::Point &p1, const Common::Point &p2, ui
 	_backBuffer->drawLine(p1.x, p1.y, p2.x, p2.y, color);
 }
 
+void MystGraphics::enableDrawingTimeSimulation(bool enable) {
+	if (enable)
+		_enableDrawingTimeSimulation++;
+	else
+		_enableDrawingTimeSimulation--;
+
+	if (_enableDrawingTimeSimulation < 0)
+		_enableDrawingTimeSimulation = 0;
+}
+
+void MystGraphics::simulatePreviousDrawDelay(const Common::Rect &dest) {
+	uint32 time = 0;
+
+	if (_enableDrawingTimeSimulation) {
+		time = _vm->_system->getMillis();
+
+		// Do not draw anything new too quickly after the previous draw call
+		// so that images stay at least a little while on screen
+		// This is enabled only for scripted draw calls
+		if (time < _nextAllowedDrawTime)
+			_vm->_system->delayMillis(_nextAllowedDrawTime - time);
+	}
+
+	// Next draw call allowed at DELAY + AERA * COEFF milliseconds from now
+	time = _vm->_system->getMillis();
+	_nextAllowedDrawTime = time + _constantDrawDelay + dest.height() * dest.width() / _proportionalDrawDelay;
+}
+
+#endif // ENABLE_MYST
+
+#ifdef ENABLE_RIVEN
+
 RivenGraphics::RivenGraphics(MohawkEngine_Riven* vm) : GraphicsManager(), _vm(vm) {
 	_bitmapDecoder = new MohawkBitmap();
 
@@ -625,12 +690,15 @@ RivenGraphics::RivenGraphics(MohawkEngine_Riven* vm) : GraphicsManager(), _vm(vm
 	// The actual game graphics only take up the first 392 rows. The inventory
 	// occupies the rest of the screen and we don't use the buffer to hold that.
 	_mainScreen = new Graphics::Surface();
-	_mainScreen->create(608, 392, _pixelFormat.bytesPerPixel);
+	_mainScreen->create(608, 392, _pixelFormat);
 
 	_updatesEnabled = true;
 	_scheduledTransition = -1;	// no transition
 	_dirtyScreen = false;
 	_inventoryDrawn = false;
+
+	_creditsImage = 302;
+	_creditsPos = 0;
 }
 
 RivenGraphics::~RivenGraphics() {
@@ -653,7 +721,7 @@ void RivenGraphics::copyImageToScreen(uint16 image, uint32 left, uint32 top, uin
 		surface->w = 608 - left;
 
 	for (uint16 i = 0; i < surface->h; i++)
-		memcpy(_mainScreen->getBasePtr(left, i + top), surface->getBasePtr(0, i), surface->w * surface->bytesPerPixel);
+		memcpy(_mainScreen->getBasePtr(left, i + top), surface->getBasePtr(0, i), surface->w * surface->format.bytesPerPixel);
 
 	_dirtyScreen = true;
 }
@@ -749,7 +817,7 @@ void RivenGraphics::clearWaterEffects() {
 
 bool RivenGraphics::runScheduledWaterEffects() {
 	// Don't run the effect if it's disabled
-	if (*_vm->getVar("waterenabled") == 0)
+	if (_vm->_vars["waterenabled"] == 0)
 		return false;
 
 	Graphics::Surface *screen = NULL;
@@ -841,6 +909,17 @@ void RivenGraphics::runScheduledTransition() {
 	_scheduledTransition = -1; // Clear scheduled transition
 }
 
+void RivenGraphics::clearMainScreen() {
+	_mainScreen->fillRect(Common::Rect(0, 0, 608, 392), _pixelFormat.RGBToColor(0, 0, 0));
+}
+
+void RivenGraphics::fadeToBlack() {
+	// Self-explanatory
+	scheduleTransition(16);
+	clearMainScreen();
+	runScheduledTransition();
+}
+
 void RivenGraphics::showInventory() {
 	// Don't redraw the inventory
 	if (_inventoryDrawn)
@@ -865,8 +944,8 @@ void RivenGraphics::showInventory() {
 		// you get Catherine's journal and the trap book. Near the end,
 		// you lose the trap book and have just the two journals.
 
-		bool hasCathBook = *_vm->getVar("acathbook") != 0;
-		bool hasTrapBook = *_vm->getVar("atrapbook") != 0;
+		bool hasCathBook = _vm->_vars["acathbook"] != 0;
+		bool hasTrapBook = _vm->_vars["atrapbook"] != 0;
 
 		if (!hasCathBook) {
 			drawInventoryImage(101, g_atrusJournalRect1);
@@ -937,7 +1016,7 @@ void RivenGraphics::drawImageRect(uint16 id, Common::Rect srcRect, Common::Rect 
 	assert(srcRect.width() == dstRect.width() && srcRect.height() == dstRect.height());
 
 	for (uint16 i = 0; i < srcRect.height(); i++)
-		memcpy(_mainScreen->getBasePtr(dstRect.left, i + dstRect.top), surface->getBasePtr(srcRect.left, i + srcRect.top), srcRect.width() * surface->bytesPerPixel);
+		memcpy(_mainScreen->getBasePtr(dstRect.left, i + dstRect.top), surface->getBasePtr(srcRect.left, i + srcRect.top), srcRect.width() * surface->format.bytesPerPixel);
 
 	_dirtyScreen = true;
 }
@@ -956,8 +1035,64 @@ void RivenGraphics::drawExtrasImage(uint16 id, Common::Rect dstRect) {
 	_dirtyScreen = true;
 }
 
+void RivenGraphics::beginCredits() {
+	// Clear the old cache
+	clearCache();
+
+	// Now cache all the credits images
+	for (uint16 i = 302; i <= 320; i++) {
+		MohawkSurface *surface = _bitmapDecoder->decodeImage(_vm->getExtrasResource(ID_TBMP, i));
+		surface->convertToTrueColor();
+		addImageToCache(i, surface);
+	}
+
+	// And clear our screen too
+	clearMainScreen();
+}
+
+void RivenGraphics::updateCredits() {
+	if ((_creditsImage == 303 || _creditsImage == 304) && _creditsPos == 0)
+		fadeToBlack();
+
+	if (_creditsImage < 304) {
+		// For the first two credit images, they are faded from black to the image and then out again
+		scheduleTransition(16);
+
+		Graphics::Surface *frame = findImage(_creditsImage++)->getSurface();
+
+		for (int y = 0; y < frame->h; y++)
+			memcpy(_mainScreen->getBasePtr(124, y), frame->getBasePtr(0, y), frame->pitch);
+
+		runScheduledTransition();
+	} else {
+		// Otheriwse, we're scrolling
+		// Move the screen up one row
+		memmove(_mainScreen->pixels, _mainScreen->getBasePtr(0, 1), _mainScreen->pitch * (_mainScreen->h - 1));
+
+		// Only update as long as we're not before the last frame
+		// Otherwise, we're just moving up a row (which we already did)
+		if (_creditsImage <= 320) {
+			// Copy the next row to the bottom of the screen
+			Graphics::Surface *frame = findImage(_creditsImage)->getSurface();
+			memcpy(_mainScreen->getBasePtr(124, _mainScreen->h - 1), frame->getBasePtr(0, _creditsPos), frame->pitch);
+			_creditsPos++;
+
+			if (_creditsPos == _mainScreen->h) {
+				_creditsImage++;
+				_creditsPos = 0;
+			}
+		}
+
+		// Now flush the new screen
+		_vm->_system->copyRectToScreen((byte *)_mainScreen->pixels, _mainScreen->pitch, 0, 0, _mainScreen->w, _mainScreen->h);
+		_vm->_system->updateScreen();
+	}
+}
+
+#endif // ENABLE_RIVEN
+
 LBGraphics::LBGraphics(MohawkEngine_LivingBooks *vm, uint16 width, uint16 height) : GraphicsManager(), _vm(vm) {
-	_bmpDecoder = _vm->isPreMohawk() ? new OldMohawkBitmap() : new MohawkBitmap();
+	_bmpDecoder = _vm->isPreMohawk() ? new LivingBooksBitmap_v1() : new MohawkBitmap();
 
 	initGraphics(width, height, true);
 }
@@ -1024,6 +1159,8 @@ void LBGraphics::setPalette(uint16 id) {
 	}
 }
 
+#ifdef ENABLE_CSTIME
+
 CSTimeGraphics::CSTimeGraphics(MohawkEngine_CSTime *vm) : GraphicsManager(), _vm(vm) {
 	_bmpDecoder = new MohawkBitmap();
 
@@ -1055,6 +1192,8 @@ MohawkSurface *CSTimeGraphics::decodeImage(uint16 id) {
 Common::Array<MohawkSurface *> CSTimeGraphics::decodeImages(uint16 id) {
 	return _bmpDecoder->decodeImages(_vm->getResource(ID_TBMH, id));
 }
+
+#endif
 
 ZoombiniGraphics::ZoombiniGraphics(MohawkEngine_Zoombini *vm) : GraphicsManager(), _vm(vm) {
 	_bmpDecoder = new MohawkBitmap();

@@ -18,9 +18,6 @@
 * along with this program; if not, write to the Free Software
 * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
 *
-* $URL$
-* $Id$
-*
 */
 
 #include "toon/conversation.h"
@@ -44,6 +41,5 @@ void Conversation::load(Common::ReadStream *stream, int16 *conversationDataBase)
 		state[i]._data4 = conversationDataBase + stream->readSint32BE();
 	}
 }
-
 
 }

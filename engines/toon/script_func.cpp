@@ -18,10 +18,10 @@
 * along with this program; if not, write to the Free Software
 * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
 *
-* $URL$
-* $Id$
-*
 */
+
+#include "common/debug.h"
+#include "common/system.h"
 
 #include "toon/script_func.h"
 #include "toon/script.h"
@@ -265,7 +265,6 @@ int32 ScriptFunc::sys_Cmd_Draw_Actor_Standing(EMCState *state) {
 		arg1 = 1;
 	}
 
-
 	if (arg2 > -1)
 		_vm->getDrew()->forceFacing(arg2);
 
@@ -313,13 +312,13 @@ int32 ScriptFunc::sys_Cmd_Flip_Screens(EMCState *state) {
 
 int32 ScriptFunc::sys_Cmd_Play_Flic(EMCState *state) {
 
-	char name[256];
+	Common::String name;
 
 	// workaround for the video of the beginning
 	if (strstr(GetText(0, state), "209"))
-		sprintf(name, "%s", GetText(0, state));
+		name = GetText(0, state);
 	else
-		strcpy(name, _vm->createRoomFilename(GetText(0, state)).c_str());
+		name = _vm->createRoomFilename(GetText(0, state));
 
 	int32 stopMusic = stackPos(2);
 	_vm->getMoviePlayer()->play(name, stopMusic);
@@ -461,7 +460,7 @@ int32 ScriptFunc::sys_Cmd_Actor_Talks(EMCState *state) {
 }
 
 int32 ScriptFunc::sys_Cmd_Say_Lines(EMCState *state) {
-	
+
 	// WORKAROUND: In the scene 4 (Castle), if you click twice on the closed door, Drew disappears
 	//				the script makes him disappear for the custom animation and not reappear.
 	if (_vm->state()->_currentScene == 4 && stackPos(1) == 562) {
@@ -491,11 +490,11 @@ int32 ScriptFunc::sys_Cmd_Empty_Inventory(EMCState *state) {
 int32 ScriptFunc::sys_Cmd_Set_Anim_Scale_Size(EMCState *state) {
 	int32 animID = stackPos(0);
 	int32 scale = stackPos(1);
-	
+
 	SceneAnimation *sceneAnim = _vm->getSceneAnimation(animID);
 	if (sceneAnim) {
 		sceneAnim->_animInstance->setUseMask(true);
-		sceneAnim->_animInstance->setScale(scale,true);
+		sceneAnim->_animInstance->setScale(scale, true);
 	}
 	return 0;
 }
@@ -939,8 +938,6 @@ int32 ScriptFunc::sys_Cmd_Init_Scene_Anim(EMCState *state) {
 	sceneAnim->_animInstance->setAnimationRange(stackPos(11), stackPos(11));
 	sceneAnim->_animInstance->setFrame(stackPos(11));
 
-	
-
 	debugC(0, 0xfff, "Init Anim %s %d %d %d %d %d %d %d %d %d %d %d %d %d\n", GetText(12, state), stackPos(0), stackPos(1), stackPos(2), stackPos(3),
 	       stackPos(4), stackPos(5), stackPos(6), stackPos(7), stackPos(8), stackPos(9), stackPos(10), stackPos(11),  stackPos(12));
 
@@ -950,7 +947,7 @@ int32 ScriptFunc::sys_Cmd_Init_Scene_Anim(EMCState *state) {
 	int32 layerZ = stackPos(3);
 
 	if (dx == -2)
-		sceneAnim->_animInstance->moveRelative(640, 0, 0);
+		sceneAnim->_animInstance->moveRelative(TOON_SCREEN_WIDTH, 0, 0);
 	else if (dx < 0) {
 		dx = sceneAnim->_animation->_x1;
 	}
@@ -1028,7 +1025,7 @@ int32 ScriptFunc::sys_Cmd_Draw_Scene_Anim_WSA_Frame(EMCState *state) {
 		else if (animId == 20 || animId == 15 || animId == 21 || animId == 16 || animId == 17 || animId == 18)
 			_vm->pauseSceneAnimationScript(_vm->getCurrentUpdatingSceneAnimation(), 1);
 		else if (animId == 9) {
-			_vm->pauseSceneAnimationScript(_vm->getCurrentUpdatingSceneAnimation(), 6);
+			_vm->pauseSceneAnimationScript(_vm->getCurrentUpdatingSceneAnimation(), 3);
 		}
 	}
 
@@ -1091,13 +1088,13 @@ int32 ScriptFunc::sys_Cmd_Proceed_To_Next_Chapter(EMCState *state) {
 }
 
 int32 ScriptFunc::sys_Cmd_Play_Sfx_Plus(EMCState *state) {
-	//debugC(0,0xfff, "playSfx ( %d , %d, %d, %d, %d )", stackPos(0), stackPos(1), stackPos(2), stackPos(3), stackPos(4));
+	//debugC(0, 0xfff, "playSfx ( %d , %d, %d, %d, %d )", stackPos(0), stackPos(1), stackPos(2), stackPos(3), stackPos(4));
 	_vm->playSFX(stackPos(0), stackPos(1));
 	return 0;
 }
 
 int32 ScriptFunc::sys_Cmd_Play_Sfx(EMCState *state) {
-	//debugC(0,0xfff, "playSfx ( %d , %d)", stackPos(0), stackPos(1));
+	//debugC(0, 0xfff, "playSfx ( %d , %d)", stackPos(0), stackPos(1));
 	_vm->playSFX(stackPos(0), stackPos(1));
 	return 0;
 }

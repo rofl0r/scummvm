@@ -137,7 +137,7 @@ Hint: If you want to add multiple games in one go, try pressing and
 holding the shift key before clicking 'Add game' -- its label will
 change to 'Mass Add' and if you press it, you are again asked to select
 a directory, only this time ScummVM will search through all
-subdirectoriess for supported games.
+subdirectories for supported games.
 
 
 2.0) Contact:
@@ -153,7 +153,7 @@ support an unsupported game -- read the FAQ on our web site first.
 ---- ---------------
 To report a bug, please create a SourceForge account and follow the
 "Bug Tracker" link from our homepage. Please make sure the bug is
-reproducible, and still occurs in the latest SVN/Daily build version.
+reproducible, and still occurs in the latest git/Daily build version.
 Also check the known problems list (below) and the compatibility list
 on our website for that game, to ensure the issue is not already known:
 
@@ -164,7 +164,7 @@ completeable in the 'Supported Games' section, or compatibility list. We
 -know- those games have bugs.
 
 Please include the following information:
-    - ScummVM version (PLEASE test the latest SVN/Daily build)
+    - ScummVM version (PLEASE test the latest git/Daily build)
     - Bug details, including instructions on reproducing
     - Language of game (English, German, ...)
     - Version of game (talkie, floppy, ...)
@@ -216,9 +216,10 @@ AGI Games by Sierra:
      Space Quest II: Vohaul's Revenge            [sq2]
      Fanmade Games                               [agi-fanmade]
 
-AGOS Games by Adventuresoft / Horrorsoft:
+AGOS Games by Adventuresoft/Horrorsoft:
      Elvira - Mistress of the Dark               [elvira1]
      Elvira II - The Jaws of Cerberus            [elvira2]
+     Personal Nightmare                          [pn]
      Waxworks                                    [waxworks]
      Simon the Sorcerer 1                        [simon1]
      Simon the Sorcerer 2                        [simon2]
@@ -302,12 +303,12 @@ SCUMM Games by Humongous Entertainment:
          From Your Head to Your Feet             [pajama3]
      Pajama Sam's Lost & Found                   [lost]
      Pajama Sam's Sock Works                     [socks]
-     Putt-Putt Enters the Race                   [puttrace]
-     Putt-Putt Goes to the Moon                  [puttmoon]
-     Putt-Putt Joins the Circus                  [puttcircus]
      Putt-Putt Joins the Parade                  [puttputt]
+     Putt-Putt Goes to the Moon                  [puttmoon]
      Putt-Putt Saves the Zoo                     [puttzoo]
      Putt-Putt Travels Through Time              [putttime]
+     Putt-Putt Enters the Race                   [puttrace]
+     Putt-Putt Joins the Circus                  [puttcircus]
      Putt-Putt and Pep's Balloon-O-Rama          [balloon]
      Putt-Putt and Pep's Dog on a Stick          [dog]
      Putt-Putt & Fatty Bear's Activity Pack      [activity]
@@ -317,6 +318,22 @@ SCUMM Games by Humongous Entertainment:
      SPY Fox 3: Operation Ozone                  [spyozon]
      SPY Fox in Cheese Chase                     [chase]
      SPY Fox in Hold the Mustard                 [mustard]
+
+Living Books Games:
+     Aesop's Fables: The Tortoise and the Hare   [tortoise]
+     Arthur's Birthday                           [arthurbday]
+     Arthur's Teacher Trouble                    [arthur]
+     Dr. Seuss's ABC                             [seussabc]
+     Green Eggs and Ham                          [greeneggs]
+     Harry and the Haunted House                 [harryhh]
+     Just Grandma and Me                         [grandma]
+     Little Monster at School                    [lilmonster]
+     Ruff's Bone                                 [ruff]
+     Sheila Rae, the Brave                       [sheila]
+     Stellaluna                                  [stellaluna]
+     The Berenstain Bears Get in a Fight         [bearfight]
+     The Berenstain Bears in the Dark            [beardark]
+     The New Kid on the Block                    [newkid]
 
 The following games should load, but are not yet fully playable. Play
 these at your own risk, and please do not file bug reports about them.
@@ -528,7 +545,7 @@ playing the video itself. This remained a fallback until ScummVM 1.0.0,
 but was never the only solution for any stable release.
 
 In ScummVM 0.6.0 we used MPEG, which provided a reasonable trade-off
-between size and quality. In ScummVM 0.10.0 this was superceeded by DXA
+between size and quality. In ScummVM 0.10.0 this was superseded by DXA
 (originally added for AdventureSoft's "The Feeble Files"). This gave us
 a way of providing the cutscenes in the exact same quality as the
 originals, at the cost of being larger.
@@ -753,11 +770,12 @@ to be able to play the game under ScummVM.
 
 3.19) Dragon History notes:
 ----- ---------------------
-There are 3 language variants of the game: Czech, English, and Polish.
-Each of them is distributed in a separate archive.  The only official
-version is the Czech one, and the English and Polish ports have always
-been work in progress and never officially released.  Although all texts
-are fully translated, it is known that some of them contain typos.
+There are 4 language variants of the game: Czech, English, Polish and
+German.  Each of them is distributed in a separate archive.  The only
+official version is the Czech one, and the English, Polish and German
+ports have always been work in progress and never officially released.
+Although all texts are fully translated, it is known that some of them
+contain typos.
 
 There exists an optional Czech dubbing for the game.  For bandwidth
 reasons, you can download it separately and then unpack it to the
@@ -829,8 +847,8 @@ site, please see the section on reporting bugs.
 
   Simon the Sorcerer's Puzzle Pack:
     - No support for displaying, entering, loading or saving high scores.
-    - No support for displaying explanation, when clicking on items in
-      Swampy Adventures.
+    - No support for displaying names of items, when hovering over them
+      in Swampy Adventures.
 
   The Feeble Files:
     - Subtitles are often incomplete, they were always disabled in the
@@ -851,7 +869,7 @@ site, please see the section on reporting bugs.
 ScummVM has been ported to run on many platforms and operating systems.
 Links to these ports can be found either on the ScummVM web page or by a
 Google search. Many thanks to our porters for their efforts. If you have
-a port of ScummVM and wish to commit it into the main SVN, feel free to
+a port of ScummVM and wish to commit it into the master git, feel free to
 contact us!
 
 Supported platforms include (but are not limited to):
@@ -869,11 +887,13 @@ Supported platforms include (but are not limited to):
         Maemo           (Nokia Internet tablets 770, N800, N810, N900)
         Nintendo 64
         Nintendo DS
+        Nintendo GameCube
         Nintendo Wii
         OS/2
         PlayStation 2
         PlayStation Portable
         Symbian
+        WebOS
 
 The Dreamcast port does not support The Curse of Monkey Island, nor The
 Dig. The Nintendo DS port does not support Full Throttle, The Dig, or
@@ -924,6 +944,7 @@ arguments -- see the next section.
   -z, --list-games         Display list of supported games and exit
   -t, --list-targets       Display list of configured targets and exit
   --list-saves=TARGET      Display a list of savegames for the game (TARGET) specified
+  --console                Enable the console window (default: enabled) (Windows only)
 
   -c, --config=CONFIG      Use alternate configuration file
   -p, --path=PATH          Path to where the game is installed
@@ -935,7 +956,7 @@ arguments -- see the next section.
   --themepath=PATH         Path to where GUI themes are stored
   --list-themes            Display list of all usable GUI themes
   -e, --music-driver=MODE  Select music driver (see also section 7.0)
-  -q, --language=LANG      Select language (see also section 5.2)
+  -q, --language=LANG      Select game's language (see also section 5.2)
   -m, --music-volume=NUM   Set the music volume, 0-255 (default: 192)
   -s, --sfx-volume=NUM     Set the sfx volume, 0-255 (default: 192)
   -r, --speech-volume=NUM  Set the voice volume, 0-255 (default: 192)
@@ -1006,8 +1027,8 @@ Examples:
 5.2) Language options:
 ---- -----------------
 ScummVM includes a language option for Maniac Mansion, Zak McKracken,
-The Dig, The Curse of Monkey Island, Beneath a Steel Sky, Broken Sword
-and Simon the Sorcerer 1 and 2.
+The Dig, The Curse of Monkey Island, Beneath a Steel Sky and
+Broken Sword.
 
 Note that with the exception of Beneath a Steel Sky, Broken Sword,
 multilanguage versions of Goblins games and Nippon Safes Inc., using
@@ -1060,16 +1081,6 @@ Broken Sword
     es  - Spanish
     pt  - Portuguese
     cz  - Czech
-
-Simon the Sorcerer 1 and 2
-    en  - English (default)
-    de  - German
-    fr  - French
-    it  - Italian
-    es  - Spanish
-    he  - Hebrew
-    pl  - Polish
-    ru  - Russian
 
 
 5.3) Graphics filters:
@@ -1264,10 +1275,14 @@ other games.
     b                      - Background sounds on/off
                              [Simon the Sorcerer 2 only]
     Pause                  - Pauses
-    t                      - Switch between speech and subtitles
+    t                      - Switch between speech only and
+                             combined speech and subtitles
+                             [Talkies of Simon the Sorcerer other than
+                             English and German and Simon the
+                             Sorcerer 2 (all languages)]
     v                      - Switch between subtitles only and
                              combined speech and subtitles
-                             [Simon the Sorcerer 2 only]
+                             [the same as above]
 
   Simon the Sorcerer's Puzzle Pack
     Ctrl-d                 - Starts the debugger
@@ -1285,7 +1300,8 @@ other games.
     F9                     - Hitbox names on/off
     s                      - Sound effects on/off
     Pause                  - Pauses
-    t                      - Switch between speech and subtitles
+    t                      - Switch between speech only and
+                             combined speech and subtitles
     v                      - Switch between subtitles only and
                              combined speech and subtitles
 
@@ -1663,7 +1679,7 @@ First, you need to start a daemon:
 
   timidity -ir 7777
 
-Now you can start scummvm and try selection TiMidity music output.  By
+Now you can start ScummVM and try selection TiMidity music output.  By
 default, it will connect to localhost:7777, but you can change host/port
 via the "TIMIDITY_HOST" environment variable. You can also specify
 a "device number" using the "SCUMMVM_MIDIPORT" environment variable.
@@ -1956,6 +1972,7 @@ The following keywords are recognized:
 
     confirm_exit       bool     Ask for confirmation by the user before quitting
                                 (SDL backend only).
+    console            bool     Enable the console window (default: enabled) (Windows only).
     cdrom              number   Number of CD-ROM unit to use for audio. If
                                 negative, don't even try to access the CD-ROM.
     joystick_num       number   Number of joystick device to use for input
@@ -2034,8 +2051,7 @@ compiler. Several compilers, including GCC, mingw and recent versions of
 Microsoft Visual C++ are supported. If you wish to use MP3-compressed CD
 tracks or .SOU files, you will need to install the MAD library; likewise
 you will need the appropriate libraries for Ogg Vorbis and FLAC
-compressed sound. For MPEG2 support, libmpeg2 is required. For
-compressed save states, zlib is required.
+compressed sound. For compressed save states, zlib is required.
 
 Some parts of ScummVM, particularly scalers, have highly optimized
 versions written in assembler. If you wish to use this option, you will
@@ -2119,8 +2135,8 @@ debug messages (see http://www.sysinternals.com/ntw2k/freeware/debugview.shtml).
 
   Maemo:
     * Get Scratchbox environment with Maemo 2.2 rootstrap (2.2 is for 770 and up)
-    * Install libmad, Tremor, FLAC, libmpeg2 from source
-    * patch scummvm source (some stuff is currently too dirty to be in svn directly)
+    * Install libmad, Tremor, FLAC from source
+    * patch scummvm source (some stuff is currently too dirty to be in git directly)
       patch -p1 < backends/platform/maemo/scummvm-[currentversion]-maemo.patch
     * update debian/changelog
     * run 'fakeroot dpkg-buildpackage -b -d'

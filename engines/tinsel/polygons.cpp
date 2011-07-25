@@ -17,9 +17,6 @@
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * $URL$
- * $Id$
  */
 
 #include "tinsel/actors.h"
@@ -34,6 +31,7 @@
 #include "tinsel/tinsel.h"
 #include "tinsel/token.h"
 
+#include "common/textconsole.h"
 #include "common/util.h"
 
 namespace Tinsel {
@@ -98,10 +96,10 @@ struct POLYGON {
 
 	/*
 	 * Internal derived data for speed and conveniance
-	 * set up by PseudoCentre()
+	 * set up by PseudoCenter()
 	 */
-	int	pcentrex;	// Pseudo-centre
-	int	pcentrey;	//
+	int	pcenterx;	// Pseudo-center
+	int	pcentery;	//
 
 	/**
 	 * List of adjacent polygons. For Path polygons only.
@@ -1277,13 +1275,13 @@ HPOLYGON GetPolyHandle(int i) {
 
 // **************************************************************************
 //
-// Code called to initialise or wrap up a scene:
+// Code called to initialize or wrap up a scene:
 //
 // **************************************************************************
 
 /**
  * Called at the start of a scene, when all polygons have been
- * initialised, to work out which paths are adjacent to which.
+ * initialized, to work out which paths are adjacent to which.
  */
 static int DistinctCorners(HPOLYGON hp1, HPOLYGON hp2) {
 	const POLYGON *pp1, *pp2;
@@ -1595,7 +1593,7 @@ static PPOLYGON GetPolyEntry() {
 
 /**
  * Variation of  GetPolyEntry from Tinsel 1 that splits up getting a new
- * polygon structure from initialising it
+ * polygon structure from initializing it
  */
 static PPOLYGON CommonInits(PTYPE polyType, int pno, const Poly &ptp, bool bRestart) {
 	int i;
@@ -1624,34 +1622,34 @@ static PPOLYGON CommonInits(PTYPE polyType, int pno, const Poly &ptp, bool bRest
 }
 
 /**
- * Calculate a point approximating to the centre of a polygon.
+ * Calculate a point approximating to the center of a polygon.
  * Not very sophisticated.
  */
-static void PseudoCentre(POLYGON *p) {
-	p->pcentrex = (p->cx[0] + p->cx[1] + p->cx[2] + p->cx[3])/4;
-	p->pcentrey = (p->cy[0] + p->cy[1] + p->cy[2] + p->cy[3])/4;
+static void PseudoCenter(POLYGON *p) {
+	p->pcenterx = (p->cx[0] + p->cx[1] + p->cx[2] + p->cx[3])/4;
+	p->pcentery = (p->cy[0] + p->cy[1] + p->cy[2] + p->cy[3])/4;
 
-	if (!IsInPolygon(p->pcentrex, p->pcentrey, PolygonIndex(p))) {
+	if (!IsInPolygon(p->pcenterx, p->pcentery, PolygonIndex(p))) {
 		int i, top = 0, bot = 0;
 
 		for (i = p->ptop; i <= p->pbottom; i++) {
-			if (IsInPolygon(p->pcentrex, i, PolygonIndex(p))) {
+			if (IsInPolygon(p->pcenterx, i, PolygonIndex(p))) {
 				top = i;
 				break;
 			}
 		}
 		for (i = p->pbottom; i >= p->ptop; i--) {
-			if (IsInPolygon(p->pcentrex, i, PolygonIndex(p))) {
+			if (IsInPolygon(p->pcenterx, i, PolygonIndex(p))) {
 				bot = i;
 				break;
 			}
 		}
-		p->pcentrex = (top+bot)/2;
+		p->pcenterx = (top+bot)/2;
 	}
 #ifdef DEBUG
-	//	assert(IsInPolygon(p->pcentrex, p->pcentrey, PolygonIndex(p)));  // Pseudo-centre is not in path
-	if (!IsInPolygon(p->pcentrex, p->pcentrey, PolygonIndex(p))) {
-		sprintf(TextBufferAddr(), "Pseudo-centre is not in path (starting (%d, %d)) - polygon reversed?",
+	//	assert(IsInPolygon(p->pcenterx, p->pcentery, PolygonIndex(p)));  // Pseudo-center is not in path
+	if (!IsInPolygon(p->pcenterx, p->pcentery, PolygonIndex(p))) {
+		sprintf(TextBufferAddr(), "Pseudo-center is not in path (starting (%d, %d)) - polygon reversed?",
 			p->cx[0], p->cy[0]);
 		error(TextBufferAddr());
 	}
@@ -1659,33 +1657,33 @@ static void PseudoCentre(POLYGON *p) {
 }
 
 /**
- * Initialise an EXIT polygon.
+ * Initialize an EXIT polygon.
  */
 static void InitExit(const Poly &ptp, int pno, bool bRestart) {
 	CommonInits(EXIT, pno, ptp, bRestart);
 }
 
 /**
- * Initialise a PATH or NPATH polygon.
+ * Initialize a PATH or NPATH polygon.
  */
 static void InitPath(const Poly &ptp, bool NodePath, int pno, bool bRestart) {
 	PPOLYGON p = CommonInits(PATH, pno, ptp, bRestart);
 
 	p->subtype = NodePath ? NODE : NORMAL;
 
-	PseudoCentre(p);
+	PseudoCenter(p);
 }
 
 
 /**
- * Initialise a BLOCKING polygon.
+ * Initialize a BLOCKING polygon.
  */
 static void InitBlock(const Poly &ptp, int pno, bool bRestart) {
 	CommonInits(BLOCK, pno, ptp, bRestart);
 }
 
 /**
- * Initialise an extra BLOCKING polygon related to a moving actor.
+ * Initialize an extra BLOCKING polygon related to a moving actor.
  * The width of the polygon depends on the width of the actor which is
  * trying to walk through the actor you first thought of.
  * This is for dynamic blocking.
@@ -1720,7 +1718,7 @@ HPOLYGON InitExtraBlock(PMOVER ca, PMOVER ta) {
 }
 
 /**
- * Initialise an EFFECT polygon.
+ * Initialize an EFFECT polygon.
  */
 static void InitEffect(const Poly &ptp, int pno, bool bRestart) {
 	CommonInits(EFFECT, pno, ptp, bRestart);
@@ -1728,7 +1726,7 @@ static void InitEffect(const Poly &ptp, int pno, bool bRestart) {
 
 
 /**
- * Initialise a REFER polygon.
+ * Initialize a REFER polygon.
  */
 static void InitRefer(const Poly &ptp, int pno, bool bRestart) {
 	PPOLYGON p = CommonInits(REFER, pno, ptp, bRestart);
@@ -1738,7 +1736,7 @@ static void InitRefer(const Poly &ptp, int pno, bool bRestart) {
 
 
 /**
- * Initialise a TAG polygon.
+ * Initialize a TAG polygon.
  */
 static void InitTag(const Poly &ptp, int pno, bool bRestart) {
 	CommonInits(TAG, pno, ptp, bRestart);
@@ -1783,7 +1781,7 @@ static void KillDeadPolygons() {
 }
 
 /**
- * Called at the start of a scene to initialise the polys in that scene.
+ * Called at the start of a scene to initialize the polys in that scene.
  */
 void InitPolygons(SCNHANDLE ph, int numPoly, bool bRestart) {
 	pHandle = ph;
@@ -1918,16 +1916,16 @@ int PolySubtype(HPOLYGON hp) {
 	return Polys[hp]->subtype;
 }
 
-int PolyCentreX(HPOLYGON hp) {
+int PolyCenterX(HPOLYGON hp) {
 	CHECK_HP(hp, "Out of range polygon handle (27)");
 
-	return Polys[hp]->pcentrex;
+	return Polys[hp]->pcenterx;
 }
 
-int PolyCentreY(HPOLYGON hp) {
+int PolyCenterY(HPOLYGON hp) {
 	CHECK_HP(hp, "Out of range polygon handle (28)");
 
-	return Polys[hp]->pcentrey;
+	return Polys[hp]->pcentery;
 }
 
 int PolyCornerX(HPOLYGON hp, int n) {

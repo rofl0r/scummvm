@@ -18,22 +18,29 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
- * $URL$
- * $Id$
- *
  */
 
 #include "base/plugins.h"
 
 #include "engines/advancedDetector.h"
-#include "common/config-manager.h"
-#include "common/file.h"
 #include "common/savefile.h"
+#include "common/system.h"
+#include "common/textconsole.h"
 
-#include "mohawk/myst.h"
-#include "mohawk/riven.h"
 #include "mohawk/livingbooks.h"
+
+#ifdef ENABLE_CSTIME
 #include "mohawk/cstime.h"
+#endif
+
+#ifdef ENABLE_MYST
+#include "mohawk/myst.h"
+#endif
+
+#ifdef ENABLE_RIVEN
+#include "mohawk/riven.h"
+#endif
+
 #include "mohawk/zoombini.h"
 
 namespace Mohawk {
@@ -79,6 +86,8 @@ bool MohawkEngine::hasFeature(EngineFeature f) const {
 		(f == kSupportsRTL);
 }
 
+#ifdef ENABLE_MYST
+
 bool MohawkEngine_Myst::hasFeature(EngineFeature f) const {
 	return
 		MohawkEngine::hasFeature(f)
@@ -86,12 +95,18 @@ bool MohawkEngine_Myst::hasFeature(EngineFeature f) const {
 		|| (f == kSupportsSavingDuringRuntime);
 }
 
+#endif
+
+#ifdef ENABLE_RIVEN
+
 bool MohawkEngine_Riven::hasFeature(EngineFeature f) const {
 	return
 		MohawkEngine::hasFeature(f)
 		|| (f == kSupportsLoadingDuringRuntime)
 		|| (f == kSupportsSavingDuringRuntime);
 }
+
+#endif
 
 } // End of Namespace Mohawk
 
@@ -105,15 +120,16 @@ static const PlainGameDescriptor mohawkGames[] = {
 	{"csworld", "Where in the World is Carmen Sandiego?"},
 	{"csamtrak", "Where in America is Carmen Sandiego? (The Great Amtrak Train Adventure)"},
 	{"carmentq", "Carmen Sandiego's ThinkQuick Challenge"},
+	{"carmentqc", "Carmen Sandiego's ThinkQuick Challenge Custom Question Creator"},
 	{"maggiesfa", "Maggie's Farmyard Adventure"},
 	{"jamesmath", "James Discovers/Explores Math"},
 	{"treehouse", "The Treehouse"},
 	{"greeneggs", "Green Eggs and Ham"},
-	{"seussabc", "Dr Seuss ABC"},
+	{"seussabc", "Dr Seuss's ABC"},
 	{"1stdegree", "In the 1st Degree"},
 	{"csusa", "Where in the USA is Carmen Sandiego?"},
 	{"tortoise", "Aesop's Fables: The Tortoise and the Hare"},
-	{"arthur", "Arthur's Teacher Troubles"},
+	{"arthur", "Arthur's Teacher Trouble"},
 	{"grandma", "Just Grandma and Me"},
 	{"ruff", "Ruff's Bone"},
 	{"newkid", "The New Kid on the Block"},
@@ -124,8 +140,11 @@ static const PlainGameDescriptor mohawkGames[] = {
 	{"rugrats", "Rugrats Adventure Game"},
 	{"lbsampler", "Living Books Sampler"},
 	{"bearfight", "The Berenstain Bears Get in a Fight"},
+	{"beardark", "The Berenstain Bears In The Dark"},
 	{"arthurcomp", "Arthur's Computer Adventure"},
 	{"harryhh","Harry and the Haunted House"},
+	{"stellaluna", "Stellaluna"},
+	{"sheila", "Sheila Rae, the Brave"},
 	{0, 0}
 };
 
@@ -141,37 +160,20 @@ static const char *directoryGlobs[] = {
 	0
 };
 
-static const ADParams detectionParams = {
-	// Pointer to ADGameDescription or its superset structure
-	(const byte *)Mohawk::gameDescriptions,
-	// Size of that superset structure
-	sizeof(Mohawk::MohawkGameDescription),
-	// Number of bytes to compute MD5 sum for
-	5000,
-	// List of all engine targets
-	mohawkGames,
-	// Structure for autoupgrading obsolete targets
-	0,
-	// Name of single gameid (optional)
-	"mohawk",
-	// List of files for file-based fallback detection (optional)
-	Mohawk::fileBased,
-	// Flags
-	0,
-	// Additional GUI options (for every game)
-	Common::GUIO_NONE,
-	// Maximum directory depth
-	2,
-	// List of directory globs
-	directoryGlobs
-};
-
 class MohawkMetaEngine : public AdvancedMetaEngine {
 public:
-	MohawkMetaEngine() : AdvancedMetaEngine(detectionParams) {}
+	MohawkMetaEngine() : AdvancedMetaEngine(Mohawk::gameDescriptions, sizeof(Mohawk::MohawkGameDescription), mohawkGames) {
+		_singleid = "mohawk";
+		_maxScanDepth = 2;
+		_directoryGlobs = directoryGlobs;
+	}
+
+	virtual const ADGameDescription *fallbackDetect(const FileMap &allFiles, const Common::FSList &fslist) const {
+		return detectGameFilebased(allFiles, Mohawk::fileBased);
+	}
 
 	virtual const char *getName() const {
-		return "Mohawk Engine";
+		return "Mohawk";
 	}
 
 	virtual const char *getOriginalCopyright() const {
@@ -230,11 +232,21 @@ bool MohawkMetaEngine::createInstance(OSystem *syst, Engine **engine, const ADGa
 		switch (gd->gameType) {
 		case Mohawk::GType_MYST:
 		case Mohawk::GType_MAKINGOF:
+#ifdef ENABLE_MYST
 			*engine = new Mohawk::MohawkEngine_Myst(syst, gd);
 			break;
+#else
+			warning("Myst support not compiled in");
+			return false;
+#endif
 		case Mohawk::GType_RIVEN:
+#ifdef ENABLE_RIVEN
 			*engine = new Mohawk::MohawkEngine_Riven(syst, gd);
 			break;
+#else
+			warning("Riven support not compiled in");
+			return false;
+#endif
 		case Mohawk::GType_LIVINGBOOKSV1:
 		case Mohawk::GType_LIVINGBOOKSV2:
 		case Mohawk::GType_LIVINGBOOKSV3:
@@ -243,8 +255,13 @@ bool MohawkMetaEngine::createInstance(OSystem *syst, Engine **engine, const ADGa
 			*engine = new Mohawk::MohawkEngine_LivingBooks(syst, gd);
 			break;
 		case Mohawk::GType_CSTIME:
+#ifdef ENABLE_CSTIME
 			*engine = new Mohawk::MohawkEngine_CSTime(syst, gd);
 			break;
+#else
+			warning("CSTime support not compiled in");
+			return false;
+#endif
 		case Mohawk::GType_ZOOMBINI:
 			*engine = new Mohawk::MohawkEngine_Zoombini(syst, gd);
 			break;
@@ -254,10 +271,10 @@ bool MohawkMetaEngine::createInstance(OSystem *syst, Engine **engine, const ADGa
 		case Mohawk::GType_TREEHOUSE:
 		case Mohawk::GType_1STDEGREE:
 		case Mohawk::GType_CSUSA:
-			error ("Unsupported Mohawk Engine");
-			break;
+			warning("Unsupported Mohawk Engine");
+			return false;
 		default:
-			error ("Unknown Mohawk Engine");
+			error("Unknown Mohawk Engine");
 		}
 	}
 

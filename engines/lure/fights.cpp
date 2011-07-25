@@ -18,9 +18,6 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
- * $URL$
- * $Id$
- *
  */
 
 #include "lure/fights.h"
@@ -74,7 +71,7 @@ void FightsManager::setupPigFight() {
 	Resources &res = Resources::getReference();
 	Hotspot *player = res.getActiveHotspot(PLAYER_ID);
 	player->setSkipFlag(false);
-	player->resource()->colourOffset = 16;
+	player->resource()->colorOffset = 16;
 	player->setTickProc(PLAYER_FIGHT_TICK_PROC_ID);
 	player->setSize(48, 53);
 	player->setAnimationIndex(PLAYER_FIGHT_ANIM_INDEX);
@@ -103,7 +100,7 @@ void FightsManager::setupSkorlFight() {
 	rec.fwtrue_x = 282;
 	rec.fwtrue_y = 136;
 	player->setPosition(282, 136);
-	player->resource()->colourOffset = 96;
+	player->resource()->colorOffset = 96;
 }
 
 bool FightsManager::isFighting() {
@@ -598,7 +595,7 @@ void FightsManager::enemyKilled() {
 
 	playerHotspot->setTickProc(PLAYER_TICK_PROC_ID);
 	playerRec.fwhits = GENERAL_MAGIC_ID;
-	playerHotspot->resource()->colourOffset = 128;
+	playerHotspot->resource()->colorOffset = 128;
 	playerHotspot->setSize(32, 48);
 	playerHotspot->resource()->width = 32;
 	playerHotspot->resource()->height = 48;

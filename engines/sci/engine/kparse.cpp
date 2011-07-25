@@ -18,9 +18,6 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
- * $URL$
- * $Id$
- *
  */
 
 /* String and parser handling */
@@ -70,7 +67,7 @@ reg_t kSaid(EngineState *s, int argc, reg_t *argv) {
 		return NULL_REG;
 	}
 
-	new_lastmatch = said(s, said_block, debug_parser);
+	new_lastmatch = said(said_block, debug_parser);
 	if (new_lastmatch  != SAID_NO_MATCH) { /* Build and possibly display a parse tree */
 
 #ifdef DEBUG_PARSER
@@ -169,7 +166,7 @@ reg_t kSetSynonyms(EngineState *s, int argc, reg_t *argv) {
 	Vocabulary *voc = g_sci->getVocabulary();
 
 	// Only SCI0-SCI1 EGA games had a parser. In newer versions, this is a stub
-	if (getSciVersion() > SCI_VERSION_1_EGA)
+	if (getSciVersion() > SCI_VERSION_1_EGA_ONLY)
 		return s->r_acc;
 
 	voc->clearSynonyms();

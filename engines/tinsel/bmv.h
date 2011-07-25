@@ -18,9 +18,6 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
- * $URL$
- * $Id$
- *
  * Plays films within a scene, takes into account the actor in each 'column'.
  */
 
@@ -96,7 +93,7 @@ class BMVPlayer {
 		int	dieFrame;
 	} texts[2];
 
-	COLORREF talkColour;
+	COLORREF talkColor;
 
 	int bigProblemCount;
 
@@ -137,21 +134,20 @@ private:
 	void InitBMV(byte *memoryBuffer);
 	void PrepAudio(const byte *sourceData, int blobCount, byte *destPtr);
 	void MoviePalette(int paletteOffset);
-	void InitialiseMovieSound();
+	void InitializeMovieSound();
 	void StartMovieSound();
 	void FinishMovieSound();
 	void MovieAudio(int audioOffset, int blobs);
 	void FettleMovieText();
 	void BmvDrawText(bool bDraw);
-	void MovieText(CORO_PARAM, int stringId, int x, int y, int fontId, COLORREF *pTalkColour, int duration);
+	void MovieText(CORO_PARAM, int stringId, int x, int y, int fontId, COLORREF *pTalkColor, int duration);
 	int MovieCommand(char cmd, int commandOffset);
 	int FollowingPacket(int thisPacket, bool bReallyImportant);
 	void LoadSlots(int number);
-	void InitialiseBMV();
+	void InitializeBMV();
 	bool MaintainBuffer();
 	bool DoBMVFrame();
 	bool DoSoundFrame();
-	void LookAtBuffers();
 };
 
 

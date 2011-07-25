@@ -18,16 +18,9 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
- * $URL$
- * $Id$
- *
  */
 
-#include "common/md5.h"
-#include "common/config-manager.h"
-#include "common/fs.h"
 #include "common/random.h"
-#include "common/str-array.h"
 
 #include "audio/mididrv.h"
 
@@ -112,7 +105,7 @@ SoundGenSarien::~SoundGenSarien() {
 
 int SoundGenSarien::readBuffer(int16 *buffer, const int numSamples) {
 	fillAudio(buffer, numSamples / 2);
-	
+
 	return numSamples;
 }
 
@@ -131,7 +124,7 @@ void SoundGenSarien::play(int resnum) {
 	for (int i = 0; i < NUM_CHANNELS; i++) {
 		_chn[i].type = type;
 		_chn[i].flags = AGI_SOUND_LOOP;
-				
+
 		if (_env) {
 			_chn[i].flags |= AGI_SOUND_ENVELOPE;
 			_chn[i].adsr = AGI_SOUND_ENV_ATTACK;

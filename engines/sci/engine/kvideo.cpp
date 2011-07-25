@@ -18,9 +18,6 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
- * $URL$
- * $Id$
- *
  */
 
 #include "engines/util.h"
@@ -29,7 +26,14 @@
 #include "sci/graphics/cursor.h"
 #include "sci/graphics/palette.h"
 #include "sci/graphics/screen.h"
-#include "graphics/cursorman.h"
+#include "common/events.h"
+#include "common/keyboard.h"
+#include "common/str.h"
+#include "common/system.h"
+#include "common/textconsole.h"
+#include "graphics/pixelformat.h"
+#include "graphics/surface.h"
+#include "video/video_decoder.h"
 #include "video/avi_decoder.h"
 #include "video/qt_decoder.h"
 #include "sci/video/seq_decoder.h"
@@ -61,7 +65,7 @@ void playVideo(Video::VideoDecoder *videoDecoder, VideoState videoState) {
 		scaleBuffer = new byte[width * height * bytesPerPixel];
 	}
 
-	uint16 x, y; 
+	uint16 x, y;
 
 	// Sanity check...
 	if (videoState.x > 0 && videoState.y > 0 && isVMD) {
@@ -90,7 +94,7 @@ void playVideo(Video::VideoDecoder *videoDecoder, VideoState videoState) {
 
 			if (frame) {
 				if (scaleBuffer) {
-					// TODO: Probably should do aspect ratio correction in e.g. GK1 Windows 
+					// TODO: Probably should do aspect ratio correction in e.g. GK1 Windows
 					g_sci->_gfxScreen->scale2x((byte *)frame->pixels, scaleBuffer, videoDecoder->getWidth(), videoDecoder->getHeight(), bytesPerPixel);
 					g_system->copyRectToScreen(scaleBuffer, pitch, x, y, width, height);
 				} else {
@@ -126,7 +130,7 @@ reg_t kShowMovie(EngineState *s, int argc, reg_t *argv) {
 
 	uint16 screenWidth = g_system->getWidth();
 	uint16 screenHeight = g_system->getHeight();
-		
+
 	Video::VideoDecoder *videoDecoder = 0;
 
 	if (argv[0].segment != 0) {

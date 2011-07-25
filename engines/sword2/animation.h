@@ -20,9 +20,6 @@
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * $URL$
- * $Id$
  */
 
 #ifndef SWORD2_ANIMATION_H
@@ -96,12 +93,12 @@ protected:
 	uint32 _leadOut;
 	int _leadOutFrame;
 
-	void performPostProcessing(byte *screen);
+	void performPostProcessing(byte *screen, uint16 pitch);
 	bool playVideo();
 
 	void openTextObject(uint32 index);
-	void closeTextObject(uint32 index, byte *screen);
-	void drawTextObject(uint32 index, byte *screen);
+	void closeTextObject(uint32 index, byte *screen, uint16 pitch);
+	void drawTextObject(uint32 index, byte *screen, uint16 pitch);
 
 	byte findBlackPalIndex();
 	byte findWhitePalIndex();

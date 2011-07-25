@@ -18,9 +18,6 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
- * $URL$
- * $Id$
- *
  */
 
 #include "common/endian.h"
@@ -30,25 +27,39 @@
 
 namespace Sci {
 
+uint16 READ_SCIENDIAN_UINT16(const void *ptr) {
+	if (g_sci->isBE())
+		return READ_BE_UINT16(ptr);
+	else
+		return READ_LE_UINT16(ptr);
+}
+
+void WRITE_SCIENDIAN_UINT16(void *ptr, uint16 val) {
+	if (g_sci->isBE())
+		WRITE_BE_UINT16(ptr, val);
+	else
+		WRITE_LE_UINT16(ptr, val);
+}
+
 uint16 READ_SCI11ENDIAN_UINT16(const void *ptr) {
 	if (g_sci->getPlatform() == Common::kPlatformMacintosh && getSciVersion() >= SCI_VERSION_1_1)
 		return READ_BE_UINT16(ptr);
-
-	return READ_LE_UINT16(ptr);
+	else
+		return READ_LE_UINT16(ptr);
 }
 
 uint16 READ_SCI32ENDIAN_UINT16(const void *ptr) {
 	if (g_sci->getPlatform() == Common::kPlatformMacintosh && getSciVersion() >= SCI_VERSION_2_1)
 		return READ_BE_UINT16(ptr);
-
-	return READ_LE_UINT16(ptr);
+	else
+		return READ_LE_UINT16(ptr);
 }
 
 uint32 READ_SCI11ENDIAN_UINT32(const void *ptr) {
 	if (g_sci->getPlatform() == Common::kPlatformMacintosh && getSciVersion() >= SCI_VERSION_1_1)
 		return READ_BE_UINT32(ptr);
-
-	return READ_LE_UINT32(ptr);
+	else
+		return READ_LE_UINT32(ptr);
 }
 
 void WRITE_SCI11ENDIAN_UINT16(void *ptr, uint16 val) {

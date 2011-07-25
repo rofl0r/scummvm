@@ -18,9 +18,6 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
- * $URL$
- * $Id$
- *
  */
 
 #ifndef SCI_RESOURCE_H
@@ -331,8 +328,6 @@ public:
 	int getAudioLanguage() const;
 	void changeAudioDirectory(Common::String path);
 	bool isGMTrackIncluded();
-	bool isVGA() const { return (_viewType == kViewVga) || (_viewType == kViewVga11); }
-	bool isAmiga32color() const { return _viewType == kViewAmiga; }
 	bool isSci11Mac() const { return _volVersion == kResVersionSci11Mac; }
 	ViewType getViewType() const { return _viewType; }
 	const char *getMapVersionDesc() const { return versionDescription(_mapVersion); }

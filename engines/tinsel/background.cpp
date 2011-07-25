@@ -18,9 +18,6 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
- * $URL$
- * $Id$
- *
  * Background handling code.
  */
 
@@ -39,11 +36,8 @@ namespace Tinsel {
 // current background
 const BACKGND *pCurBgnd = NULL;
 
-// FIXME: Not yet used
-static bool bEntireRedraw;
-
 /**
- * Called to initialise a background.
+ * Called to initialize a background.
  * @param pBgnd			Pointer to data struct for current background
  */
 
@@ -54,8 +48,8 @@ void InitBackground(const BACKGND *pBgnd) {
 	// set current background
 	pCurBgnd = pBgnd;
 
-	// init background sky colour
-	SetBgndColour(pBgnd->rgbSkyColour);
+	// init background sky color
+	SetBgndColor(pBgnd->rgbSkyColor);
 
 	// start of playfield array
 	pPlayfield = pBgnd->fieldArray;
@@ -130,11 +124,11 @@ void PlayfieldGetPos(int which, int *pXpos, int *pYpos) {
 }
 
 /**
- * Returns the x position of the centre of the specified playfield
+ * Returns the x position of the center of the specified playfield
  * @param which			Which playfield
  */
 
-int PlayfieldGetCentreX(int which) {
+int PlayfieldGetCenterX(int which) {
 	PLAYFIELD *pPlayfield; // pointer to relavent playfield
 
 	// make sure there is a background
@@ -155,7 +149,7 @@ int PlayfieldGetCentreX(int which) {
  * @param which			Which playfield
  */
 
-OBJECT *GetPlayfieldList(int which) {
+OBJECT **GetPlayfieldList(int which) {
 	PLAYFIELD *pPlayfield;	// pointer to relavent playfield
 
 	// make sure there is a background
@@ -168,7 +162,7 @@ OBJECT *GetPlayfieldList(int which) {
 	pPlayfield = pCurBgnd->fieldArray + which;
 
 	// return the display list pointer for this playfield
-	return (OBJECT *)&pPlayfield->pDispList;
+	return &pPlayfield->pDispList;
 }
 
 /**
@@ -208,10 +202,10 @@ void DrawBackgnd() {
 			pPlay->bMoved = true;
 
 		// sort the display list for this background - just in case somebody has changed object Z positions
-		SortObjectList((OBJECT *)&pPlay->pDispList);
+		SortObjectList(&pPlay->pDispList);
 
 		// generate clipping rects for all objects that have moved etc.
-		FindMovingObjects((OBJECT *)&pPlay->pDispList, &ptWin,
+		FindMovingObjects(&pPlay->pDispList, &ptWin,
 			&pPlay->rcClip,	false, pPlay->bMoved);
 
 		// clear playfield moved flag
@@ -238,8 +232,7 @@ void DrawBackgnd() {
 
 			if (IntersectRectangle(rcPlayClip, pPlay->rcClip, *r))
 				// redraw all objects within this clipping rect
-				UpdateClipRect((OBJECT *)&pPlay->pDispList,
-						&ptWin,	&rcPlayClip);
+				UpdateClipRect(&pPlay->pDispList, &ptWin,	&rcPlayClip);
 		}
 	}
 
@@ -256,10 +249,5 @@ void DrawBackgnd() {
 	// delete all the clipping rectangles
 	ResetClipRect();
 }
-
-void ForceEntireRedraw() {
-	bEntireRedraw = true;
-}
-
 
 } // End of namespace Tinsel

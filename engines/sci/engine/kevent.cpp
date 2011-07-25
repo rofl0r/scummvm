@@ -18,9 +18,6 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
- * $URL$
- * $Id$
- *
  */
 
 #include "common/system.h"
@@ -35,6 +32,7 @@
 #include "sci/event.h"
 #include "sci/graphics/coordadjuster.h"
 #include "sci/graphics/cursor.h"
+#include "sci/graphics/maciconbar.h"
 
 namespace Sci {
 
@@ -46,17 +44,25 @@ reg_t kGetEvent(EngineState *s, int argc, reg_t *argv) {
 	SegManager *segMan = s->_segMan;
 	Common::Point mousePos;
 
-	// Limit the mouse cursor position, if necessary
-	g_sci->_gfxCursor->refreshPosition();
-	mousePos = g_sci->_gfxCursor->getPosition();
-#ifdef ENABLE_SCI32
-	if (getSciVersion() >= SCI_VERSION_2_1)
-		g_sci->_gfxCoordAdjuster->fromDisplayToScript(mousePos.y, mousePos.x);
-#endif
+	// For Mac games with an icon bar, handle possible icon bar events first
+	if (g_sci->hasMacIconBar()) {
+		reg_t iconObj = g_sci->_gfxMacIconBar->handleEvents();
+		if (!iconObj.isNull())
+			invokeSelector(s, iconObj, SELECTOR(select), argc, argv, 0, NULL);
+	}
 
 	// If there's a simkey pending, and the game wants a keyboard event, use the
 	// simkey instead of a normal event
 	if (g_debug_simulated_key && (mask & SCI_EVENT_KEYBOARD)) {
+		// In case we use a simulated event we query the current mouse position
+		mousePos = g_sci->_gfxCursor->getPosition();
+#ifdef ENABLE_SCI32
+		if (getSciVersion() >= SCI_VERSION_2_1)
+			g_sci->_gfxCoordAdjuster->fromDisplayToScript(mousePos.y, mousePos.x);
+#endif
+		// Limit the mouse cursor position, if necessary
+		g_sci->_gfxCursor->refreshPosition();
+
 		writeSelectorValue(segMan, obj, SELECTOR(type), SCI_EVENT_KEYBOARD); // Keyboard event
 		writeSelectorValue(segMan, obj, SELECTOR(message), g_debug_simulated_key);
 		writeSelectorValue(segMan, obj, SELECTOR(modifiers), SCI_KEYMOD_NUMLOCK); // Numlock on
@@ -67,6 +73,15 @@ reg_t kGetEvent(EngineState *s, int argc, reg_t *argv) {
 	}
 
 	curEvent = g_sci->getEventManager()->getSciEvent(mask);
+
+	// For a real event we use its associated mouse position
+	mousePos = curEvent.mousePos;
+#ifdef ENABLE_SCI32
+	if (getSciVersion() >= SCI_VERSION_2_1)
+		g_sci->_gfxCoordAdjuster->fromDisplayToScript(mousePos.y, mousePos.x);
+#endif
+	// Limit the mouse cursor position, if necessary
+	g_sci->_gfxCursor->refreshPosition();
 
 	if (g_sci->getVocabulary())
 		g_sci->getVocabulary()->parser_event = NULL_REG; // Invalidate parser event
@@ -135,7 +150,11 @@ reg_t kGetEvent(EngineState *s, int argc, reg_t *argv) {
 		break;
 
 	default:
-		s->r_acc = NULL_REG; // Unknown or no event
+		// Return a null event
+		writeSelectorValue(segMan, obj, SELECTOR(type), SCI_EVENT_NONE);
+		writeSelectorValue(segMan, obj, SELECTOR(message), 0);
+		writeSelectorValue(segMan, obj, SELECTOR(modifiers), curEvent.modifiers & modifier_mask);
+		s->r_acc = NULL_REG;
 	}
 
 	if ((s->r_acc.offset) && (g_sci->_debugState.stopOnEvent)) {
@@ -175,7 +194,7 @@ reg_t kGetEvent(EngineState *s, int argc, reg_t *argv) {
 	// Wait a bit here, so that the CPU isn't maxed out when the game
 	// is waiting for user input (e.g. when showing text boxes) - bug
 	// #3037874. Make sure that we're not delaying while the game is
-	// benchmarking, as that will affect the final benchmarked result - 
+	// benchmarking, as that will affect the final benchmarked result -
 	// check bugs #3058865 and #3127824
 	if (s->_gameIsBenchmarking) {
 		// Game is benchmarking, don't add a delay

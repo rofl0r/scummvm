@@ -18,21 +18,15 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
- * $URL$
- * $Id$
- *
  */
 
 #ifdef ENABLE_LOL
 
 #include "kyra/lol.h"
 #include "kyra/screen_lol.h"
-#include "kyra/resource.h"
 
-#include "common/endian.h"
 #include "common/savefile.h"
 #include "common/substream.h"
-#include "common/system.h"
 
 #include "graphics/scaler.h"
 
@@ -263,7 +257,7 @@ Common::Error LoLEngine::loadGameState(int slot) {
 	int t = _credits;
 	_credits = 0;
 	giveCredits(t, 0);
-	setDelayedCursorUpdate();
+	setHandItem(_itemInHand);
 	loadLevel(_currentLevel);
 	gui_drawPlayField();
 	timerSpecialCharacterUpdate(0);

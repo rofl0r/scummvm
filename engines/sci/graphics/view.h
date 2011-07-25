@@ -18,15 +18,19 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
- * $URL$
- * $Id$
- *
  */
 
 #ifndef SCI_GRAPHICS_VIEW_H
 #define SCI_GRAPHICS_VIEW_H
 
 namespace Sci {
+
+enum Sci32ViewNativeResolution {
+	SCI_VIEW_NATIVERES_NONE = -1,
+	SCI_VIEW_NATIVERES_320x200 = 0,
+	SCI_VIEW_NATIVERES_640x480 = 1,
+	SCI_VIEW_NATIVERES_640x400 = 2
+};
 
 struct CelInfo {
 	int16 width, height;
@@ -78,6 +82,9 @@ public:
 	bool isScaleable();
 	bool isSci2Hires();
 
+	void adjustToUpscaledCoordinates(int16 &y, int16 &x);
+	void adjustBackUpscaledCoordinates(int16 &y, int16 &x);
+
 private:
 	void initData(GuiResourceId resourceId);
 	void unpackCel(int16 loopNo, int16 celNo, byte *outPtr, uint32 pixelCount);
@@ -98,8 +105,8 @@ private:
 	bool _embeddedPal;
 	Palette _viewPalette;
 
-	// set for SCI2 views in gk1/windows, means that views are hires and should be handled accordingly
-	bool _isSci2Hires;
+	// specifies scaling resolution for SCI2 views (see gk1/windows, Wolfgang in room 720)
+	Sci32ViewNativeResolution _sci2ScaleRes;
 
 	byte *_EGAmapping;
 

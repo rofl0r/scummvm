@@ -18,9 +18,6 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
- * $URL$
- * $Id$
- *
  */
 
 #ifndef COMMON_EVENTS_H
@@ -81,30 +78,6 @@ enum EventType {
 /**
  * Data structure for an event. A pointer to an instance of Event
  * can be passed to pollEvent.
- * @todo Rework/document this structure. It should be made 100% clear which
- *       field is valid for which event type.
- *       Implementation wise, we might want to use the classic
- *       union-of-structs trick. It goes roughly like this:
- *       struct BasicEvent {
- *          EventType type;
- *       };
- *       struct MouseMovedEvent : BasicEvent {
- *          Common::Point pos;
- *       };
- *       struct MouseButtonEvent : MouseMovedEvent {
- *          int button;
- *       };
- *       struct KeyEvent : BasicEvent {
- *          ...
- *       };
- *       ...
- *       union Event {
- *          EventType type;
- *          MouseMovedEvent mouse;
- *          MouseButtonEvent button;
- *          KeyEvent key;
- *          ...
- *       };
  */
 struct Event {
 	/** The type of the event. */
@@ -333,7 +306,7 @@ public:
 
 
 	/**
-	 * Initialise the event manager.
+	 * Initialize the event manager.
 	 * @note	called after graphics system has been set up
 	 */
 	virtual void init() {}

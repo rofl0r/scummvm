@@ -18,12 +18,26 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
- * $URL$
- * $Id$
- *
  */
 
 #if defined(__ANDROID__)
+
+// Allow use of stuff in <time.h>
+#define FORBIDDEN_SYMBOL_EXCEPTION_time_h
+
+// Disable printf override in common/forbidden.h to avoid
+// clashes with log.h from the Android SDK.
+// That header file uses
+//   __attribute__ ((format(printf, 3, 4)))
+// which gets messed up by our override mechanism; this could
+// be avoided by either changing the Android SDK to use the equally
+// legal and valid
+//   __attribute__ ((format(printf, 3, 4)))
+// or by refining our printf override to use a varadic macro
+// (which then wouldn't be portable, though).
+// Anyway, for now we just disable the printf override globally
+// for the Android port
+#define FORBIDDEN_SYMBOL_EXCEPTION_printf
 
 #include "base/main.h"
 #include "graphics/surface.h"
@@ -35,9 +49,6 @@
 
 #include "backends/platform/android/texture.h"
 #include "backends/platform/android/android.h"
-
-// Unfortunately, Android devices are too varied to make broad assumptions :/
-#define TEXSUBIMAGE_IS_EXPENSIVE 0
 
 // Supported GL extensions
 static bool npot_supported = false;
@@ -62,7 +73,7 @@ static T nextHigher2(T k) {
 	return k + 1;
 }
 
-void GLESTexture::initGLExtensions() {
+void GLESBaseTexture::initGLExtensions() {
 	const char *ext_string =
 		reinterpret_cast<const char *>(glGetString(GL_EXTENSIONS));
 
@@ -82,46 +93,77 @@ void GLESTexture::initGLExtensions() {
 	}
 }
 
-GLESTexture::GLESTexture() :
+GLESBaseTexture::GLESBaseTexture(GLenum glFormat, GLenum glType,
+									Graphics::PixelFormat pixelFormat) :
+	_glFormat(glFormat),
+	_glType(glType),
+	_glFilter(GL_NEAREST),
+	_texture_name(0),
+	_surface(),
 	_texture_width(0),
 	_texture_height(0),
-	_all_dirty(true)
+	_draw_rect(),
+	_all_dirty(false),
+	_dirty_rect(),
+	_pixelFormat(pixelFormat),
+	_palettePixelFormat()
 {
 	GLCALL(glGenTextures(1, &_texture_name));
-
-	// This all gets reset later in allocBuffer:
-	_surface.w = 0;
-	_surface.h = 0;
-	_surface.pitch = _texture_width;
-	_surface.pixels = 0;
-	_surface.bytesPerPixel = 0;
 }
 
-GLESTexture::~GLESTexture() {
-	debug("Destroying texture %u", _texture_name);
-	GLCALL(glDeleteTextures(1, &_texture_name));
+GLESBaseTexture::~GLESBaseTexture() {
+	release();
 }
 
-void GLESTexture::reinitGL() {
-	GLCALL(glDeleteTextures(1, &_texture_name));
+void GLESBaseTexture::release() {
+	if (_texture_name) {
+		LOGD("Destroying texture %u", _texture_name);
+
+		GLCALL(glDeleteTextures(1, &_texture_name));
+		_texture_name = 0;
+	}
+}
+
+void GLESBaseTexture::reinit() {
 	GLCALL(glGenTextures(1, &_texture_name));
 
-	// bypass allocBuffer() shortcut to reinit the texture properly
-	_texture_width = 0;
-	_texture_height = 0;
+	initSize();
 
-	allocBuffer(_surface.w, _surface.h);
 	setDirty();
 }
 
-void GLESTexture::allocBuffer(GLuint w, GLuint h) {
-	int bpp = bytesPerPixel();
+void GLESBaseTexture::initSize() {
+	// Allocate room for the texture now, but pixel data gets uploaded
+	// later (perhaps with multiple TexSubImage2D operations).
+	GLCALL(glBindTexture(GL_TEXTURE_2D, _texture_name));
+	GLCALL(glPixelStorei(GL_UNPACK_ALIGNMENT, 1));
+	GLCALL(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, _glFilter));
+	GLCALL(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, _glFilter));
+	GLCALL(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE));
+	GLCALL(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE));
+	GLCALL(glTexImage2D(GL_TEXTURE_2D, 0, _glFormat,
+						_texture_width, _texture_height,
+						0, _glFormat, _glType, 0));
+}
+
+void GLESBaseTexture::setLinearFilter(bool value) {
+	if (value)
+		_glFilter = GL_LINEAR;
+	else
+		_glFilter = GL_NEAREST;
+
+	GLCALL(glBindTexture(GL_TEXTURE_2D, _texture_name));
+
+	GLCALL(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, _glFilter));
+	GLCALL(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, _glFilter));
+}
+
+void GLESBaseTexture::allocBuffer(GLuint w, GLuint h) {
 	_surface.w = w;
 	_surface.h = h;
-	_surface.bytesPerPixel = bpp;
+	_surface.format = _pixelFormat;
 
-	// Already allocated a sufficiently large buffer?
-	if (w <= _texture_width && h <= _texture_height)
+	if (w == _texture_width && h == _texture_height)
 		return;
 
 	if (npot_supported) {
@@ -132,90 +174,16 @@ void GLESTexture::allocBuffer(GLuint w, GLuint h) {
 		_texture_height = nextHigher2(_surface.h);
 	}
 
-	_surface.pitch = _texture_width * bpp;
-
-	// Allocate room for the texture now, but pixel data gets uploaded
-	// later (perhaps with multiple TexSubImage2D operations).
-	GLCALL(glBindTexture(GL_TEXTURE_2D, _texture_name));
-	GLCALL(glPixelStorei(GL_UNPACK_ALIGNMENT, 1));
-	GLCALL(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST));
-	GLCALL(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST));
-	GLCALL(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE));
-	GLCALL(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE));
-	GLCALL(glTexImage2D(GL_TEXTURE_2D, 0, glFormat(),
-						_texture_width, _texture_height,
-						0, glFormat(), glType(), 0));
+	initSize();
 }
 
-void GLESTexture::updateBuffer(GLuint x, GLuint y, GLuint w, GLuint h,
-								const void *buf, int pitch) {
-	ENTER("%u, %u, %u, %u, %p, %d", x, y, w, h, buf, pitch);
-
-	GLCALL(glBindTexture(GL_TEXTURE_2D, _texture_name));
-	GLCALL(glPixelStorei(GL_UNPACK_ALIGNMENT, 1));
-
-	setDirtyRect(Common::Rect(x, y, x+w, y+h));
-
-	if (static_cast<int>(w) * bytesPerPixel() == pitch) {
-		GLCALL(glTexSubImage2D(GL_TEXTURE_2D, 0, x, y, w, h,
-								glFormat(), glType(), buf));
-	} else {
-		// GLES removed the ability to specify pitch, so we
-		// have to do this ourselves.
-		if (h == 0)
-			return;
-
-#if TEXSUBIMAGE_IS_EXPENSIVE
-		byte *tmp = new byte[w * h * bytesPerPixel()];
-		assert(tmp);
-
-		const byte *src = static_cast<const byte *>(buf);
-		byte *dst = tmp;
-		GLuint count = h;
-
-		do {
-			memcpy(dst, src, w * bytesPerPixel());
-			dst += w * bytesPerPixel();
-			src += pitch;
-		} while (--count);
-
-		GLCALL(glTexSubImage2D(GL_TEXTURE_2D, 0, x, y, w, h,
-								glFormat(), glType(), tmp));
-
-		delete[] tmp;
-#else
-		// This version avoids the intermediate copy at the expense of
-		// repeat glTexSubImage2D calls.  On some devices this is worse.
-		const byte *src = static_cast<const byte *>(buf);
-		do {
-			GLCALL(glTexSubImage2D(GL_TEXTURE_2D, 0, x, y,
-									w, 1, glFormat(), glType(), src));
-			++y;
-			src += pitch;
-		} while (--h);
-#endif
-	}
-}
-
-void GLESTexture::fillBuffer(byte x) {
-	uint rowbytes = _surface.w * bytesPerPixel();
-
-	byte *tmp = new byte[_surface.h * rowbytes];
-	assert(tmp);
-
-	memset(tmp, x, _surface.h * rowbytes);
-	updateBuffer(0, 0, _surface.w, _surface.h, tmp, rowbytes);
-
-	delete[] tmp;
-}
-
-void GLESTexture::drawTexture(GLshort x, GLshort y, GLshort w, GLshort h) {
+void GLESBaseTexture::drawTexture(GLshort x, GLshort y, GLshort w, GLshort h) {
 	GLCALL(glBindTexture(GL_TEXTURE_2D, _texture_name));
 
 #ifdef GL_OES_draw_texture
 	// Great extension, but only works under specific conditions.
 	// Still a work-in-progress - disabled for now.
-	if (false && draw_tex_supported && paletteSize() == 0) {
+	if (false && draw_tex_supported && !hasPalette()) {
 		//GLCALL(glTexEnvx(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_REPLACE));
 		const GLint crop[4] = { 0, _surface.h, _surface.w, -_surface.h };
 
@@ -252,99 +220,271 @@ void GLESTexture::drawTexture(GLshort x, GLshort y, GLshort w, GLshort h) {
 		GLCALL(glDrawArrays(GL_TRIANGLE_STRIP, 0, ARRAYSIZE(vertices) / 2));
 	}
 
-	_all_dirty = false;
-	_dirty_rect = Common::Rect();
+	clearDirty();
 }
 
-GLESPaletteTexture::GLESPaletteTexture() :
-	GLESTexture(),
-	_texture(0)
-{
+const Graphics::PixelFormat &GLESBaseTexture::getPixelFormat() const {
+	return _pixelFormat;
 }
 
-GLESPaletteTexture::~GLESPaletteTexture() {
-	delete[] _texture;
+GLESTexture::GLESTexture(GLenum glFormat, GLenum glType,
+							Graphics::PixelFormat pixelFormat) :
+	GLESBaseTexture(glFormat, glType, pixelFormat),
+	_pixels(0),
+	_buf(0) {
 }
 
-void GLESPaletteTexture::allocBuffer(GLuint w, GLuint h) {
-	int bpp = bytesPerPixel();
-	_surface.w = w;
-	_surface.h = h;
-	_surface.bytesPerPixel = bpp;
+GLESTexture::~GLESTexture() {
+	delete[] _buf;
+	delete[] _pixels;
+}
 
-	// Already allocated a sufficiently large buffer?
-	if (w <= _texture_width && h <= _texture_height)
+void GLESTexture::allocBuffer(GLuint w, GLuint h) {
+	GLuint oldw = _surface.w;
+	GLuint oldh = _surface.h;
+
+	GLESBaseTexture::allocBuffer(w, h);
+
+	_surface.pitch = w * _pixelFormat.bytesPerPixel;
+
+	if (_surface.w == oldw && _surface.h == oldh) {
+		fillBuffer(0);
 		return;
-
-	if (npot_supported) {
-		_texture_width = _surface.w;
-		_texture_height = _surface.h;
-	} else {
-		_texture_width = nextHigher2(_surface.w);
-		_texture_height = nextHigher2(_surface.h);
-	}
-	_surface.pitch = _texture_width * bpp;
-
-	// Texture gets uploaded later (from drawTexture())
-
-	byte *new_buffer = new byte[paletteSize() +
-		_texture_width * _texture_height * bytesPerPixel()];
-	if (_texture) {
-		// preserve palette
-		memcpy(new_buffer, _texture, paletteSize());
-		delete[] _texture;
 	}
 
-	_texture = new_buffer;
-	_surface.pixels = _texture + paletteSize();
+	delete[] _buf;
+	delete[] _pixels;
+
+	_pixels = new byte[w * h * _surface.format.bytesPerPixel];
+	assert(_pixels);
+
+	_surface.pixels = _pixels;
+
+	fillBuffer(0);
+
+	_buf = new byte[w * h * _surface.format.bytesPerPixel];
+	assert(_buf);
 }
 
-void GLESPaletteTexture::fillBuffer(byte x) {
-	assert(_surface.pixels);
-	memset(_surface.pixels, x, _surface.pitch * _surface.h);
-	setDirty();
-}
+void GLESTexture::updateBuffer(GLuint x, GLuint y, GLuint w, GLuint h,
+								const void *buf, int pitch_buf) {
+	setDirtyRect(Common::Rect(x, y, x + w, y + h));
 
-void GLESPaletteTexture::updateBuffer(GLuint x, GLuint y,
-										GLuint w, GLuint h,
-										const void *buf, int pitch) {
-	_all_dirty = true;
-
-	const byte * src = static_cast<const byte *>(buf);
-	byte *dst = static_cast<byte *>(_surface.getBasePtr(x, y));
+	const byte *src = (const byte *)buf;
+	byte *dst = _pixels + y * _surface.pitch + x * _surface.format.bytesPerPixel;
 
 	do {
-		memcpy(dst, src, w * bytesPerPixel());
+		memcpy(dst, src, w * _surface.format.bytesPerPixel);
 		dst += _surface.pitch;
-		src += pitch;
+		src += pitch_buf;
 	} while (--h);
 }
 
-void GLESPaletteTexture::uploadTexture() const {
-	const size_t texture_size =
-		paletteSize() + _texture_width * _texture_height * bytesPerPixel();
+void GLESTexture::fillBuffer(uint32 color) {
+	assert(_surface.pixels);
 
-	GLCALL(glCompressedTexImage2D(GL_TEXTURE_2D, 0, glType(),
-									_texture_width, _texture_height,
-									0, texture_size, _texture));
+	if (_pixelFormat.bytesPerPixel == 1 ||
+			((color & 0xff) == ((color >> 8) & 0xff)))
+		memset(_pixels, color & 0xff, _surface.pitch * _surface.h);
+	else
+		Common::set_to(_pixels, _pixels + _surface.pitch * _surface.h,
+						(uint16)color);
+
+	setDirty();
 }
 
-void GLESPaletteTexture::drawTexture(GLshort x, GLshort y, GLshort w, GLshort h) {
+void GLESTexture::drawTexture(GLshort x, GLshort y, GLshort w, GLshort h) {
 	if (_all_dirty) {
-		GLCALL(glBindTexture(GL_TEXTURE_2D, _texture_name));
-		GLCALL(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER,
-								GL_NEAREST));
-		GLCALL(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER,
-								GL_NEAREST));
-		GLCALL(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S,
-								GL_CLAMP_TO_EDGE));
-		GLCALL(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T,
-								GL_CLAMP_TO_EDGE));
-		uploadTexture();
+		_dirty_rect.top = 0;
+		_dirty_rect.left = 0;
+		_dirty_rect.bottom = _surface.h;
+		_dirty_rect.right = _surface.w;
+
 		_all_dirty = false;
 	}
 
-	GLESTexture::drawTexture(x, y, w, h);
+	if (!_dirty_rect.isEmpty()) {
+		byte *_tex;
+
+		int16 dwidth = _dirty_rect.width();
+		int16 dheight = _dirty_rect.height();
+
+		if (dwidth == _surface.w) {
+			_tex = _pixels + _dirty_rect.top * _surface.pitch;
+		} else {
+			_tex = _buf;
+
+			byte *src = _pixels + _dirty_rect.top * _surface.pitch +
+						_dirty_rect.left * _surface.format.bytesPerPixel;
+			byte *dst = _buf;
+
+			uint16 l = dwidth * _surface.format.bytesPerPixel;
+
+			for (uint16 i = 0; i < dheight; ++i) {
+				memcpy(dst, src, l);
+				src += _surface.pitch;
+				dst += l;
+			}
+		}
+
+		GLCALL(glBindTexture(GL_TEXTURE_2D, _texture_name));
+		GLCALL(glPixelStorei(GL_UNPACK_ALIGNMENT, 1));
+
+		GLCALL(glTexSubImage2D(GL_TEXTURE_2D, 0,
+								_dirty_rect.left, _dirty_rect.top,
+								dwidth, dheight, _glFormat, _glType, _tex));
+	}
+
+	GLESBaseTexture::drawTexture(x, y, w, h);
+}
+
+GLES4444Texture::GLES4444Texture() :
+	GLESTexture(GL_RGBA, GL_UNSIGNED_SHORT_4_4_4_4, pixelFormat()) {
+}
+
+GLES4444Texture::~GLES4444Texture() {
+}
+
+GLES5551Texture::GLES5551Texture() :
+	GLESTexture(GL_RGBA, GL_UNSIGNED_SHORT_5_5_5_1, pixelFormat()) {
+}
+
+GLES5551Texture::~GLES5551Texture() {
+}
+
+GLES565Texture::GLES565Texture() :
+	GLESTexture(GL_RGB, GL_UNSIGNED_SHORT_5_6_5, pixelFormat()) {
+}
+
+GLES565Texture::~GLES565Texture() {
+}
+
+GLESFakePaletteTexture::GLESFakePaletteTexture(GLenum glFormat, GLenum glType,
+									Graphics::PixelFormat pixelFormat) :
+	GLESBaseTexture(glFormat, glType, pixelFormat),
+	_palette(0),
+	_pixels(0),
+	_buf(0)
+{
+	_palettePixelFormat = pixelFormat;
+	_fake_format = Graphics::PixelFormat::createFormatCLUT8();
+
+	_palette = new uint16[256];
+	assert(_palette);
+
+	memset(_palette, 0, 256 * 2);
+}
+
+GLESFakePaletteTexture::~GLESFakePaletteTexture() {
+	delete[] _buf;
+	delete[] _pixels;
+	delete[] _palette;
+}
+
+void GLESFakePaletteTexture::allocBuffer(GLuint w, GLuint h) {
+	GLuint oldw = _surface.w;
+	GLuint oldh = _surface.h;
+
+	GLESBaseTexture::allocBuffer(w, h);
+
+	_surface.format = Graphics::PixelFormat::createFormatCLUT8();
+	_surface.pitch = w;
+
+	if (_surface.w == oldw && _surface.h == oldh) {
+		fillBuffer(0);
+		return;
+	}
+
+	delete[] _buf;
+	delete[] _pixels;
+
+	_pixels = new byte[w * h];
+	assert(_pixels);
+
+	// fixup surface, for the outside this is a CLUT8 surface
+	_surface.pixels = _pixels;
+
+	fillBuffer(0);
+
+	_buf = new uint16[w * h];
+	assert(_buf);
+}
+
+void GLESFakePaletteTexture::fillBuffer(uint32 color) {
+	assert(_surface.pixels);
+	memset(_surface.pixels, color & 0xff, _surface.pitch * _surface.h);
+	setDirty();
+}
+
+void GLESFakePaletteTexture::updateBuffer(GLuint x, GLuint y, GLuint w,
+											GLuint h, const void *buf,
+											int pitch_buf) {
+	setDirtyRect(Common::Rect(x, y, x + w, y + h));
+
+	const byte *src = (const byte *)buf;
+	byte *dst = _pixels + y * _surface.pitch + x;
+
+	do {
+		memcpy(dst, src, w);
+		dst += _surface.pitch;
+		src += pitch_buf;
+	} while (--h);
+}
+
+void GLESFakePaletteTexture::drawTexture(GLshort x, GLshort y, GLshort w,
+										GLshort h) {
+	if (_all_dirty) {
+		_dirty_rect.top = 0;
+		_dirty_rect.left = 0;
+		_dirty_rect.bottom = _surface.h;
+		_dirty_rect.right = _surface.w;
+
+		_all_dirty = false;
+	}
+
+	if (!_dirty_rect.isEmpty()) {
+		int16 dwidth = _dirty_rect.width();
+		int16 dheight = _dirty_rect.height();
+
+		byte *src = _pixels + _dirty_rect.top * _surface.pitch +
+					_dirty_rect.left;
+		uint16 *dst = _buf;
+		uint pitch_delta = _surface.pitch - dwidth;
+
+		for (uint16 j = 0; j < dheight; ++j) {
+			for (uint16 i = 0; i < dwidth; ++i)
+				*dst++ = _palette[*src++];
+			src += pitch_delta;
+		}
+
+		GLCALL(glBindTexture(GL_TEXTURE_2D, _texture_name));
+
+		GLCALL(glTexSubImage2D(GL_TEXTURE_2D, 0,
+								_dirty_rect.left, _dirty_rect.top,
+								dwidth, dheight, _glFormat, _glType, _buf));
+	}
+
+	GLESBaseTexture::drawTexture(x, y, w, h);
+}
+
+const Graphics::PixelFormat &GLESFakePaletteTexture::getPixelFormat() const {
+	return _fake_format;
+}
+
+GLESFakePalette565Texture::GLESFakePalette565Texture() :
+	GLESFakePaletteTexture(GL_RGB, GL_UNSIGNED_SHORT_5_6_5,
+							GLES565Texture::pixelFormat()) {
+}
+
+GLESFakePalette565Texture::~GLESFakePalette565Texture() {
+}
+
+GLESFakePalette5551Texture::GLESFakePalette5551Texture() :
+	GLESFakePaletteTexture(GL_RGBA, GL_UNSIGNED_SHORT_5_5_5_1,
+							GLES5551Texture::pixelFormat()) {
+}
+
+GLESFakePalette5551Texture::~GLESFakePalette5551Texture() {
 }
 
 #endif

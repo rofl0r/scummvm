@@ -18,23 +18,15 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
- * $URL$
- * $Id$
- *
  */
 
-#include "kyra/kyra_lok.h"
-#include "kyra/screen.h"
-#include "kyra/script.h"
-#include "kyra/text.h"
-#include "kyra/animator_lok.h"
-#include "kyra/sound.h"
 #include "kyra/gui_lok.h"
+#include "kyra/kyra_lok.h"
+#include "kyra/animator_lok.h"
+#include "kyra/text.h"
 #include "kyra/timer.h"
 #include "kyra/util.h"
-#include "kyra/item.h"
 
-#include "common/config-manager.h"
 #include "common/savefile.h"
 #include "common/system.h"
 
@@ -564,7 +556,6 @@ int GUI_LoK::resumeGame(Button *button) {
 
 void GUI_LoK::setupSavegames(Menu &menu, int num) {
 	Common::InSaveFile *in;
-	static char savenames[5][35];
 	uint8 startSlot;
 	assert(num <= 5);
 
@@ -583,11 +574,20 @@ void GUI_LoK::setupSavegames(Menu &menu, int num) {
 	KyraEngine_LoK::SaveHeader header;
 	for (int i = startSlot; i < num && uint(_savegameOffset + i) < _saveSlots.size(); i++) {
 		if ((in = _vm->openSaveForReading(_vm->getSavegameFilename(_saveSlots[i + _savegameOffset]), header))) {
-			Common::strlcpy(savenames[i], header.description.c_str(), ARRAYSIZE(savenames[0]));
+			Common::strlcpy(_savegameNames[i], header.description.c_str(), ARRAYSIZE(_savegameNames[0]));
 
-			Util::convertISOToDOS(savenames[i]);
+			// Trim long GMM save descriptions to fit our save slots
+			_screen->_charWidth = -2;
+			int fC = _screen->getTextWidth(_savegameNames[i]);
+			while (_savegameNames[i][0] && (fC > 240 )) {
+				_savegameNames[i][strlen(_savegameNames[i]) - 1] = 0;
+				fC = _screen->getTextWidth(_savegameNames[i]);
+			}
+			_screen->_charWidth = 0;
 
-			menu.item[i].itemString = savenames[i];
+			Util::convertISOToDOS(_savegameNames[i]);
+
+			menu.item[i].itemString = _savegameNames[i];
 			menu.item[i].enabled = 1;
 			menu.item[i].saveSlot = _saveSlots[i + _savegameOffset];
 			delete in;
@@ -702,12 +702,15 @@ void GUI_LoK::updateSavegameString() {
 
 	if (_keyPressed.keycode) {
 		length = strlen(_savegameName);
+		_screen->_charWidth = -2;
+		int width = _screen->getTextWidth(_savegameName) + 7;
+		_screen->_charWidth = 0;
 
 		char inputKey = _keyPressed.ascii;
 		Util::convertISOToDOS(inputKey);
 
 		if ((uint8)inputKey > 31 && (uint8)inputKey < (_vm->gameFlags().lang == Common::JA_JPN ? 128 : 226)) {
-			if (length < ARRAYSIZE(_savegameName)-1) {
+			if ((length < ARRAYSIZE(_savegameName)-1) && (width <= 240)) {
 				_savegameName[length] = inputKey;
 				_savegameName[length+1] = 0;
 				redrawTextfield();

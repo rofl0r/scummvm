@@ -18,9 +18,6 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
- * $URL$
- * $Id$
- *
  * LGPL licensed version of MAMEs fmopl (V0.37a modified) by
  * Tatsuyuki Satoh. Included from LGPL'ed AdPlug.
  */
@@ -32,6 +29,9 @@
 #include <math.h>
 
 #include "mame.h"
+
+#include "common/textconsole.h"
+#include "common/util.h"
 
 #if defined (_WIN32_WCE) || defined (__SYMBIAN32__) || defined(__GP32__) || defined(GP2X) || defined (__MAEMO__) || defined(__DS__) || defined (__MINT__) || defined(__N64__)
 #include "common/config-manager.h"
@@ -546,7 +546,7 @@ inline void OPL_CALC_RH(FM_OPL *OPL, OPL_CH *CH) {
 	// but EG_STEP = 96.0/EG_ENT, and WHITE_NOISE_db=6.0. So, that's equivalent to
 	// int(OPL->rnd.getRandomBit() * EG_ENT/16). We know that EG_ENT is 4096, or 1024,
 	// or 128, so we can safely avoid any FP ops.
-	int whitenoise = OPL->rnd.getRandomBit() * (EG_ENT>>4);
+	int whitenoise = OPL->rnd->getRandomBit() * (EG_ENT>>4);
 
 	int tone8;
 
@@ -708,7 +708,7 @@ static int OPLOpenTable(void) {
 	/* degree 0 = degree 180                   = off */
 	SIN_TABLE[0] = SIN_TABLE[SIN_ENT /2 ] = &TL_TABLE[EG_ENT - 1];
 	for (s = 1;s <= SIN_ENT / 4; s++) {
-		pom = sin(2 * PI * s / SIN_ENT); /* sin     */
+		pom = sin(2 * M_PI * s / SIN_ENT); /* sin     */
 		pom = 20 * log10(1 / pom);	   /* decibel */
 		j = int(pom / EG_STEP);         /* TL_TABLE steps */
 
@@ -725,6 +725,8 @@ static int OPLOpenTable(void) {
 
 
 	ENV_CURVE = (int *)malloc(sizeof(int) * (2*EG_ENT+1));
+	if (!ENV_CURVE)
+		error("[OPLOpenTable] Cannot allocate memory");
 
 	/* envelope counter -> envelope output table */
 	for (i=0; i < EG_ENT; i++) {
@@ -739,14 +741,14 @@ static int OPLOpenTable(void) {
 	ENV_CURVE[EG_OFF >> ENV_BITS]= EG_ENT - 1;
 	/* make LFO ams table */
 	for (i=0; i < AMS_ENT; i++) {
-		pom = (1.0 + sin(2 * PI * i / AMS_ENT)) / 2; /* sin */
+		pom = (1.0 + sin(2 * M_PI * i / AMS_ENT)) / 2; /* sin */
 		AMS_TABLE[i]         = (int)((1.0 / EG_STEP) * pom); /* 1dB   */
 		AMS_TABLE[AMS_ENT + i] = (int)((4.8 / EG_STEP) * pom); /* 4.8dB */
 	}
 	/* make LFO vibrate table */
 	for (i=0; i < VIB_ENT; i++) {
 		/* 100cent = 1seminote = 6% ?? */
-		pom = (double)VIB_RATE * 0.06 * sin(2 * PI * i / VIB_ENT); /* +-100sect step */
+		pom = (double)VIB_RATE * 0.06 * sin(2 * M_PI * i / VIB_ENT); /* +-100sect step */
 		VIB_TABLE[i]         = (int)(VIB_RATE + (pom * 0.07)); /* +- 7cent */
 		VIB_TABLE[VIB_ENT + i] = (int)(VIB_RATE + (pom * 0.14)); /* +-14cent */
 	}
@@ -754,8 +756,10 @@ static int OPLOpenTable(void) {
 }
 
 static void OPLCloseTable(void) {
+#ifndef __DS__
 	free(TL_TABLE);
 	free(SIN_TABLE);
+#endif
 	free(AMS_TABLE);
 	free(VIB_TABLE);
 	free(ENV_CURVE);
@@ -1126,6 +1130,15 @@ FM_OPL *OPLCreate(int type, int clock, int rate) {
 	OPL->rate  = rate;
 	OPL->max_ch = max_ch;
 
+	// Init the random source. Note: We use a fixed name for it here.
+	// So if multiple FM_OPL objects exist in parallel, then their
+	// random sources will have an equal name. At least in the
+	// current EventRecorder implementation, this causes no problems;
+	// but this is probably not guaranteed.
+	// Alas, it does not seem worthwhile to bother much with this
+	// at the time, so I am leaving it as it is.
+	OPL->rnd = new Common::RandomSource("mame");
+
 	/* init grobal tables */
 	OPL_initalize(OPL);
 
@@ -1134,9 +1147,10 @@ FM_OPL *OPLCreate(int type, int clock, int rate) {
 	return OPL;
 }
 
-/* ----------  Destroy one of vietual YM3812 ----------       */
+/* ----------  Destroy one of virtual YM3812 ----------       */
 void OPLDestroy(FM_OPL *OPL) {
 	OPL_UnLockTable();
+	delete OPL->rnd;
 	free(OPL);
 }
 

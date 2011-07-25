@@ -18,16 +18,12 @@
 * along with this program; if not, write to the Free Software
 * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
 *
-* $URL$
-* $Id$
-*
 */
 
 #ifndef TOON_DREW_H
 #define TOON_DREW_H
 
 #include "toon/character.h"
-
 
 namespace Toon {
 
@@ -46,7 +42,6 @@ public:
 	int32 getRandomIdleAnim();
 protected:
 	int32 _currentScale;
-
 };
 
 } // End of namespace Toon

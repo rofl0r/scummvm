@@ -18,9 +18,6 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
- * $URL$
- * $Id$
- *
  */
 
 #ifndef KYRA_RESOURCE_H
@@ -102,7 +99,7 @@ protected:
 enum KyraResources {
 	kLoadAll = -1,
 
-	// This list has to match orderwise (and thus value wise) the static data list of "tools/create_kyradat/create_kyradat.h"!
+	// This list has to match orderwise (and thus value wise) the static data list of "devtools/create_kyradat/create_kyradat.h"!
 	k1ForestSeq = 1,
 	k1KallakWritingSeq,
 	k1KyrandiaLogoSeq,

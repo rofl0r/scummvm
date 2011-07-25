@@ -18,14 +18,13 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
- * $URL$
- * $Id$
- *
  */
 
 #include "kyra/kyra_mr.h"
 #include "kyra/resource.h"
 #include "kyra/wsamovie.h"
+
+#include "common/system.h"
 
 namespace Kyra {
 
@@ -336,7 +335,6 @@ void KyraEngine_MR::setupSceneAnimObject(int animId, uint16 flags, int x, int y,
 
 	if (flags & 8) {
 		_sceneAnimMovie[animId]->open(filename, 1, 0);
-		musicUpdate(0);
 		if (_sceneAnimMovie[animId]->opened()) {
 			anim.wsaFlag = 1;
 			if (x2 == -1)
@@ -451,11 +449,10 @@ void KyraEngine_MR::showIdleAnim() {
 			"A", "R", "R", "FR", "FX", "FL", "L", "L"
 		};
 
-		char filename[14];
-		snprintf(filename, 14, "MI0%s%.02d.EMC", facingTable[_mainCharacter.facing], _characterShapeFile);
+		Common::String filename = Common::String::format( "MI0%s%.02d.EMC", facingTable[_mainCharacter.facing], _characterShapeFile);
 
-		if (_res->exists(filename))
-			runAnimationScript(filename, 1, 1, 1, 1);
+		if (_res->exists(filename.c_str()))
+			runAnimationScript(filename.c_str(), 1, 1, 1, 1);
 	}
 
 	_nextIdleType = !_nextIdleType;

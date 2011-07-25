@@ -1,12 +1,10 @@
 # This file contains port specific Makefile rules. It is automatically
 # included by the default (main) Makefile.
 #
-# $URL$
-# $Id$
 
 
 #
-# UNIX specific
+# POSIX specific
 #
 install:
 	$(INSTALL) -d "$(DESTDIR)$(bindir)"
@@ -47,7 +45,7 @@ bundle: scummvm-static
 ifdef DIST_FILES_ENGINEDATA
 	cp $(DIST_FILES_ENGINEDATA) $(bundle_name)/Contents/Resources/
 endif
-	$(srcdir)/tools/credits.pl --rtf > $(bundle_name)/Contents/Resources/Credits.rtf
+	$(srcdir)/devtools/credits.pl --rtf > $(bundle_name)/Contents/Resources/Credits.rtf
 	chmod 644 $(bundle_name)/Contents/Resources/*
 	cp scummvm-static $(bundle_name)/Contents/MacOS/scummvm
 	chmod 755 $(bundle_name)/Contents/MacOS/scummvm
@@ -94,16 +92,16 @@ ifdef USE_MAD
 OSX_STATIC_LIBS += $(STATICLIBPATH)/lib/libmad.a
 endif
 
-ifdef USE_MPEG2
-OSX_STATIC_LIBS += $(STATICLIBPATH)/lib/libmpeg2.a
-endif
-
 ifdef USE_PNG
 OSX_STATIC_LIBS += $(STATICLIBPATH)/lib/libpng.a
 endif
 
 ifdef USE_THEORADEC
 OSX_STATIC_LIBS += $(STATICLIBPATH)/lib/libtheoradec.a
+endif
+
+ifdef USE_FAAD
+OSX_STATIC_LIBS += $(STATICLIBPATH)/lib/libfaad.a
 endif
 
 ifdef USE_ZLIB
@@ -138,13 +136,20 @@ iphone: $(OBJS)
 # TODO: Replace AUTHORS by Credits.rtf
 osxsnap: bundle
 	mkdir ScummVM-snapshot
-	$(srcdir)/tools/credits.pl --text > $(srcdir)/AUTHORS
+	$(srcdir)/devtools/credits.pl --text > $(srcdir)/AUTHORS
 	cp $(srcdir)/AUTHORS ./ScummVM-snapshot/Authors
 	cp $(srcdir)/COPYING ./ScummVM-snapshot/License\ \(GPL\)
 	cp $(srcdir)/COPYING.LGPL ./ScummVM-snapshot/License\ \(LGPL\)
 	cp $(srcdir)/COPYRIGHT ./ScummVM-snapshot/Copyright\ Holders
 	cp $(srcdir)/NEWS ./ScummVM-snapshot/News
 	cp $(srcdir)/README ./ScummVM-snapshot/ScummVM\ ReadMe
+	mkdir ScummVM-snapshot/doc
+	cp $(srcdir)/doc/QuickStart ./ScummVM-snapshot/doc/QuickStart
+	mkdir ScummVM-snapshot/doc/de
+	cp $(srcdir)/doc/de/Liesmich ./ScummVM-snapshot/doc/de/Liesmich
+	cp $(srcdir)/doc/de/Schnellstart ./ScummVM-snapshot/doc/de/Schnellstart
+	mkdir ScummVM-snapshot/doc/fr
+	cp $(srcdir)/doc/fr/QuickStart_fr ./ScummVM-snapshot/doc/fr/QuickStart_fr
 	/Developer/Tools/SetFile -t ttro -c ttxt ./ScummVM-snapshot/*
 	/Developer/Tools/CpMac -r $(bundle_name) ./ScummVM-snapshot/
 	cp $(srcdir)/dists/macosx/DS_Store ./ScummVM-snapshot/.DS_Store
@@ -161,12 +166,16 @@ osxsnap: bundle
 # Windows specific
 #
 
-scummvmico.o: $(srcdir)/icons/scummvm.ico
-	$(WINDRES) $(WINDRESFLAGS) -I$(srcdir) $(srcdir)/dists/scummvm.rc scummvmico.o
+scummvmwinres.o: $(srcdir)/icons/scummvm.ico $(DIST_FILES_THEMES) $(DIST_FILES_ENGINEDATA) $(srcdir)/dists/scummvm.rc
+	$(QUIET_WINDRES)$(WINDRES) -DHAVE_CONFIG_H $(WINDRESFLAGS) $(DEFINES) -I. -I$(srcdir) $(srcdir)/dists/scummvm.rc scummvmwinres.o
 
-# Special target to create a win32 snapshot binary
+# Special target to create a win32 snapshot binary (for Inno Setup)
 win32dist: $(EXECUTABLE)
 	mkdir -p $(WIN32PATH)
+	mkdir -p $(WIN32PATH)/graphics
+	mkdir -p $(WIN32PATH)/doc
+	mkdir -p $(WIN32PATH)/doc/de
+	mkdir -p $(WIN32PATH)/doc/fr
 	$(STRIP) $(EXECUTABLE) -o $(WIN32PATH)/$(EXECUTABLE)
 	cp $(DIST_FILES_THEMES) $(WIN32PATH)
 ifdef DIST_FILES_ENGINEDATA
@@ -178,9 +187,25 @@ endif
 	cp $(srcdir)/COPYRIGHT $(WIN32PATH)/COPYRIGHT.txt
 	cp $(srcdir)/NEWS $(WIN32PATH)/NEWS.txt
 	cp $(srcdir)/README $(WIN32PATH)/README.txt
+	cp $(srcdir)/doc/QuickStart $(WIN32PATH)/doc/QuickStart.txt
+	cp $(srcdir)/doc/de/Schnellstart $(WIN32PATH)/doc/de/Schnellstart.txt
+	cp $(srcdir)/doc/de/Liesmich $(WIN32PATH)/doc/de/Liesmich.txt
+	cp $(srcdir)/doc/fr/QuickStart_fr $(WIN32PATH)/doc/fr/QuickStart_fr.txt
 	cp /usr/local/README-SDL.txt $(WIN32PATH)
 	cp /usr/local/bin/SDL.dll $(WIN32PATH)
-	u2d $(WIN32PATH)/*.txt
+	cp $(srcdir)/dists/win32/graphics/left.bmp $(WIN32PATH)/graphics
+	cp $(srcdir)/dists/win32/graphics/scummvm-install.ico $(WIN32PATH)/graphics
+	cp $(srcdir)/dists/win32/ScummVM.iss $(WIN32PATH)
+	unix2dos $(WIN32PATH)/*.txt
+	unix2dos $(WIN32PATH)/doc/de/*.txt
+	unix2dos $(WIN32PATH)/doc/fr/*.txt
+
+# Special target to create a win32 NSIS installer
+win32setup: $(EXECUTABLE)
+	mkdir -p $(srcdir)/$(STAGINGPATH)
+	$(STRIP) $(EXECUTABLE) -o $(srcdir)/$(STAGINGPATH)/$(EXECUTABLE)
+	cp /usr/local/bin/SDL.dll $(srcdir)/$(STAGINGPATH)
+	makensis -V2 -Dtop_srcdir="../.." -Dstaging_dir="../../$(STAGINGPATH)" -Darch=$(ARCH) $(srcdir)/dists/win32/scummvm.nsi
 
 #
 # AmigaOS specific
@@ -197,33 +222,29 @@ ifdef DIST_FILES_ENGINEDATA
 endif
 	cp $(DIST_FILES_DOCS) $(AOS4PATH)
 
+#
+# PlayStation 3 specific
+#
+ps3pkg: $(EXECUTABLE)
+	$(STRIP) $(EXECUTABLE)
+	sprxlinker $(EXECUTABLE)
+	mkdir -p ps3pkg/USRDIR/data/
+	mkdir -p ps3pkg/USRDIR/doc/
+	mkdir -p ps3pkg/USRDIR/saves/
+	make_self_npdrm "$(EXECUTABLE)" ps3pkg/USRDIR/EBOOT.BIN UP0001-SCUM12000_00-0000000000000000
+	cp $(DIST_FILES_THEMES) ps3pkg/USRDIR/data/
+ifdef DIST_FILES_ENGINEDATA
+	cp $(DIST_FILES_ENGINEDATA) ps3pkg/USRDIR/data/
+endif
+	cp $(DIST_FILES_DOCS) ps3pkg/USRDIR/doc/
+	cp $(srcdir)/dists/ps3/readme-ps3.md ps3pkg/USRDIR/doc/
+	cp $(srcdir)/backends/vkeybd/packs/vkeybd_default.zip ps3pkg/USRDIR/data/
+	cp $(srcdir)/dists/ps3/ICON0.PNG ps3pkg/
+	cp $(srcdir)/dists/ps3/PIC1.PNG ps3pkg/
+	sfo.py -f $(srcdir)/dists/ps3/sfo.xml ps3pkg/PARAM.SFO
+	pkg.py --contentid UP0001-SCUM12000_00-0000000000000000 ps3pkg/ scummvm-ps3.pkg
+	package_finalize scummvm-ps3.pkg
+
 # Mark special targets as phony
-.PHONY: deb bundle osxsnap win32dist install uninstall
+.PHONY: deb bundle osxsnap win32dist install uninstall ps3pkg
 
-#
-# ARM specific
-#
-ifdef USE_TREMOLO
-DEFINES += -DUSE_TREMOR -DUSE_VORBIS -DUSE_TREMOLO
-LIBS += -ltremolo
-endif
-
-ifdef USE_ARM_SMUSH_ASM
-DEFINES += -DUSE_ARM_SMUSH_ASM
-endif
-
-ifdef USE_ARM_SOUND_ASM
-DEFINES += -DUSE_ARM_SOUND_ASM
-endif
-
-ifdef USE_ARM_GFX_ASM
-DEFINES += -DUSE_ARM_GFX_ASM
-endif
-
-ifdef USE_ARM_COSTUME_ASM
-DEFINES += -DUSE_ARM_COSTUME_ASM
-endif
-
-ifdef USE_ARM_SCALER_ASM
-DEFINES += -DUSE_ARM_SCALER_ASM
-endif

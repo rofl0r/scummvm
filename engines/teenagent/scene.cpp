@@ -17,15 +17,15 @@
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * $URL$
- * $Id$
  */
 
 #include "common/config-manager.h"
 #include "common/debug.h"
 #include "common/algorithm.h"
 #include "common/ptr.h"
+#include "common/textconsole.h"
+
+#include "graphics/palette.h"
 
 #include "teenagent/scene.h"
 #include "teenagent/resources.h"
@@ -379,7 +379,7 @@ void Scene::init(int id, const Common::Point &pos) {
 		custom_animation[i].free();
 
 	if (background.pixels == NULL)
-		background.create(320, 200, 1);
+		background.create(320, 200, Graphics::PixelFormat::createFormatCLUT8());
 
 	warp(pos);
 
@@ -576,7 +576,7 @@ void Scene::paletteEffect(byte step) {
 	byte *src = res->dseg.ptr(0x6609);
 	byte *dst = palette + 3 * 0xf2;
 	for(byte i = 0; i < 0xd; ++i) {
-		for(byte c = 0; c < 3; ++c, ++src) 
+		for(byte c = 0; c < 3; ++c, ++src)
 			*dst++ = *src > step? *src - step: 0;
 	}
 }
@@ -804,7 +804,7 @@ bool Scene::render(bool tick_game, bool tick_mark, uint32 delta) {
 				if (_idle_timer < 50)
 					actor_animation_position = teenagent.render(surface, position, orientation, 0, actor_talking, zoom);
 				else
-					actor_animation_position = teenagent_idle.renderIdle(surface, position, orientation, mark_delta, zoom);
+					actor_animation_position = teenagent_idle.renderIdle(surface, position, orientation, mark_delta, zoom, _engine->_rnd);
 			}
 		}
 
@@ -812,9 +812,9 @@ bool Scene::render(bool tick_game, bool tick_mark, uint32 delta) {
 			_system->unlockScreen();
 			continue;
 		}
-		//removed mark == null. In final scene of chapter 2 mark rendered above table. 
-		//if it'd cause any bugs, add hack here. (_id != 23 && mark == NULL) 
-		if (on_enabled && 
+		//removed mark == null. In final scene of chapter 2 mark rendered above table.
+		//if it'd cause any bugs, add hack here. (_id != 23 && mark == NULL)
+		if (on_enabled &&
 			debug_features.feature[DebugFeatures::kShowOn]) {
 			on.render(surface, actor_animation_position);
 		}

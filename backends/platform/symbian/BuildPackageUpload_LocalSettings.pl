@@ -4,7 +4,7 @@
 	@WorkingEngines = qw(
 		scumm agos sky queen gob groovie saga drascula
 		kyra lure agi touche parallaction cine
-		cruise made m4 tinsel tucker sword1 sword2 draci sci teenagent mohawk hugo toon lastexpress
+		cruise made m4 tinsel tucker sword1 sword2 draci sci teenagent mohawk hugo toon lastexpress tsage
 	);
 
 	@WorkingEngines_1st = qw(
@@ -14,9 +14,10 @@
 	);
 
 	@WorkingEngines_2nd = qw(
-		agos sky gob
-		kyra lure agi tinsel
-		sword1 sword2 draci sci teenagent hugo toon
+		agos sky gob kyra lure 
+		agi tinsel sword1 sword2 
+		draci sci teenagent hugo toon
+		tsage
 	);
 
 	@TestingEngines = qw(
@@ -103,9 +104,6 @@
 			#$SDK_LibraryDirs{'S90'}{'esdl.lib'}	= "$SdlBase\\S90";
 			#$SDK_LibraryDirs{'UIQ2'}{'esdl.lib'}	= "$SdlBase\\UIQ2"
 			#$SDK_LibraryDirs{'UIQ3'}{'esdl.lib'}	= "$SdlBase\\UIQ3";
-
-			## HardlySupported(TM) :P
-			#$SDK_LibraryDirs{'ALL'}{'libmpeg2.lib'} = "$DevBase\\mpeg2dec-0.4.0\\epoc";
 		}
 
 		# now you can add $VariationSets only built on this PC below this line :)
@@ -144,7 +142,6 @@
 #			$SDK_LibraryDirs{'S60v1'}{'esdl.lib'}	= $SDK_LibraryDirs{'S60v2'}{'esdl.lib'} = $SDK_LibraryDirs{'S60v3'}{'esdl.lib'} = "C:\\S\\ESDL\\epoc\\S60";
 #			$SDK_LibraryDirs{'S80'}{'esdl.lib'}		= "C:\\S\\ESDL\\epoc\\S80";
 #			$SDK_LibraryDirs{'S90'}{'esdl.lib'}		= "C:\\S\\ESDL\\epoc\\S90";
-			#$SDK_LibraryDirs{'ALL'}{'libmpeg2.lib'} = "C:\\S\\mpeg2dec-0.4.0\\epoc";
 		}
 
 		# now you can add $VariationSets only built on this PC below this line :)
@@ -182,7 +179,6 @@
 			$SDK_LibraryDirs{'S90'}{'esdl.lib'}		= "E:\\WICKED\\ESDL\\epoc\\S90";
 			$SDK_LibraryDirs{'S60v3'}{'esdl.lib'}		= "E:\\WICKED\\ESDL\\epoc\\S60\\S60V3";
 			$SDK_LibraryDirs{'UIQ3'}{'esdl.lib'}		= "E:\\WICKED\\ESDL\\epoc\\UIQ\\UIQ3";
-			#$SDK_LibraryDirs{'ALL'}{'libmpeg2.lib'} = "C:\\S\\mpeg2dec-0.4.0\\epoc";
 		}
 
 		# now you can add $VariationSets only built on this PC below this line :)
@@ -220,7 +216,6 @@
 			$SDK_LibraryDirs{'S90'}{'esdl.lib'}		= "E:\\WICKED\\ESDL\\epoc\\S90";
 			$SDK_LibraryDirs{'S60v3'}{'esdl.lib'}		= "E:\\WICKED\\ESDL\\epoc\\S60\\S60V3";
 			$SDK_LibraryDirs{'UIQ3'}{'esdl.lib'}		= "E:\\WICKED\\ESDL\\epoc\\UIQ\\UIQ3";
-			#$SDK_LibraryDirs{'ALL'}{'libmpeg2.lib'} = "C:\\S\\mpeg2dec-0.4.0\\epoc";
 		}
 
 		# now you can add $VariationSets only built on this PC below this line :)
@@ -258,7 +253,6 @@
 			$SDK_LibraryDirs{'S90'}{'esdl.lib'}		= "E:\\WICKED\\ESDL\\epoc\\S90";
 			$SDK_LibraryDirs{'S60v3'}{'esdl.lib'}		= "E:\\WICKED\\ESDL\\epoc\\S60\\S60V3";
 			$SDK_LibraryDirs{'UIQ3'}{'esdl.lib'}		= "E:\\WICKED\\ESDL\\epoc\\UIQ\\UIQ3";
-			#$SDK_LibraryDirs{'ALL'}{'libmpeg2.lib'} = "C:\\S\\mpeg2dec-0.4.0\\epoc";
 		}
 
 		# now you can add $VariationSets only built on this PC below this line :)

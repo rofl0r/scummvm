@@ -18,13 +18,11 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
- * $URL$
- * $Id$
- *
  */
 
 #include "common/endian.h"
 #include "common/str.h"
+#include "common/translation.h"
 
 #include "gui/message.h"
 
@@ -1172,12 +1170,11 @@ void Inter_v2::o2_addHotspot(OpFuncParams &params) {
 		top     = 0;
 	}
 
-	int16 index;
 	if (id < 0)
-		index = _vm->_game->_hotspots->add(0xD000 - id, left & 0xFFFC, top & 0xFFFC,
+		_vm->_game->_hotspots->add(0xD000 - id, left & 0xFFFC, top & 0xFFFC,
 				left + width + 3, top + height + 3, flags, key, 0, 0, funcPos);
 	else
-		index = _vm->_game->_hotspots->add(0xE000 + id, left, top,
+		_vm->_game->_hotspots->add(0xE000 + id, left, top,
 				left + width - 1, top + height - 1, flags, key, 0, 0, funcPos);
 }
 
@@ -1283,7 +1280,7 @@ void Inter_v2::o2_readData(OpFuncParams &params) {
 
 		if (!_vm->_saveLoad->load(file, dataVar, size, offset)) {
 
-			GUI::MessageDialog dialog("Failed to load game state from file.");
+			GUI::MessageDialog dialog(_("Failed to load game state from file."));
 			dialog.runModal();
 
 		} else
@@ -1353,7 +1350,7 @@ void Inter_v2::o2_writeData(OpFuncParams &params) {
 
 		if (!_vm->_saveLoad->save(file, dataVar, size, offset)) {
 
-			GUI::MessageDialog dialog("Failed to save game state to file.");
+			GUI::MessageDialog dialog(_("Failed to save game state to file."));
 			dialog.runModal();
 
 		} else

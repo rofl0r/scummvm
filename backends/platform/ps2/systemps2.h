@@ -18,9 +18,6 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
- * $URL$
- * $Id$
- *
  */
 
 #ifndef SYSTEMPS2_H
@@ -28,13 +25,10 @@
 
 #include "common/system.h"
 #include "backends/base-backend.h"
-
-class DefaultTimerManager;
-class DefaultSaveFileManager;
+#include "graphics/palette.h"
 
 class Gs2dScreen;
 class Ps2Input;
-class Ps2SaveFileManager;
 // class Ps2FilesystemFactory;
 struct IrxReference;
 
@@ -46,15 +40,11 @@ struct Ps2Mutex {
 	int count;
 };
 
-namespace Common {
-	class TimerManager;
-};
-
 namespace Audio {
-	class MixerImpl;
+class MixerImpl;
 };
 
-class OSystem_PS2 : public BaseBackend, public PaletteManager {
+class OSystem_PS2 : public EventsBaseBackend, public PaletteManager {
 public:
 	OSystem_PS2(const char *elfPath);
 	virtual ~OSystem_PS2(void);
@@ -78,9 +68,7 @@ public:
 	virtual Graphics::Surface *lockScreen();
 	virtual void unlockScreen();
 	virtual void updateScreen();
-	/* TODO : check */
-	virtual void displayMessageOnOSD(const char *msg) { printf("displayMessageOnOSD: %s\n", msg); };
-	/* */
+	virtual void displayMessageOnOSD(const char *msg);
 
 	virtual void showOverlay();
 	virtual void hideOverlay();
@@ -97,8 +85,6 @@ public:
 
 	virtual uint32 getMillis();
 	virtual void delayMillis(uint msecs);
-	virtual Common::TimerManager *getTimerManager();
-//	virtual Common::EventManager *getEventManager();
 	virtual bool pollEvent(Common::Event &event);
 
 	virtual Audio::Mixer *getMixer();
@@ -116,11 +102,11 @@ public:
 
 	virtual void quit();
 
-	virtual Common::SeekableReadStream *createConfigReadStream();
-	virtual Common::WriteStream *createConfigWriteStream();
+	virtual Common::String getDefaultConfigFileName();
+
+	virtual void logMessage(LogMessageType::Type type, const char *message);
 
 	virtual Graphics::PixelFormat getOverlayFormat() const;
-	virtual Common::SaveFileManager *getSavefileManager();
 	virtual FilesystemFactory *getFilesystemFactory();
 
 	virtual void getTimeAndDate(TimeDate &t) const;
@@ -148,14 +134,10 @@ private:
 	void initTimer(void);
 	void readRtcTime(void);
 
-	DefaultTimerManager *_scummTimerManager;
 	Audio::MixerImpl *_scummMixer;
 
 	bool _mouseVisible;
 	bool _useMouse, _useKbd, _useHdd, _usbMassLoaded, _useNet;
-
-	Ps2SaveFileManager *_saveManager;
-	// DefaultSaveFileManager *_saveManager;
 
 	Gs2dScreen	*_screen;
 	Ps2Input	*_input;

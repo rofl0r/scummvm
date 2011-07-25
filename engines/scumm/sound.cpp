@@ -18,9 +18,6 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
- * $URL$
- * $Id$
- *
  */
 
 #include "common/config-manager.h"
@@ -32,6 +29,7 @@
 #include "scumm/imuse/imuse.h"
 #include "scumm/imuse_digi/dimuse.h"
 #include "scumm/player_towns.h"
+#include "scumm/resource.h"
 #include "scumm/scumm.h"
 #include "scumm/sound.h"
 #include "scumm/util.h"
@@ -195,8 +193,7 @@ void Sound::playSound(int soundID) {
 		return;
 	}
 
-	debugC(DEBUG_SOUND, "playSound #%d (room %d)", soundID,
-		_vm->getResourceRoomNr(rtSound, soundID));
+	debugC(DEBUG_SOUND, "playSound #%d", soundID);
 
 	ptr = _vm->getResourceAddress(rtSound, soundID);
 
@@ -207,7 +204,7 @@ void Sound::playSound(int soundID) {
 	// Support for SFX in Monkey Island 1, Mac version
 	// This is rather hackish right now, but works OK. SFX are not sounding
 	// 100% correct, though, not sure right now what is causing this.
-	else if (READ_BE_UINT32(ptr) == MKID_BE('Mac1')) {
+	else if (READ_BE_UINT32(ptr) == MKTAG('M','a','c','1')) {
 		// Read info from the header
 		size = READ_BE_UINT32(ptr+0x60);
 		rate = READ_BE_UINT16(ptr+0x64);
@@ -246,7 +243,7 @@ void Sound::playSound(int soundID) {
 		_mixer->playStream(Audio::Mixer::kSFXSoundType, NULL, stream, soundID);
 	}
 	// Support for sampled sound effects in Monkey Island 1 and 2
-	else if (_vm->_game.platform != Common::kPlatformFMTowns && READ_BE_UINT32(ptr) == MKID_BE('SBL ')) {
+	else if (_vm->_game.platform != Common::kPlatformFMTowns && READ_BE_UINT32(ptr) == MKTAG('S','B','L',' ')) {
 		debugC(DEBUG_SOUND, "Using SBL sound effect");
 
 		// SBL resources essentially contain VOC sound data.
@@ -315,9 +312,9 @@ void Sound::playSound(int soundID) {
 		sound = (byte *)malloc(size);
 		memcpy(sound, ptr + 6, size);
 		stream = Audio::makeRawStream(sound, size, rate, Audio::FLAG_UNSIGNED);
-		_mixer->playStream(Audio::Mixer::kSFXSoundType, NULL, stream, soundID);			
+		_mixer->playStream(Audio::Mixer::kSFXSoundType, NULL, stream, soundID);
 	}
-	else if (_vm->_game.platform != Common::kPlatformFMTowns && READ_BE_UINT32(ptr) == MKID_BE('SOUN')) {
+	else if (_vm->_game.platform != Common::kPlatformFMTowns && READ_BE_UINT32(ptr) == MKTAG('S','O','U','N')) {
 		if (_vm->_game.version != 3)
 			ptr += 2;
 
@@ -416,7 +413,7 @@ void Sound::playSound(int soundID) {
 			// Rather it seems that starting a new music is supposed to
 			// automatically stop the old song.
 			if (_vm->_imuse) {
-				if (READ_BE_UINT32(ptr) != MKID_BE('ASFX'))
+				if (READ_BE_UINT32(ptr) != MKTAG('A','S','F','X'))
 					_vm->_imuse->stopAllSounds();
 			}
 		}
@@ -527,6 +524,10 @@ void Sound::startTalkSound(uint32 offset, uint32 b, int mode, Audio::SoundHandle
 		_sfxFile->close();
 		sprintf(filename, "audio/%s.%d/%d.voc", roomname, offset, b);
 		_vm->openFile(*_sfxFile, filename);
+		if (!_sfxFile->isOpen()) {
+			sprintf(filename, "audio/%s_%d/%d.voc", roomname, offset, b);
+			_vm->openFile(*_sfxFile, filename);
+		}
 		if (!_sfxFile->isOpen()) {
 			sprintf(filename, "%d.%d.voc", offset, b);
 			_vm->openFile(*_sfxFile, filename);
@@ -1063,7 +1064,7 @@ void Sound::saveLoadWithSerializer(Serializer *ser) {
 #pragma mark --- Sound resource handling ---
 #pragma mark -
 
-static void convertMac0Resource(ResourceManager *res, int idx, byte *src_ptr, int size);
+static void convertMac0Resource(ResourceManager *res, ResId idx, byte *src_ptr, int size);
 
 
 /*
@@ -1073,7 +1074,7 @@ static void convertMac0Resource(ResourceManager *res, int idx, byte *src_ptr, in
  * could stand a thorough cleanup!
  */
 
-int ScummEngine::readSoundResource(int idx) {
+int ScummEngine::readSoundResource(ResId idx) {
 	uint32 pos, total_size, size, tag, basetag, max_total_size;
 	int pri, best_pri;
 	uint32 best_size = 0, best_offs = 0;
@@ -1091,15 +1092,15 @@ int ScummEngine::readSoundResource(int idx) {
 	debugC(DEBUG_RESOURCE, "  basetag: %s, total_size=%d", tag2str(basetag), total_size);
 
 	switch (basetag) {
-	case MKID_BE('MIDI'):
-	case MKID_BE('iMUS'):
+	case MKTAG('M','I','D','I'):
+	case MKTAG('i','M','U','S'):
 		if (_musicType != MDT_PCSPK && _musicType != MDT_PCJR) {
 			_fileHandle->seek(-8, SEEK_CUR);
 			_fileHandle->read(_res->createResource(rtSound, idx, total_size + 8), total_size + 8);
 			return 1;
 		}
 		break;
-	case MKID_BE('SOU '):
+	case MKTAG('S','O','U',' '):
 		best_pri = -1;
 		while (pos < total_size) {
 			tag = _fileHandle->readUint32BE();
@@ -1109,39 +1110,52 @@ int ScummEngine::readSoundResource(int idx) {
 			pri = -1;
 
 			switch (tag) {
-			case MKID_BE('TOWS'):
+			case MKTAG('T','O','W','S'):
 				pri = 16;
 				break;
-			case MKID_BE('SBL '):
+			case MKTAG('S','B','L',' '):
 				pri = 15;
 				break;
-			case MKID_BE('ADL '):
+			case MKTAG('A','D','L',' '):
 				pri = 1;
-				if (_musicType == MDT_ADLIB)
+				if (_musicType == MDT_ADLIB || _musicType == MDT_TOWNS)
 					pri = 10;
 				break;
-			case MKID_BE('AMI '):
+			case MKTAG('A','M','I',' '):
 				pri = 3;
 				break;
-			case MKID_BE('ROL '):
+			case MKTAG('R','O','L',' '):
 				pri = 3;
 				if (_native_mt32)
 					pri = 5;
 				break;
-			case MKID_BE('GMD '):
+			case MKTAG('G','M','D',' '):
 				pri = 4;
 				break;
-			case MKID_BE('MAC '):	// Occurs in Mac MI2, FOA
+			case MKTAG('M','A','C',' '):	// Occurs in Mac MI2, FOA
 				pri = 2;
 				break;
-			case MKID_BE('SPK '):
+			case MKTAG('S','P','K',' '):
 				pri = -1;
-//				if (_musicType == MDT_PCSPK || _musicType == MDT_PCJR)
-//					pri = 11;
+				if (_musicType == MDT_PCSPK || _musicType == MDT_PCJR)
+					pri = 11;
 				break;
 			}
 
+			// We only allow SPK resources for PC Speaker, PCJr and CMS here
+			// since other resource would sound horribly with their output
+			// drivers.
 			if ((_musicType == MDT_PCSPK || _musicType == MDT_PCJR || _musicType == MDT_CMS) && pri != 11)
+				pri = -1;
+
+			// We only allow ADL resources when AdLib or FM-Towns is used as
+			// primary audio output. This fixes some odd sounds when Indy and
+			// Sophia leave Atlantis with the submarine in Indy4. (Easy to
+			// check with bootparam 4061 in the CD version). It seems the game
+			// only contains a ROL resource for sound id 60. Formerly we tried
+			// to play that via the AdLib or FM-Towns audio driver resulting
+			// in strange noises. Now we behave like the original did.
+			if ((_musicType == MDT_ADLIB || _musicType == MDT_TOWNS) && pri != 10)
 				pri = -1;
 
 			debugC(DEBUG_RESOURCE, "    tag: %s, total_size=%d, pri=%d", tag2str(tag), size, pri);
@@ -1164,7 +1178,7 @@ int ScummEngine::readSoundResource(int idx) {
 			return 1;
 		}
 		break;
-	case MKID_BE('Mac0'):
+	case MKTAG('M','a','c','0'):
 		_fileHandle->seek(-12, SEEK_CUR);
 		total_size = _fileHandle->readUint32BE() - 8;
 		ptr = (byte *)calloc(total_size, 1);
@@ -1174,11 +1188,11 @@ int ScummEngine::readSoundResource(int idx) {
 		free(ptr);
 		return 1;
 
-	case MKID_BE('Mac1'):
-	case MKID_BE('RIFF'):
-	case MKID_BE('TALK'):
-	case MKID_BE('DIGI'):
-	case MKID_BE('Crea'):
+	case MKTAG('M','a','c','1'):
+	case MKTAG('R','I','F','F'):
+	case MKTAG('T','A','L','K'):
+	case MKTAG('D','I','G','I'):
+	case MKTAG('C','r','e','a'):
 	case 0x460e200d:	// WORKAROUND bug # 1311447
 		_fileHandle->seek(-12, SEEK_CUR);
 		total_size = _fileHandle->readUint32BE();
@@ -1187,7 +1201,7 @@ int ScummEngine::readSoundResource(int idx) {
 		//dumpResource("sound-", idx, ptr);
 		return 1;
 
-	case MKID_BE('HSHD'):
+	case MKTAG('H','S','H','D'):
 		// HE sound type without SOUN header
 		_fileHandle->seek(-16, SEEK_CUR);
 		total_size = max_total_size + 8;
@@ -1196,7 +1210,7 @@ int ScummEngine::readSoundResource(int idx) {
 		//dumpResource("sound-", idx, ptr);
 		return 1;
 
-	case MKID_BE('FMUS'): {
+	case MKTAG('F','M','U','S'): {
 		// Used in 3DO version of puttputt joins the parade and probably others
 		// Specifies a separate file to be used for music from what I gather.
 		int tmpsize;
@@ -1223,7 +1237,7 @@ int ScummEngine::readSoundResource(int idx) {
 
 		if (!dmuFile.open(buffer)) {
 			error("Can't open music file %s", buffer);
-			_res->roomoffs[rtSound][idx] = (uint32)RES_INVALID_OFFSET;
+			_res->_types[rtSound][idx]._roomoffs = RES_INVALID_OFFSET;
 			return 0;
 		}
 		dmuFile.seek(4, SEEK_SET);
@@ -1247,7 +1261,7 @@ int ScummEngine::readSoundResource(int idx) {
 		}
 		error("Unrecognized base tag 0x%08x in sound %d", basetag, idx);
 	}
-	_res->roomoffs[rtSound][idx] = (uint32)RES_INVALID_OFFSET;
+	_res->_types[rtSound][idx]._roomoffs = RES_INVALID_OFFSET;
 	return 0;
 }
 
@@ -1407,26 +1421,26 @@ static byte *writeVLQ(byte *ptr, int value) {
 static byte Mac0ToGMInstrument(uint32 type, int &transpose) {
 	transpose = 0;
 	switch (type) {
-	case MKID_BE('MARI'): return 12;
-	case MKID_BE('PLUC'): return 45;
-	case MKID_BE('HARM'): return 22;
-	case MKID_BE('PIPE'): return 19;
-	case MKID_BE('TROM'): transpose = -12; return 57;
-	case MKID_BE('STRI'): return 48;
-	case MKID_BE('HORN'): return 60;
-	case MKID_BE('VIBE'): return 11;
-	case MKID_BE('SHAK'): return 77;
-	case MKID_BE('PANP'): return 75;
-	case MKID_BE('WHIS'): return 76;
-	case MKID_BE('ORGA'): return 17;
-	case MKID_BE('BONG'): return 115;
-	case MKID_BE('BASS'): transpose = -24; return 35;
+	case MKTAG('M','A','R','I'): return 12;
+	case MKTAG('P','L','U','C'): return 45;
+	case MKTAG('H','A','R','M'): return 22;
+	case MKTAG('P','I','P','E'): return 19;
+	case MKTAG('T','R','O','M'): transpose = -12; return 57;
+	case MKTAG('S','T','R','I'): return 48;
+	case MKTAG('H','O','R','N'): return 60;
+	case MKTAG('V','I','B','E'): return 11;
+	case MKTAG('S','H','A','K'): return 77;
+	case MKTAG('P','A','N','P'): return 75;
+	case MKTAG('W','H','I','S'): return 76;
+	case MKTAG('O','R','G','A'): return 17;
+	case MKTAG('B','O','N','G'): return 115;
+	case MKTAG('B','A','S','S'): transpose = -24; return 35;
 	default:
 		error("Unknown Mac0 instrument %s found", tag2str(type));
 	}
 }
 
-static void convertMac0Resource(ResourceManager *res, int idx, byte *src_ptr, int size) {
+static void convertMac0Resource(ResourceManager *res, ResId idx, byte *src_ptr, int size) {
 	/*
 	From Markus Magnuson (superqult) we got this information:
 	Mac0
@@ -1505,13 +1519,13 @@ static void convertMac0Resource(ResourceManager *res, int idx, byte *src_ptr, in
 
 	// Parse the three channels
 	for (i = 0; i < 3; i++) {
-		assert(READ_BE_UINT32(src_ptr) == MKID_BE('Chan'));
+		assert(READ_BE_UINT32(src_ptr) == MKTAG('C','h','a','n'));
 		len = READ_BE_UINT32(src_ptr + 4);
 		track_len[i] = len - 24;
 		track_instr[i] = Mac0ToGMInstrument(READ_BE_UINT32(src_ptr + 8), track_transpose[i]);
 		track_data[i] = src_ptr + 12;
 		src_ptr += len;
-		looped = (READ_BE_UINT32(src_ptr - 8) == MKID_BE('Loop'));
+		looped = (READ_BE_UINT32(src_ptr - 8) == MKTAG('L','o','o','p'));
 
 		// For each note event, we need up to 6 bytes for the
 		// Note On (3 VLQ, 3 event), and 6 bytes for the Note
@@ -1617,7 +1631,7 @@ static void convertMac0Resource(ResourceManager *res, int idx, byte *src_ptr, in
 #endif
 }
 
-static void convertADResource(ResourceManager *res, const GameSettings& game, int idx, byte *src_ptr, int size) {
+static void convertADResource(ResourceManager *res, const GameSettings& game, ResId idx, byte *src_ptr, int size) {
 	// We will ignore the PPQN in the original resource, because
 	// it's invalid anyway. We use a constant PPQN of 480.
 	const int ppqn = 480;
@@ -2000,7 +2014,7 @@ static void convertADResource(ResourceManager *res, const GameSettings& game, in
 }
 
 
-int ScummEngine::readSoundResourceSmallHeader(int idx) {
+int ScummEngine::readSoundResourceSmallHeader(ResId idx) {
 	uint32 pos, total_size, size, tag;
 	uint32 ad_size = 0, ad_offs = 0;
 	uint32 ro_size = 0, ro_offs = 0;
@@ -2122,7 +2136,7 @@ int ScummEngine::readSoundResourceSmallHeader(int idx) {
 		_fileHandle->read(_res->createResource(rtSound, idx, ro_size - 4), ro_size - 4);
 		return 1;
 	}
-	_res->roomoffs[rtSound][idx] = (uint32)RES_INVALID_OFFSET;
+	_res->_types[rtSound][idx]._roomoffs = RES_INVALID_OFFSET;
 	return 0;
 }
 

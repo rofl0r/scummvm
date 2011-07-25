@@ -18,9 +18,6 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
- * $URL$
- * $Id$
- *
  */
 
 #include "sci/sci.h"
@@ -49,20 +46,12 @@ reg_t kLoad(EngineState *s, int argc, reg_t *argv) {
 }
 
 // Unloads an arbitrary resource of type 'restype' with resource numbber 'resnr'
-//  behaviour of this call didn't change between sci0->sci1.1 parameter wise, which means getting called with
+//  behavior of this call didn't change between sci0->sci1.1 parameter wise, which means getting called with
 //  1 or 3+ parameters is not right according to sierra sci
 reg_t kUnLoad(EngineState *s, int argc, reg_t *argv) {
 	if (argc >= 2) {
 		ResourceType restype = g_sci->getResMan()->convertResType(argv[0].toUint16());
 		reg_t resnr = argv[1];
-
-		// WORKAROUND for a broken script in room 320 in Castle of Dr. Brain.
-		// Script 377 tries to free the hunk memory allocated for the saved area
-		// (underbits) beneath the pop up window, which results in having the
-		// window stay on screen even when it's closed. Ignore this request here.
-		if (restype == kResourceTypeMemory && g_sci->getGameId() == GID_CASTLEBRAIN &&
-			s->currentRoomNumber() == 320)
-			return s->r_acc;
 
 		if (restype == kResourceTypeMemory)
 			s->_segMan->freeHunkEntry(resnr);
@@ -174,7 +163,7 @@ reg_t kClone(EngineState *s, int argc, reg_t *argv) {
 	// extend the internal storage size.
 	if (infoSelector & kInfoFlagClone)
 		parentObj = s->_segMan->getObject(parentAddr);
-	
+
 	*cloneObj = *parentObj;
 
 	// Mark as clone
@@ -203,7 +192,7 @@ reg_t kDisposeClone(EngineState *s, int argc, reg_t *argv) {
 	}
 
 	// SCI uses this technique to find out, if it's a clone and if it's supposed to get freed
-	//  At least kq4early relies on this behaviour. The scripts clone "Sound", then set bit 1 manually
+	//  At least kq4early relies on this behavior. The scripts clone "Sound", then set bit 1 manually
 	//  and call kDisposeClone later. In that case we may not free it, otherwise we will run into issues
 	//  later, because kIsObject would then return false and Sound object wouldn't get checked.
 	uint16 infoSelector = object->getInfoSelector().offset;
@@ -257,33 +246,9 @@ reg_t kScriptID(EngineState *s, int argc, reg_t *argv) {
 	// is used for timing during the intro, and in the problematic version it's
 	// initialized to 0, whereas it's 6 in other versions. Thus, we assign it
 	// to 6 here, fixing the speed of the introduction. Refer to bug #3102071.
-	if (g_sci->getGameId() == GID_PQ2 && script == 200) {
-		if (s->variables[VAR_GLOBAL][3].isNull()) {
-			warning("Fixing speed in the intro of PQ2, version 1.002.011");
-			s->variables[VAR_GLOBAL][3] = make_reg(0, 6);
-		}
-	}
-
-	// HACK: Prevent the murderer from getting stuck behind the door in
-	// Colonel's Bequest, room 215. A temporary fix for bug #3122075.
-	// TODO/FIXME: Add a proper fix for this. There is a regression in this
-	// scene with the new kInitBresen and kDoBresen functions (r52467). Using
-	// just the "old" kInitBresen works. This hack is added for now because the
-	// two functions are quite complex. The "old" versions were created based
-	// on observations, and not on the interpreter itself, thus they have a lot
-	// of differences in the way they behave and set variables to the mover object.
-	// Since this is just a death scene where Laura is supposed to die anyway,
-	// figuring out the exact cause of this is just not worth the effort.
-	// Differences between the new and the old kInitBresen to the MoveTo object:
-	// dy: 1 (new) - 2 (old)
-	// b-i1: 20 (new) - 12 (old)
-	// b-di: 65526 (new) - 65516 (old)
-	// Performing the changes above to MoveTo (0017:033a) allows the killer to
-	// move. Note that the actual issue might not be with kInitBresen/kDoBresen,
-	// and there might be another underlying problem here.
-	if (g_sci->getGameId() == GID_LAURABOW && script == 215) {
-		warning("Moving actor position for the shower scene of Colonel's Bequest");
-		writeSelectorValue(s->_segMan, s->_segMan->findObjectByName("killer"), SELECTOR(x), 6);
+	if (g_sci->getGameId() == GID_PQ2 && script == 200 &&
+		s->variables[VAR_GLOBAL][3].isNull()) {
+		s->variables[VAR_GLOBAL][3] = make_reg(0, 6);
 	}
 
 	return make_reg(scriptSeg, address);
@@ -294,7 +259,7 @@ reg_t kDisposeScript(EngineState *s, int argc, reg_t *argv) {
 
 	SegmentId id = s->_segMan->getScriptSegment(script);
 	Script *scr = s->_segMan->getScriptIfLoaded(id);
-	if (scr) {
+	if (scr && !scr->isMarkedAsDeleted()) {
 		if (s->_executionStack.back().addr.pc.segment != id)
 			scr->setLockers(1);
 	}

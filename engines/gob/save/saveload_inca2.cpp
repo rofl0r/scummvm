@@ -18,9 +18,6 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
- * $URL$
- * $Id$
- *
  */
 
 #include "gob/save/saveload.h"
@@ -260,7 +257,7 @@ int SaveLoad_Inca2::ScreenshotHandler::File::getSlotRemainder(int32 offset) cons
 	return (offset - 80) % 15168;
 }
 
-void SaveLoad_Inca2::ScreenshotHandler::File::buildIndex(byte *buffer) const {
+void SaveLoad_Inca2::ScreenshotHandler::File::buildScreenshotIndex(byte *buffer) const {
 	Common::SaveFileManager *saveMan = g_system->getSavefileManager();
 	Common::InSaveFile *in;
 
@@ -306,7 +303,7 @@ bool SaveLoad_Inca2::ScreenshotHandler::load(int16 dataVar, int32 size, int32 of
 		}
 
 		// Create/Fake the index
-		_file->buildIndex(_index + 40);
+		_file->buildScreenshotIndex(_index + 40);
 
 		_vm->_inter->_variables->copyFrom(dataVar, _index + offset, size);
 

@@ -18,35 +18,28 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
- * $URL$
- * $Id$
- *
  */
 
 #ifndef OP_SDL_H
 #define OP_SDL_H
 
-#include "backends/platform/sdl/sdl.h"
+#if defined(OPENPANDORA)
 
-#define __OPENPANDORA__
-#define MIXER_DOUBLE_BUFFERING 1
+#include "backends/base-backend.h"
+#include "backends/platform/sdl/sdl-sys.h"
+#include "backends/platform/sdl/posix/posix.h"
+#include "backends/events/openpandora/op-events.h"
+#include "backends/graphics/openpandora/op-graphics.h"
+
+//#define MIXER_DOUBLE_BUFFERING 1
 
 #ifndef PATH_MAX
 	#define PATH_MAX 255
 #endif
 
-class OSystem_OP : public OSystem_SDL {
+class OSystem_OP : public OSystem_POSIX {
 public:
-	OSystem_OP() {}
-
-	/* Events */
-	bool handleKeyDown(SDL_Event &ev, Common::Event &event);
-	bool handleKeyUp(SDL_Event &ev, Common::Event &event);
-	bool handleMouseButtonDown(SDL_Event &ev, Common::Event &event);
-	bool handleMouseButtonUp(SDL_Event &ev, Common::Event &event);
-
-	/* Graphics */
-	bool loadGFXMode();
+	OSystem_OP();
 
 	/* Platform Setup Stuff */
 	void addSysArchivesToSearchSet(Common::SearchSet &s, int priority);
@@ -54,6 +47,14 @@ public:
 	void quit();
 
 protected:
+	bool _inited;
+	bool _initedSDL;
 
+	/**
+	 * Initialse the SDL library
+	 * with an OpenPandora workaround.
+	 */
+	virtual void initSDL();
 };
 #endif
+#endif //OP_SDL_H

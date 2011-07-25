@@ -18,9 +18,6 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
- * $URL$
- * $Id$
- *
  */
 
 #ifndef MOHAWK_RIVEN_H
@@ -32,7 +29,10 @@
 
 #include "gui/saveload.h"
 
+#include "common/hashmap.h"
+#include "common/hash-str.h"
 #include "common/random.h"
+#include "common/rect.h"
 
 namespace Mohawk {
 
@@ -104,6 +104,8 @@ struct ZipMode {
 	bool operator== (const ZipMode& z) const;
 };
 
+typedef Common::HashMap<Common::String, uint32, Common::IgnoreCase_Hash, Common::IgnoreCase_EqualTo> RivenVariableMap;
+
 class MohawkEngine_Riven : public MohawkEngine {
 protected:
 	Common::Error run();
@@ -124,8 +126,12 @@ public:
 	bool canLoadGameStateCurrently() { return true; }
 	bool canSaveGameStateCurrently() { return true; }
 	Common::Error loadGameState(int slot);
-	Common::Error saveGameState(int slot, const char *desc);
+	Common::Error saveGameState(int slot, const Common::String &desc);
 	bool hasFeature(EngineFeature f) const;
+
+	typedef void (*TimerProc)(MohawkEngine_Riven *vm);
+
+	void doVideoTimer(VideoHandle handle, bool force);
 
 private:
 	MohawkArchive *_extrasFile; // We need a separate handle for the extra data
@@ -149,8 +155,11 @@ private:
 	void checkHotspotChange();
 
 	// Variables
-	uint32 *_vars;
-	uint32 _varCount;
+	void initVars();
+
+	// Timer
+	TimerProc _timerProc;
+	uint32 _timerTime;
 
 	// Miscellaneous
 	bool _gameOver;
@@ -180,13 +189,9 @@ public:
 	Common::String getHotspotName(uint16 hotspot);
 	void updateCurrentHotspot();
 
-	// Variable functions
-	void initVars();
-	uint32 getVarCount() const { return _varCount; }
-	uint32 getGlobalVar(uint32 index);
-	Common::String getGlobalVarName(uint32 index);
-	uint32 *getLocalVar(uint32 index);
-	uint32 *getVar(const Common::String &varName);
+	// Variables
+	RivenVariableMap _vars;
+	uint32 &getStackVar(uint32 index);
 
 	// Miscellaneous
 	void setGameOver() { _gameOver = true; }
@@ -195,6 +200,12 @@ public:
 	bool _activatedSLST;
 	void runLoadDialog();
 	void delayAndUpdate(uint32 ms);
+
+	// Timer
+	void installTimer(TimerProc proc, uint32 time);
+	void installCardTimer();
+	void checkTimer();
+	void removeTimer();
 };
 
 } // End of namespace Mohawk

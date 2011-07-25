@@ -18,15 +18,14 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
- * $URL$
- * $Id$
- *
  */
 
 #include "common/file.h"
 #include "common/timer.h"
 #include "common/util.h"
 #include "common/system.h"
+
+#include "graphics/palette.h"
 
 #include "sci/sci.h"
 #include "sci/engine/state.h"
@@ -72,10 +71,28 @@ GfxPalette::GfxPalette(ResourceManager *resMan, GfxScreen *screen, bool useMergi
 
 	_macClut = 0;
 	loadMacIconBarPalette();
-	
+
 #ifdef ENABLE_SCI32
 	_clutTable = 0;
 #endif
+
+	switch (_resMan->getViewType()) {
+	case kViewEga:
+		_totalScreenColors = 16;
+		break;
+	case kViewAmiga:
+		_totalScreenColors = 32;
+		break;
+	case kViewAmiga64:
+		_totalScreenColors = 64;
+		break;
+	case kViewVga:
+	case kViewVga11:
+			_totalScreenColors = 256;
+		break;
+	default:
+		error("GfxPalette: Unknown view type");
+	}
 }
 
 GfxPalette::~GfxPalette() {
@@ -97,7 +114,7 @@ bool GfxPalette::isMerging() {
 void GfxPalette::setDefault() {
 	if (_resMan->getViewType() == kViewEga)
 		setEGA();
-	else if (_resMan->isAmiga32color())
+	else if (_resMan->getViewType() == kViewAmiga)
 		setAmiga();
 	else
 		kernelSetFromResource(999, true);
@@ -219,7 +236,7 @@ static byte blendColors(byte c1, byte c2) {
 	// return (c1/2+c2/2)+((c1&1)+(c2&1))/2;
 
 	// gamma 2.2
-	double t = (pow(c1/255.0, 2.2/1.0) * 255.0) + 
+	double t = (pow(c1/255.0, 2.2/1.0) * 255.0) +
 	           (pow(c2/255.0, 2.2/1.0) * 255.0);
 	return (byte)(0.5 + (pow(0.5*t/255.0, 1.0/2.2) * 255.0));
 }
@@ -361,7 +378,7 @@ bool GfxPalette::merge(Palette *newPalette, bool force, bool forceRealMerge) {
 				break;
 			}
 		}
-	
+
 		// if still no luck - set an approximate color
 		if (j == 256) {
 			newPalette->mapping[i] = res & 0xFF;
@@ -418,10 +435,6 @@ void GfxPalette::getSys(Palette *pal) {
 }
 
 void GfxPalette::setOnScreen() {
-	// We dont change palette at all times for amiga
-	if (_resMan->isAmiga32color())
-		return;
-
 	copySysPaletteToScreen();
 }
 
@@ -847,19 +860,28 @@ void GfxPalette::palVaryProcess(int signal, bool setPalette) {
 	}
 }
 
+static inline uint getMacColorDiff(byte r1, byte g1, byte b1, byte r2, byte g2, byte b2) {
+	// Use the difference of the top 4 bits and add together the differences
+	return ABS((r2 & 0xf0) - (r1 & 0xf0)) + ABS((g2 & 0xf0) - (g1 & 0xf0)) + ABS((b2 & 0xf0) - (b1 & 0xf0));
+}
+
 byte GfxPalette::findMacIconBarColor(byte r, byte g, byte b) {
 	// Find the best color for use with the Mac icon bar
+	// Check white, then the palette colors, and then black
 
-	byte found = 0xFF;
-	uint diff = 0xFFFFFFFF;
+	// Try white first
+	byte found = 0xff;
+	uint diff = getMacColorDiff(r, g, b, 0xff, 0xff, 0xff);
 
-	for (uint16 i = 0; i < 256; i++) {
-		// Use the difference of the top 4 bits
-		int dr = (_macClut[i * 3    ] & 0xf0) - (r & 0xf0);
-		int dg = (_macClut[i * 3 + 1] & 0xf0) - (g & 0xf0);
-		int db = (_macClut[i * 3 + 2] & 0xf0) - (b & 0xf0);
+	if (diff == 0)
+		return found;
 
-		uint cdiff = ABS(dr) + ABS(dg) + ABS(db);
+	// Go through the main colors of the CLUT
+	for (uint16 i = 1; i < 255; i++) {
+		if (!colorIsFromMacClut(i))
+			continue;
+
+		uint cdiff = getMacColorDiff(r, g, b, _macClut[i * 3], _macClut[i * 3 + 1], _macClut[i * 3 + 2]);
 
 		if (cdiff == 0)
 			return i;
@@ -869,6 +891,10 @@ byte GfxPalette::findMacIconBarColor(byte r, byte g, byte b) {
 		}
 	}
 
+	// Also check black here
+	if (getMacColorDiff(r, g, b, 0, 0, 0) < diff)
+		return 0;
+
 	return found;
 }
 
@@ -876,7 +902,7 @@ void GfxPalette::loadMacIconBarPalette() {
 	if (!g_sci->hasMacIconBar())
 		return;
 
-	Common::SeekableReadStream *clutStream = g_sci->getMacExecutable()->getResource(MKID_BE('clut'), 150);
+	Common::SeekableReadStream *clutStream = g_sci->getMacExecutable()->getResource(MKTAG('c','l','u','t'), 150);
 
 	if (!clutStream)
 		error("Could not find clut 150 for the Mac icon bar");
@@ -965,7 +991,7 @@ void GfxPalette::unloadClut() {
 	delete[] _clutTable;
 	_clutTable = 0;
 }
- 
+
 #endif
 
 } // End of namespace Sci

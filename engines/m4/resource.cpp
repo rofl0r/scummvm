@@ -18,9 +18,6 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
- * $URL$
- * $Id$
- *
  */
 
 #include "m4/m4.h"
@@ -28,6 +25,7 @@
 #include "m4/events.h"
 
 #include "common/substream.h"
+#include "common/textconsole.h"
 
 namespace M4 {
 
@@ -315,7 +313,7 @@ const char *MADSResourceManager::getResourceFilename(const char *resourceName) {
 /**
  * Forms a resource name based on the passed specifiers
  */
-const char *MADSResourceManager::getResourceName(char asciiCh, int prefix, ExtensionType extType, 
+const char *MADSResourceManager::getResourceName(char asciiCh, int prefix, ExtensionType extType,
 												 const char *suffix, int index) {
 	static char resourceName[100];
 
@@ -465,7 +463,6 @@ Common::SeekableReadStream *MADSResourceManager::loadResource(const char *resour
 
 bool MADSResourceManager::resourceExists(const char *resourceName) {
 	Common::File hagFile;
-	uint32 offset, size;
 
 	// If the first character is the wildcard (resource indicator), skip over it
 	if (*resourceName == '*')
@@ -488,8 +485,8 @@ bool MADSResourceManager::resourceExists(const char *resourceName) {
 	while (++resIndex < numEntries) {
 		// Read in the details of the next resource
 		char resourceBuffer[14];
-		offset = hagFile.readUint32LE();
-		size = hagFile.readUint32LE();
+		hagFile.readUint32LE(); // offset
+		hagFile.readUint32LE(); // size
 		hagFile.read(resourceBuffer, 14);
 
 		if (!strcmp(resName, resourceBuffer))

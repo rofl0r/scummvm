@@ -18,9 +18,6 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
- * $URL$
- * $Id$
- *
  */
 
 #ifndef TOON_AUDIO_H
@@ -50,6 +47,10 @@ public:
 	}
 	bool isFading() {
 		return _fadingIn || _fadingOut;
+	}
+
+	int32 getPlayedSampleCount() {
+		return _playedSamples;
 	}
 
 	void setVolume(int32 volume);
@@ -83,8 +84,8 @@ protected:
 	Audio::SoundHandle _handle;
 	Audio::Mixer::SoundType _soundType;
 	Audio::Mixer *_mixer;
-	int32 _lastADPCMval1;
-	int32 _lastADPCMval2;
+	int32 _lastSample;
+	int32 _lastStepIndex;
 	bool _stopped;
 	AudioManager *_man;
 	int32 _totalSize;
@@ -93,6 +94,7 @@ protected:
 	int32 _volume;
 	int32 _musicAttenuation;
 	bool _deleteFileStream;
+	int32 _playedSamples;
 };
 
 class AudioStreamPackage {
@@ -133,14 +135,14 @@ public:
 	void playVoice(int32 id, bool genericVoice);
 	int32 playSFX(int32 id, int volume, bool genericSFX);
 	void stopCurrentVoice();
-	void stopAllSfxs(); 
+	void stopAllSfxs();
 	void setMusicVolume(int32 volume);
 	void stopMusic();
 	void muteVoice(bool mute);
 	void muteMusic(bool mute);
 	void muteSfx(bool mute);
 	bool isVoiceMuted() { return _voiceMuted; }
-	bool isMusicMuted() { return _musicMuted; }	
+	bool isMusicMuted() { return _musicMuted; }
 	bool isSfxMuted() { return _sfxMuted; }
 
 	void startAmbientSFX(int32 id, int32 delay, int32 mode, int32 volume);

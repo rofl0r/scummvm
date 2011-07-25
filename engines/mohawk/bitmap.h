@@ -18,9 +18,6 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
- * $URL$
- * $Id$
- *
  */
 
 #ifndef MOHAWK_BITMAP_H
@@ -144,6 +141,8 @@ private:
 	void handleRivenSubcommandStream(byte count, byte *&dst);
 };
 
+#ifdef ENABLE_MYST
+
 // Myst uses a different image format than that of other Mohawk games.
 // It essentially uses a Windows bitmap with the LZ encoding from the
 // Mohawk Bitmap format.
@@ -181,10 +180,12 @@ private:
 	} _info;
 };
 
-class OldMohawkBitmap : public MohawkBitmap {
+#endif
+
+class LivingBooksBitmap_v1 : public MohawkBitmap {
 public:
-	OldMohawkBitmap() : MohawkBitmap() {}
-	~OldMohawkBitmap() {}
+	LivingBooksBitmap_v1() : MohawkBitmap() {}
+	~LivingBooksBitmap_v1() {}
 
 	MohawkSurface *decodeImage(Common::SeekableReadStream *stream);
 

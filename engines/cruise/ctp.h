@@ -18,9 +18,6 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
- * $URL$
- * $Id$
- *
  */
 
 #ifndef CRUISE_CTP_H
@@ -57,7 +54,7 @@ class CtStruct {
 public:
 	CtStruct *next;
 	int16 num;
-	int16 colour;
+	int16 color;
 	Common::Rect bounds;
 	Common::Array<CtEntry> slices;
 };

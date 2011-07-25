@@ -18,13 +18,11 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
- * $URL$
- * $Id$
- *
  */
 
 #include "m4/dialogs.h"
 #include "common/file.h"
+#include "common/textconsole.h"
 
 namespace M4 {
 
@@ -267,7 +265,7 @@ void Dialog::setupInputArea() {
  */
 bool Dialog::matchCommand(const char *s1, const char *s2) {
 	bool result = scumm_strnicmp(s1, s2, strlen(s2)) == 0;
-	_commandCase = isupper(*s1);
+	_commandCase = isupper(static_cast<unsigned char>(*s1));
 	return result;
 }
 
@@ -444,7 +442,7 @@ void Dialog::draw() {
 	int dialogY = (_vm->_screen->height() - dlgHeight) / 2;
 
 	// Create the surface for the dialog
-	create(dlgWidth, dlgHeight, 1);
+	create(dlgWidth, dlgHeight, Graphics::PixelFormat::createFormatCLUT8());
 	_coords.left = dialogX;
 	_coords.top = dialogY;
 	_coords.right = dialogX + dlgWidth + 1;
@@ -452,7 +450,7 @@ void Dialog::draw() {
 
 	// Set up the dialog
 	fillRect(Common::Rect(0, 0, width(), height()), 3);
-	setColour(2);
+	setColor(2);
 	hLine(1, width() - 1, height() - 2);	// Bottom edge
 	hLine(0, width(), height() - 1);
 	vLine(width() - 2, 2, height());		// Right edge
@@ -480,8 +478,8 @@ void Dialog::draw() {
 	}
 
 	// Handle drawing the text contents
-	_vm->_font->current()->setColours(7, 7, 7);
-	setColour(7);
+	_vm->_font->current()->setColors(7, 7, 7);
+	setColor(7);
 
 	for (uint lineCtr = 0, yp = 5; lineCtr < _lines.size(); ++lineCtr, yp += _vm->_font->current()->getHeight() + 1) {
 
@@ -534,7 +532,7 @@ void Dialog::display(MadsM4Engine *vm, int widthChars, const char **descEntries)
 	}
 
 	dlg->_lines[0].underline = true;
-	
+
 	dlg->draw();
 	vm->_viewManager->addView(dlg);
 	vm->_viewManager->moveToFront(dlg);
@@ -556,7 +554,7 @@ void Dialog::getValue(MadsM4Engine *vm, const char *title, const char *text, int
 	vm->_viewManager->moveToFront(dlg);
 
 	// TODO: How to wait until the dialog is closed
-	
+
 }
 
 } // End of namespace M4

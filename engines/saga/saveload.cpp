@@ -18,15 +18,10 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
- * $URL$
- * $Id$
- *
  */
 
-#include "common/config-manager.h"
 #include "common/savefile.h"
 #include "common/system.h"
-#include "common/file.h"
 #include "graphics/thumbnail.h"
 
 #include "saga/saga.h"
@@ -151,7 +146,7 @@ void SagaEngine::fillSaveList() {
 				_saveHeader.version = in->readUint32LE();
 				in->read(_saveHeader.name, sizeof(_saveHeader.name));
 
-				if (_saveHeader.type != MKID_BE('SAGA')) {
+				if (_saveHeader.type != MKTAG('S','A','G','A')) {
 					warning("SagaEngine::load wrong save %s format", name);
 					i++;
 					continue;
@@ -175,7 +170,7 @@ void SagaEngine::save(const char *fileName, const char *saveName) {
 		return;
 	}
 
-	_saveHeader.type = MKID_BE('SAGA');
+	_saveHeader.type = MKTAG('S','A','G','A');
 	_saveHeader.size = 0;
 	_saveHeader.version = CURRENT_SAGA_VER;
 	// Note that IHNM has a smaller save title size than ITE
@@ -256,6 +251,8 @@ void SagaEngine::save(const char *fileName, const char *saveName) {
 		warning("Can't write file '%s'. (Disk full?)", fileName);
 
 	delete out;
+
+	_interface->resetSaveReminder();
 }
 
 void SagaEngine::load(const char *fileName) {
@@ -287,7 +284,7 @@ void SagaEngine::load(const char *fileName) {
 	if (_saveHeader.version < 4)
 		warning("This savegame is not endian-safe. There may be problems");
 
-	if (_saveHeader.type != MKID_BE('SAGA')) {
+	if (_saveHeader.type != MKTAG('S','A','G','A')) {
 		error("SagaEngine::load wrong save game format");
 	}
 

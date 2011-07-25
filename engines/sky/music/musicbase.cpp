@@ -18,15 +18,13 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
- * $URL$
- * $Id$
- *
  */
 
 #include "sky/music/musicbase.h"
 #include "sky/disk.h"
 #include "common/util.h"
 #include "common/endian.h"
+#include "common/textconsole.h"
 
 namespace Sky {
 
@@ -44,7 +42,7 @@ MusicBase::~MusicBase() {
 }
 
 void MusicBase::loadSection(uint8 pSection) {
-	_mutex.lock();
+	Common::StackLock lock(_mutex);
 	if (_currentMusic)
 		stopMusicInternal();
 	free(_musicData);
@@ -58,7 +56,6 @@ void MusicBase::loadSection(uint8 pSection) {
 	_numberOfChannels = _currentMusic = 0;
 	setupPointers();
 	startDriver();
-	_mutex.unlock();
 }
 
 bool MusicBase::musicIsPlaying() {
@@ -69,9 +66,8 @@ bool MusicBase::musicIsPlaying() {
 }
 
 void MusicBase::stopMusic() {
-	_mutex.lock();
+	Common::StackLock lock(_mutex);
 	stopMusicInternal();
-	_mutex.unlock();
 }
 
 void MusicBase::stopMusicInternal() {
@@ -113,7 +109,7 @@ void MusicBase::loadNewMusic() {
 }
 
 void MusicBase::pollMusic() {
-	_mutex.lock();
+	Common::StackLock lock(_mutex);
 	uint8 newTempo;
 	if (_onNextPoll.musicToProcess != _currentMusic)
 		loadNewMusic();
@@ -127,7 +123,6 @@ void MusicBase::pollMusic() {
 			updateTempo();
 		}
 	}
-	_mutex.unlock();
 	_aktTime &= 0xFFFF;
 }
 

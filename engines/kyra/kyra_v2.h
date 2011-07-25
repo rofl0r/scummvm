@@ -18,9 +18,6 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
- * $URL$
- * $Id$
- *
  */
 
 #ifndef KYRA_KYRA_V2_H
@@ -269,6 +266,7 @@ protected:
 	// pathfinder
 	int _movFacingTable[600];
 	int _pathfinderFlag;
+	bool _smoothingPath;
 
 	int findWay(int curX, int curY, int dstX, int dstY, int *moveTable, int moveTableSize);
 
@@ -340,7 +338,7 @@ protected:
 	uint32 _updateCharPosNextUpdate;
 
 	virtual int getCharacterWalkspeed() const = 0;
-	virtual void updateCharAnimFrame(int num, int *table) = 0;
+	virtual void updateCharAnimFrame(int *table) = 0;
 
 	// chat
 	int _vocHigh;

@@ -18,9 +18,6 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
- * $URL$
- * $Id$
- *
  */
 
 #include "common/util.h"
@@ -87,7 +84,14 @@ reg_t GfxCompare::canBeHereCheckRectList(reg_t checkObject, const Common::Rect &
 				curRect.right = readSelectorValue(_segMan, curObject, SELECTOR(brRight));
 				curRect.bottom = readSelectorValue(_segMan, curObject, SELECTOR(brBottom));
 				// Check if curRect is within checkRect
-				if (checkRect.contains(curRect))
+				// This behavior is slightly odd, but it's how the original SCI
+				// engine did it: a rect cannot be contained within itself
+				// (there is no equality). Do NOT change this to contains(), as
+				// it breaks KQ4 early (bug #3315639).
+				if (curRect.right > checkRect.left &&
+					curRect.left < checkRect.right &&
+					curRect.bottom > checkRect.top &&
+					curRect.top < checkRect.bottom)
 					return curObject;
 			}
 		}
@@ -125,7 +129,7 @@ void GfxCompare::kernelSetNowSeen(reg_t objectReference) {
 
 #ifdef ENABLE_SCI32
 	if (view->isSci2Hires())
-		_screen->adjustToUpscaledCoordinates(y, x);
+		view->adjustToUpscaledCoordinates(y, x);
 	else if (getSciVersion() == SCI_VERSION_2_1)
 		_coordAdjuster->fromScriptToDisplay(y, x);
 #endif
@@ -134,8 +138,8 @@ void GfxCompare::kernelSetNowSeen(reg_t objectReference) {
 
 #ifdef ENABLE_SCI32
 	if (view->isSci2Hires()) {
-		_screen->adjustBackUpscaledCoordinates(celRect.top, celRect.left);
-		_screen->adjustBackUpscaledCoordinates(celRect.bottom, celRect.right);
+		view->adjustBackUpscaledCoordinates(celRect.top, celRect.left);
+		view->adjustBackUpscaledCoordinates(celRect.bottom, celRect.right);
 	} else if (getSciVersion() == SCI_VERSION_2_1) {
 		_coordAdjuster->fromDisplayToScript(celRect.top, celRect.left);
 		_coordAdjuster->fromDisplayToScript(celRect.bottom, celRect.right);
@@ -223,13 +227,13 @@ void GfxCompare::kernelBaseSetter(reg_t object) {
 			celRect.bottom = readSelectorValue(_segMan, object, SELECTOR(nsBottom));
 		} else {
 			if (tmpView->isSci2Hires())
-				_screen->adjustToUpscaledCoordinates(y, x);
+				tmpView->adjustToUpscaledCoordinates(y, x);
 
 			tmpView->getCelRect(loopNo, celNo, x, y, z, celRect);
 
 			if (tmpView->isSci2Hires()) {
-				_screen->adjustBackUpscaledCoordinates(celRect.top, celRect.left);
-				_screen->adjustBackUpscaledCoordinates(celRect.bottom, celRect.right);
+				tmpView->adjustBackUpscaledCoordinates(celRect.top, celRect.left);
+				tmpView->adjustBackUpscaledCoordinates(celRect.bottom, celRect.right);
 			}
 		}
 

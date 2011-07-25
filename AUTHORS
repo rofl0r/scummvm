@@ -2,13 +2,13 @@ ScummVM Team
 ************
   Project Leaders
   ---------------
-     Max Horn
      Eugene Sandulenko
 
   Retired Project Leaders
   -----------------------
      James Brown
      Vincent Hamm          - ScummVM co-founder, Original Cruise/CinE author
+     Max Horn
      Ludvig Strigeus       - Original ScummVM and SimonVM author
 
   Engine Teams
@@ -18,7 +18,7 @@ ScummVM Team
        James Brown           - (retired)
        Jonathan Gray         - (retired)
        Vincent Hamm          - (retired)
-       Max Horn
+       Max Horn              - (retired)
        Travis Howell
        Pawel Kolodziejski    - Codecs, iMUSE, Smush, etc.
        Gregory Montoir
@@ -37,7 +37,7 @@ ScummVM Team
        Matthew Hoops
        Filippos Karapetis
        Pawel Kolodziejski
-       Walter van Niftrik
+       Walter van Niftrik    - (retired)
        Kari Salminen
        Eugene Sandulenko
        David Symonds         - (retired)
@@ -49,36 +49,14 @@ ScummVM Team
        Oliver Kiehl          - (retired)
        Ludvig Strigeus       - (retired)
 
-    BASS:
-       Robert Goeffringmann  - (retired)
-       Oliver Kiehl          - (retired)
-       Joost Peters
-
-    Broken Sword:
-       Fabio Battaglia       - PSX version support
-       Thierry Crozat        - Mac version support
-       Robert Goeffringmann  - (retired)
-
-    Broken Sword II:
-       Torbjorn Andersson
-       Fabio Battaglia       - PSX version support
-       Jonathan Gray         - (retired)
-
-    Broken Sword 2.5:
-       Eugene Sandulenko
-       Filippos Karapetis
-       Max Horn
-       Paul Gilbert
-       Torbjorn Andersson
-
-    Cinematique evo 1:
+    Cine:
        Vincent Hamm          - (retired)
        Pawel Kolodziejski
        Gregory Montoir
        Kari Salminen
        Eugene Sandulenko
 
-    Cinematique evo 2:
+    CruisE:
        Paul Gilbert
        Vincent Hamm          - (retired)
 
@@ -90,10 +68,9 @@ ScummVM Team
        Filippos Karapetis
        Pawel Kolodziejski
 
-    FOTAQ:
-       David Eriksson        - (retired)
-       Gregory Montoir
-       Joost Peters
+    DreamWeb:
+       Vladimir Menshakov
+       Torbjorn Andersson
 
     Gob:
        Torbjorn Andersson
@@ -118,7 +95,7 @@ ScummVM Team
        Gregory Montoir
        Johannes Schickel
 
-    Last Express:
+    Lastexpress:
        Matthew Hoops
        Jordi Vilalta Prat
        Julien Templier
@@ -137,13 +114,20 @@ ScummVM Team
        Filippos Karapetis
 
     Mohawk:
+       Bastien Bouclet
        Matthew Hoops
        Filippos Karapetis
+       Alyssa Milburn
        Eugene Sandulenko
        David Turner
 
     Parallaction:
        peres
+
+    Queen:
+       David Eriksson        - (retired)
+       Gregory Montoir
+       Joost Peters
 
     SAGA:
        Torbjorn Andersson
@@ -154,13 +138,35 @@ ScummVM Team
     SCI:
        Greg Frieger
        Paul Gilbert
-       Max Horn
+       Max Horn              - (retired)
        Filippos Karapetis
        Martin Kiewitz
-       Walter van Niftrik
+       Walter van Niftrik    - (retired)
        Willem Jan Palenstijn
        Jordi Vilalta Prat
        Lars Skovlund
+
+    Sky:
+       Robert Goeffringmann  - (retired)
+       Oliver Kiehl          - (retired)
+       Joost Peters
+
+    Sword1:
+       Fabio Battaglia       - PSX version support
+       Thierry Crozat        - Mac version support
+       Robert Goeffringmann  - (retired)
+
+    Sword2:
+       Torbjorn Andersson
+       Fabio Battaglia       - PSX version support
+       Jonathan Gray         - (retired)
+
+    Sword25:
+       Eugene Sandulenko
+       Filippos Karapetis
+       Max Horn              - (retired)
+       Paul Gilbert
+       Torbjorn Andersson
 
     TeenAgent:
        Robert Megone         - Help with callback rewriting
@@ -171,7 +177,7 @@ ScummVM Team
        Fabio Battaglia       - PSX version support
        Paul Gilbert
        Sven Hesse
-       Max Horn
+       Max Horn              - (retired)
        Filippos Karapetis
        Joost Peters
 
@@ -181,12 +187,17 @@ ScummVM Team
     Touche:
        Gregory Montoir
 
+    TsAGE:
+       Paul Gilbert
+       Arnaud Boutonne
+
     Tucker:
        Gregory Montoir
 
   Backend Teams
   -------------
     Android:
+       Andre Heider
        Angus Lees
 
     Dreamcast:
@@ -215,7 +226,8 @@ ScummVM Team
 
     PocketPC / WinCE:
        Nicolas Bacca         - (retired)
-       Kostas Nakos
+       Ismail Khatib
+       Kostas Nakos          - (retired)
 
     PlayStation 2:
        Robert Goeffringmann  - (retired)
@@ -226,12 +238,15 @@ ScummVM Team
        Yotam Barnoy
 
     SDL (Win/Linux/OS X/etc.):
-       Max Horn
+       Max Horn              - (retired)
        Eugene Sandulenko     - Asm routines, GFX layers
 
     SymbianOS:
        Jurgen Braam
        Lars Persson
+
+    WebOS:
+       Klaus Reimer
 
     Wii:
        Andre Heider
@@ -240,7 +255,7 @@ ScummVM Team
   ----------------
     Infrastructure:
        Max Horn              - Backend & Engine APIs, file API, sound mixer,
-                               audiostreams, data structures, etc.
+                               audiostreams, data structures, etc. (retired)
        Eugene Sandulenko
        Johannes Schickel
 
@@ -252,7 +267,7 @@ ScummVM Team
     Miscellaneous:
        David Corrales-Lopez  - Filesystem access improvements (GSoC 2007
                                task) (retired)
-       Jerome Fisher         - MT-32 emulator (retired)
+       Jerome Fisher         - MT-32 emulator
        Benjamin Haisch       - Heavily improved de-/encoder for DXA videos
        Jochen Hoenicke       - Speaker & PCjr sound support, AdLib work
                                (retired)
@@ -264,6 +279,17 @@ ScummVM Team
   Website (code)
   --------------
      Fredrik Wendel        - (retired)
+
+  Website (maintenance)
+  ---------------------
+     James Brown           - IRC Logs maintainer
+     Thierry Crozat        - Wiki maintainer
+     Andre Heider          - Buildbot maintainer
+     Joost Peters          - Doxygen Project Documentation maintainer
+     Jordi Vilalta Prat    - Wiki maintainer
+     Eugene Sandulenko     - Forum, IRC channel, Screen Shots and Mailing
+                             list maintainer
+     John Willis
 
   Website (content)
   -----------------
@@ -312,7 +338,7 @@ Other contributions
        Willem Jan Palenstijn
 
     Mac OS X:
-       Max Horn
+       Max Horn              - (retired)
        Oystein Eftevaag
 
     Mandriva:
@@ -386,6 +412,9 @@ Other contributions
     Spanish:
        Tomas Maidagan
 
+    Swedish:
+       Hampus Flink
+
     Ukrainian:
        Lubomyr Lisen
 
@@ -396,6 +425,7 @@ Other contributions
      David Jensen          - SVG logo conversion
      Jean Marc Gimenez     - ScummVM logo
      Raina                 - ScummVM forum buttons
+     William Claydon       - Skins for doxygen, buildbot and wiki
 
   Code contributions
   ------------------
@@ -405,7 +435,7 @@ Other contributions
                              engine)
      Paolo Costabel        - PSP port contributions
      Martin Doucha         - CinE engine objectification
-     Thomas Fach-Pedersen  - ProTracker module player
+     Thomas Fach-Pedersen  - ProTracker module player, Smacker video decoder
      Tobias Gunkel         - Sound support for C64 version of MM/Zak, Loom
                              PCE support
      Janne Huttunen        - V3 actor mask support, Dig/FT SMUSH audio
@@ -422,7 +452,7 @@ Other contributions
      Tim Phillips          - Initial MI1 CD music support
      Quietust              - Sound support for Amiga SCUMM V2/V3 games, MM
                              NES support
-     segra                 - Improved support for Apple II/C64 versions of MM
+     Robert Crossfield     - Improved support for Apple II/C64 versions of MM
      Andreas Roever        - Broken Sword I & II MPEG2 cutscene support
      Edward Rudd           - Fixes for playing MP3 versions of MI1/Loom audio
      Daniel Schepler       - Final MI1 CD music support, initial Ogg Vorbis
@@ -533,7 +563,7 @@ Special thanks to
    Drascula: The Vampire Strikes Back with us and his generosity with
    freewaring the game.
 
-   David P. Gray from Gray Design Associate for sharing the source code of
+   David P. Gray from Gray Design Associates for sharing the source code of
    the Hugo trilogy.
 
    Broken Sword 2.5 team for providing sources of their engine and their

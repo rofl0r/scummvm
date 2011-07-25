@@ -18,15 +18,13 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
- * $URL$
- * $Id$
- *
  */
 
 #include "common/config-manager.h"
 #include "common/endian.h"
 #include "common/events.h"
 #include "common/system.h"	// for g_system->getEventManager()
+#include "common/textconsole.h"
 
 #include "cruise/cruise.h"
 #include "cruise/cruise_main.h"
@@ -904,18 +902,8 @@ bool createDialog(int objOvl, int objIdx, int x, int y) {
 						if (!obj2Ovl)  obj2Ovl = j;
 
 						char verbe_name[80];
-						char obj1_name[80];
-						char obj2_name[80];
-						char r_verbe_name[80];
-						char r_obj1_name[80];
-						char r_obj2_name[80];
 
 						verbe_name[0]	= 0;
-						obj1_name[0]	= 0;
-						obj2_name[0]	= 0;
-						r_verbe_name[0] = 0;
-						r_obj1_name[0]	= 0;
-						r_obj2_name[0]	= 0;
 
 						ovlDataStruct *ovl2 = NULL;
 						ovlDataStruct *ovl3 = NULL;
@@ -1004,18 +992,7 @@ bool findRelation(int objOvl, int objIdx, int x, int y) {
 					if (!obj2Ovl)  obj2Ovl = j;
 
 					char verbe_name[80];
-					char obj1_name[80];
-					char obj2_name[80];
-					char r_verbe_name[80];
-					char r_obj1_name[80];
-					char r_obj2_name[80];
-
 					verbe_name[0]	= 0;
-					obj1_name[0]	= 0;
-					obj2_name[0]	= 0;
-					r_verbe_name[0] = 0;
-					r_obj1_name[0]	= 0;
-					r_obj2_name[0]	= 0;
 
 					ovlDataStruct *ovl2 = NULL;
 					ovlDataStruct *ovl3 = NULL;
@@ -1895,7 +1872,7 @@ void CruiseEngine::mainLoop() {
 
 		while (numIterations-- > 0) {
 			bgChanged = backgroundChanged[masterScreen];
-		
+
 			manageScripts(&relHead);
 			manageScripts(&procHead);
 

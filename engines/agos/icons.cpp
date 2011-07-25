@@ -18,16 +18,13 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
- * $URL$
- * $Id$
- *
  */
 
 
 
-#include "common/system.h"
-
 #include "common/file.h"
+#include "common/system.h"
+#include "common/textconsole.h"
 
 #include "graphics/surface.h"
 
@@ -484,7 +481,7 @@ void AGOSEngine::drawIconArray(uint num, Item *itemRef, int line, int classMask)
 	Item *item_ptr_org = itemRef;
 	WindowBlock *window;
 	uint width, height;
-	uint k, i, curWidth;
+	uint k, curWidth;
 	bool item_again, showArrows;
 	uint x_pos, y_pos;
 	const int iconSize = (getGameType() == GType_SIMON2) ? 20 : 1;
@@ -501,8 +498,6 @@ void AGOSEngine::drawIconArray(uint num, Item *itemRef, int line, int classMask)
 		width = window->width / 3;
 		height = window->height / 3;
 	}
-
-	i = 0;
 
 	if (window == NULL)
 		return;

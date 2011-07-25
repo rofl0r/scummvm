@@ -18,14 +18,12 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
- * $URL$
- * $Id$
- *
  */
 
 #include "scumm/actor.h"
 #include "scumm/charset.h"
 #include "scumm/object.h"
+#include "scumm/resource.h"
 #include "scumm/scumm_v3.h"
 #include "scumm/scumm_v5.h"
 #include "scumm/sound.h"
@@ -530,11 +528,20 @@ void ScummEngine_v5::o5_actorOps() {
 
 void ScummEngine_v5::o5_setClass() {
 	int obj = getVarOrDirectWord(PARAM_1);
-	int newClass;
+	int cls;
 
 	while ((_opcode = fetchScriptByte()) != 0xFF) {
-		newClass = getVarOrDirectWord(PARAM_1);
-		if (newClass == 0) {
+		cls = getVarOrDirectWord(PARAM_1);
+
+		// WORKAROUND bug #1668393: Due to a script bug, the wrong opcode is
+		// used to test and set the state of various objects (e.g. the inside
+		// door (object 465) of the of the Hostel on Mars), when opening the
+		// Hostel door from the outside.
+		if (_game.id == GID_ZAK && _game.platform == Common::kPlatformFMTowns &&
+		    vm.slot[_currentScript].number == 205 && _currentRoom == 185 &&
+		    (cls == 0 || cls == 1)) {
+			putState(obj, cls);
+		} else if (cls == 0) {
 			// Class '0' means: clean all class data
 			_classData[obj] = 0;
 			if ((_game.features & GF_SMALL_HEADER) && obj <= _numActors) {
@@ -543,7 +550,7 @@ void ScummEngine_v5::o5_setClass() {
 				a->_forceClip = 0;
 			}
 		} else
-			putClass(obj, newClass, (newClass & 0x80) ? true : false);
+			putClass(obj, cls, (cls & 0x80) ? true : false);
 	}
 }
 
@@ -1148,9 +1155,10 @@ void ScummEngine_v5::o5_ifClassOfIs() {
 	while ((_opcode = fetchScriptByte()) != 0xFF) {
 		cls = getVarOrDirectWord(PARAM_1);
 
-		// WORKAROUND bug #1668393: Due to a script bug, the wrong opcode is used
-		// to check the state of the inside door (object 465) of the Hostel on Mars,
-		// when opening the Hostel door from the outside.
+		// WORKAROUND bug #1668393: Due to a script bug, the wrong opcode is
+		// used to test and set the state of various objects (e.g. the inside
+		// door (object 465) of the of the Hostel on Mars), when opening the
+		// Hostel door from the outside.
 		if (_game.id == GID_ZAK && _game.platform == Common::kPlatformFMTowns &&
 		    vm.slot[_currentScript].number == 205 && _currentRoom == 185 &&
 		    obj == 465 && cls == 0) {
@@ -1482,7 +1490,7 @@ void ScummEngine_v5::o5_systemOps() {
 }
 
 void ScummEngine_v5::o5_resourceRoutines() {
-	const ResTypes resType[4] = { rtScript, rtSound, rtCostume, rtRoom };
+	const ResType resType[4] = { rtScript, rtSound, rtCostume, rtRoom };
 	int resid = 0;
 	int foo, bar;
 
@@ -1603,7 +1611,7 @@ void ScummEngine_v5::o5_resourceRoutines() {
 		foo = getVarOrDirectByte(PARAM_2);
 		bar = fetchScriptByte();
 		if (_townsPlayer)
-			_townsPlayer->setSoundVolume(resid, foo, bar);		
+			_townsPlayer->setSoundVolume(resid, foo, bar);
 		break;
 	case 37:
 		if (_townsPlayer)
@@ -2087,6 +2095,20 @@ void ScummEngine_v5::o5_startScript() {
 	if (_game.id == GID_ZAK && _game.platform == Common::kPlatformFMTowns && script == 171)
 		return;
 
+	// WORKAROUND bug #3306145 (also occurs in original): Some old versions of
+	// Indy3 sometimes fail to allocate IQ points correctly. To quote:
+	// "In the Amiga version you get the 15 points for puzzle 30 if you give the
+	// book or KO the guy. The PC version correctly gives 10 points for puzzle
+	// 29 for KO and 15 for puzzle 30 when giving the book."
+	// This workaround is meant to address that.
+	if (_game.id == GID_INDY3 && vm.slot[_currentScript].number == 106 && script == 125 && VAR(115) != 2) {
+		// If Var[115] != 2, then:
+		// Correct: startScript(125,[29,10]);
+		// Wrong : startScript(125,[30,15]);
+		data[0] = 29;
+		data[1] = 10;
+	}
+
 	// Method used by original games to skip copy protection scheme
 	if (!_copyProtection) {
 		// Copy protection was disabled in LucasArts Classic Adventures (PC Disk)
@@ -2311,7 +2333,7 @@ void ScummEngine_v5::o5_verbOps() {
 
 			if (_game.platform == Common::kPlatformFMTowns && _game.version == 3 && slot)
 				continue;
-			
+
 			if (slot == 0) {
 				for (slot = 1; slot < _numVerbs; slot++) {
 					if (_verbs[slot].verbid == 0)
@@ -2638,7 +2660,7 @@ void ScummEngine_v5::decodeParseString() {
 
 
 			// In SCUMM V1-V3, there were no 'default' values for the text slot
-			// values. Hence to achieve correct behaviour, we have to keep the
+			// values. Hence to achieve correct behavior, we have to keep the
 			// 'default' values in sync with the active values.
 			//
 			// Note: This is needed for Indy3 (Grail Diary). It's also needed

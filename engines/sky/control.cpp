@@ -18,19 +18,15 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
- * $URL$
- * $Id$
- *
  */
 
 
 #include "common/endian.h"
 #include "common/config-manager.h"
-#include "common/file.h"
 #include "common/events.h"
 #include "common/system.h"
 #include "common/savefile.h"
-#include "common/util.h"
+#include "common/textconsole.h"
 
 #include "gui/message.h"
 #include "sky/compact.h"
@@ -115,7 +111,7 @@ void TextResource::flushForRedraw() {
 }
 
 void TextResource::drawToScreen(bool doMask) {
-	doMask = true;
+	(void)doMask;
 	uint16 cnty, cntx, cpWidth, cpHeight;
 	if ((_oldX == _x) && (_oldY == _y) && (_spriteData))
 		return;
@@ -1275,7 +1271,7 @@ void Control::importOldCompact(Compact* destCpt, uint8 **srcPos, uint16 numElems
 		LODSW(*srcPos, destCpt->alt);
 		LODSW(*srcPos, destCpt->request);
 		LODSW(*srcPos, destCpt->spWidth_xx);
-		LODSW(*srcPos, destCpt->spColour);
+		LODSW(*srcPos, destCpt->spColor);
 		LODSW(*srcPos, destCpt->spTextId);
 		LODSW(*srcPos, destCpt->spTime);
 		LODSW(*srcPos, destCpt->arAnimIndex);

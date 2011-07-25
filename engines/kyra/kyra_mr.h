@@ -18,9 +18,6 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
- * $URL$
- * $Id$
- *
  */
 
 #ifndef KYRA_KYRA_MR_H
@@ -122,7 +119,6 @@ private:
 	void snd_playWanderScoreViaMap(int track, int force);
 	void stopMusicTrack();
 
-	int musicUpdate(int forceRestart);
 	void fadeOutMusic(int ticks);
 
 	void snd_playSoundEffect(int item, int volume);
@@ -387,7 +383,7 @@ private:
 
 	// character
 	int getCharacterWalkspeed() const;
-	void updateCharAnimFrame(int character, int *table);
+	void updateCharAnimFrame(int *table);
 	int8 _characterAnimTable[2];
 	static const uint8 _characterFrameTable[];
 
@@ -665,8 +661,6 @@ private:
 private:
 	static const char *_languageExtension[];
 	static const int _languageExtensionSize;
-
-	char *appendLanguage(char *buf, int lang, int bufSize);
 
 	int loadLanguageFile(const char *file, uint8 *&buffer);
 };

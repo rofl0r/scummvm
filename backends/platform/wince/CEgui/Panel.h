@@ -18,9 +18,6 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
- * $URL$
- * $Id$
- *
  */
 
 #ifndef CEGUI_PANEL_H
@@ -51,7 +48,7 @@ public:
 	virtual bool action(int x, int y, bool pushed);
 private:
 
-	typedef HashMap<String, PanelItem*, Common::IgnoreCase_Hash , Common::IgnoreCase_EqualTo> ItemMap;
+	typedef HashMap<String, PanelItem *, Common::IgnoreCase_Hash , Common::IgnoreCase_EqualTo> ItemMap;
 
 	ItemMap _itemsMap;
 	int _interleave;

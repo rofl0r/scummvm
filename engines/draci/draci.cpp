@@ -18,9 +18,6 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
- * $URL$
- * $Id$
- *
  */
 
 #include "common/scummsys.h"
@@ -30,7 +27,6 @@
 #include "common/events.h"
 #include "common/file.h"
 #include "common/keyboard.h"
-#include "common/EventRecorder.h"
 
 #include "engines/util.h"
 
@@ -74,7 +70,8 @@ const uint kSoundsFrequency = 13000;
 const uint kDubbingFrequency = 22050;
 
 DraciEngine::DraciEngine(OSystem *syst, const ADGameDescription *gameDesc)
- : Engine(syst) {
+ : Engine(syst), _rnd("draci") {
+
 	// Put your engine in a sane state, but do nothing big yet;
 	// in particular, do not load data from files; rather, if you
 	// need to do such things, do them from init().
@@ -95,9 +92,6 @@ DraciEngine::DraciEngine(OSystem *syst, const ADGameDescription *gameDesc)
 	DebugMan.addDebugChannel(kDraciWalkingDebugLevel, "walking", "Walking debug info");
 
 	_console = new DraciConsole(this);
-
-	// Don't forget to register your random source
-	g_eventRec.registerRandomSource(_rnd, "draci");
 }
 
 bool DraciEngine::hasFeature(EngineFeature f) const {
@@ -162,18 +156,10 @@ int DraciEngine::init() {
 	_dubbingArchive = openAnyPossibleDubbing();
 	_sound = new Sound(_mixer);
 
-	MidiDriver::DeviceHandle dev = MidiDriver::detectDevice(MDT_MIDI | MDT_ADLIB | MDT_PREFER_GM);
-	bool native_mt32 = ((MidiDriver::getMusicType(dev) == MT_MT32) || ConfMan.getBool("native_mt32"));
-	//bool adlib = (MidiDriver::getMusicType(dev) == MT_ADLIB);
+	_music = new MusicPlayer(musicPathMask);
 
-	_midiDriver = MidiDriver::createMidi(dev);
-	if (native_mt32)
-		_midiDriver->property(MidiDriver::PROP_CHANNEL_MASK, 0x03FE);
-
-	_music = new MusicPlayer(_midiDriver, musicPathMask);
-	_music->setNativeMT32(native_mt32);
-	_music->open();
-	//_music->setAdLib(adlib);
+	// Setup mixer
+	syncSoundSettings();
 
 	// Load the game's fonts
 	_smallFont = new Font(kFontSmall);
@@ -401,7 +387,6 @@ DraciEngine::~DraciEngine() {
 
 	delete _sound;
 	delete _music;
-	delete _midiDriver;
 	delete _soundsArchive;
 	delete _dubbingArchive;
 
@@ -454,10 +439,8 @@ void DraciEngine::syncSoundSettings() {
 	_music->syncVolume();
 }
 
-const char *DraciEngine::getSavegameFile(int saveGameIdx) {
-	static char buffer[20];
-	sprintf(buffer, "draci.s%02d", saveGameIdx);
-	return buffer;
+Common::String DraciEngine::getSavegameFile(int saveGameIdx) {
+	return Common::String::format("draci.s%02d", saveGameIdx);
 }
 
 Common::Error DraciEngine::loadGameState(int slot) {
@@ -478,7 +461,7 @@ bool DraciEngine::canLoadGameStateCurrently() {
 		(_game->getLoopSubstatus() == kOuterLoop);
 }
 
-Common::Error DraciEngine::saveGameState(int slot, const char *desc) {
+Common::Error DraciEngine::saveGameState(int slot, const Common::String &desc) {
 	return saveSavegameData(slot, desc, *this);
 }
 

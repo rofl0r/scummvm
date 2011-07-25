@@ -18,9 +18,6 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
- * $URL$
- * $Id$
- *
  */
 
 /*
@@ -109,6 +106,8 @@ public:
 	static Common::String tableDump(lua_State *L);
 
 	static bool getMetatable(lua_State *L, const Common::String &tableName);
+
+	static void *my_checkudata(lua_State *L, int ud, const char *tname);
 
 private:
 	static bool createTable(lua_State *L, const Common::String &tableName);

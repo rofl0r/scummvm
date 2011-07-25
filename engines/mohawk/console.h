@@ -18,9 +18,6 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
- * $URL$
- * $Id$
- *
  */
 
 #ifndef MOHAWK_CONSOLE_H
@@ -30,11 +27,12 @@
 
 namespace Mohawk {
 
-class MohawkEngine_Myst;
-class MohawkEngine_Riven;
 class MohawkEngine_LivingBooks;
-class MohawkEngine_CSTime;
 class MohawkEngine_Zoombini;
+
+#ifdef ENABLE_MYST
+
+class MohawkEngine_Myst;
 
 class MystConsole : public GUI::Debugger {
 public:
@@ -60,6 +58,12 @@ private:
 	bool Cmd_Resources(int argc, const char **argv);
 };
 
+#endif
+
+#ifdef ENABLE_RIVEN
+
+class MohawkEngine_Riven;
+
 class RivenConsole : public GUI::Debugger {
 public:
 	RivenConsole(MohawkEngine_Riven *vm);
@@ -76,7 +80,6 @@ private:
 	bool Cmd_StopSound(int argc, const char **argv);
 	bool Cmd_CurStack(int argc, const char **argv);
 	bool Cmd_ChangeStack(int argc, const char **argv);
-	bool Cmd_Restart(int argc, const char **argv);
 	bool Cmd_Hotspots(int argc, const char **argv);
 	bool Cmd_ZipMode(int argc, const char **argv);
 	bool Cmd_RunAllBlocks(int argc, const char **argv);
@@ -86,6 +89,8 @@ private:
 	bool Cmd_Combos(int argc, const char **argv);
 	bool Cmd_SliderState(int argc, const char **argv);
 };
+
+#endif
 
 class LivingBooksConsole : public GUI::Debugger {
 public:
@@ -100,6 +105,10 @@ private:
 	bool Cmd_DrawImage(int argc, const char **argv);
 	bool Cmd_ChangePage(int argc, const char **argv);
 };
+
+#ifdef ENABLE_CSTIME
+
+class MohawkEngine_CSTime;
 
 class CSTimeConsole : public GUI::Debugger {
 public:
@@ -118,6 +127,8 @@ private:
 	bool Cmd_CaseVariable(int argc, const char **argv);
 	bool Cmd_InvItem(int argc, const char **argv);
 };
+
+#endif
 
 class ZoombiniConsole : public GUI::Debugger {
 public:

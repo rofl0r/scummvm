@@ -18,9 +18,6 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
- * $URL$
- * $Id$
- *
  */
 
 // Disable symbol overrides so that we can use system headers.
@@ -38,7 +35,7 @@
 
 
 #ifdef _WIN32_WCE
-#define		KEY_ALL_SKIP	3457
+#define     KEY_ALL_SKIP    3457
 #endif
 
 const Common::String pocketActionNames[] = {
@@ -85,14 +82,14 @@ int CEActionsPocket::version() {
 }
 
 CEActionsPocket::CEActionsPocket(const Common::String &gameid) :
-GUI::Actions() {
+	GUI::Actions() {
 	int i;
 
 	_right_click_needed = false;
 	_hide_toolbar_needed = false;
 	_zoom_needed = false;
 
-	for (i=0; i<POCKET_ACTION_LAST; i++) {
+	for (i = 0; i < POCKET_ACTION_LAST; i++) {
 		_action_mapping[i] = 0;
 		_action_enabled[i] = false;
 	}
@@ -112,7 +109,7 @@ GUI::Actions() {
 
 void CEActionsPocket::initInstanceMain(OSystem *mainSystem) {
 	// Nothing generic to do for Pocket PC
-	_CESystem = static_cast<OSystem_WINCE3*>(mainSystem);
+	_CESystem = static_cast<OSystem_WINCE3 *>(mainSystem);
 	GUI_Actions::initInstanceMain(mainSystem);
 }
 
@@ -126,7 +123,7 @@ void CEActionsPocket::initInstanceGame() {
 	bool is_comi = (strncmp(gameid.c_str(), "comi", 4) == 0);
 	bool is_gob = (strncmp(gameid.c_str(), "gob", 3) == 0);
 	bool is_saga = (gameid == "saga");
-	bool is_kyra = (strncmp(gameid.c_str(), "kyra",4) == 0);
+	bool is_kyra = (strncmp(gameid.c_str(), "kyra", 4) == 0);
 	bool is_samnmax = (gameid == "samnmax");
 	bool is_cine = (gameid == "cine");
 	bool is_touche = (gameid == "touche");
@@ -134,18 +131,19 @@ void CEActionsPocket::initInstanceGame() {
 	bool is_parallaction = (gameid == "parallaction");
 	bool is_lure = (gameid == "lure");
 	bool is_feeble = (gameid == "feeble");
-	bool is_drascula = (strncmp(gameid.c_str(), "drascula",8) == 0);
+	bool is_drascula = (strncmp(gameid.c_str(), "drascula", 8) == 0);
 	bool is_tucker = (gameid == "tucker");
 	bool is_groovie = (gameid == "groovie");
 	bool is_tinsel = (gameid == "tinsel");
 	bool is_cruise = (gameid == "cruise");
 	bool is_made = (gameid == "made");
+	bool is_sci = (gameid == "sci");
 
 	GUI_Actions::initInstanceGame();
 
 	// See if a right click mapping could be needed
 	if (is_sword1 || is_sword2 || is_sky || is_queen || is_comi || is_gob || is_tinsel ||
-			is_samnmax || is_cine || is_touche || is_parallaction || is_drascula || is_cruise)
+	        is_samnmax || is_cine || is_touche || is_parallaction || is_drascula || is_cruise)
 		_right_click_needed = true;
 
 	// See if a "hide toolbar" mapping could be needed
@@ -187,7 +185,7 @@ void CEActionsPocket::initInstanceGame() {
 	if (!is_cine && !is_parallaction && !is_groovie && !is_cruise && !is_made)
 		_action_enabled[POCKET_ACTION_SKIP] = true;
 	if (is_simon || is_sky || is_sword2 || is_queen || is_sword1 || is_gob || is_tinsel ||
-			is_saga || is_kyra || is_touche || is_lure || is_feeble || is_drascula || is_tucker)
+	        is_saga || is_kyra || is_touche || is_lure || is_feeble || is_drascula || is_tucker)
 		_key_action[POCKET_ACTION_SKIP].setKey(VK_ESCAPE);
 	else
 		_key_action[POCKET_ACTION_SKIP].setKey(KEY_ALL_SKIP);
@@ -217,12 +215,14 @@ void CEActionsPocket::initInstanceGame() {
 		_key_action[POCKET_ACTION_MULTI].setKey(Common::ASCII_F1, SDLK_F1); // bargon : F1 to start
 	else if (gameid == "atlantis")
 		_key_action[POCKET_ACTION_MULTI].setKey(0, SDLK_KP0); // fate of atlantis : Ins to sucker-punch
+	else if (is_simon)
+		_key_action[POCKET_ACTION_MULTI].setKey(Common::ASCII_F10, SDLK_F10); // F10
 	else
 		_key_action[POCKET_ACTION_MULTI].setKey('V', SDLK_v, KMOD_SHIFT); // FT cheat : shift-V
 	// Key bind method
 	_action_enabled[POCKET_ACTION_BINDKEYS] = true;
 	// Disable double-tap right-click for convenience
-	if (is_tinsel || is_cruise)
+	if (is_tinsel || is_cruise || is_sci)
 		if (!ConfMan.hasKey("no_doubletap_rightclick")) {
 			ConfMan.setBool("no_doubletap_rightclick", true);
 			ConfMan.flushToDisk();
@@ -236,13 +236,15 @@ CEActionsPocket::~CEActionsPocket() {
 bool CEActionsPocket::perform(GUI::ActionType action, bool pushed) {
 	static bool keydialogrunning = false, quitdialog = false;
 
+	_graphicsMan = ((WINCESdlGraphicsManager *)((OSystem_SDL *)g_system)->getGraphicsManager());
+
 	if (!pushed) {
 		switch (action) {
 		case POCKET_ACTION_RIGHTCLICK:
-			_CESystem->add_right_click(false);
+			_graphicsMan->add_right_click(false);
 			return true;
 		case POCKET_ACTION_LEFTCLICK:
-			_CESystem->add_left_click(false);
+			_graphicsMan->add_left_click(false);
 			return true;
 		case POCKET_ACTION_PAUSE:
 		case POCKET_ACTION_SAVE:
@@ -250,7 +252,6 @@ bool CEActionsPocket::perform(GUI::ActionType action, bool pushed) {
 		case POCKET_ACTION_MULTI:
 			EventsBuffer::simulateKey(&_key_action[action], false);
 			return true;
-
 		}
 		return false;
 	}
@@ -269,46 +270,55 @@ bool CEActionsPocket::perform(GUI::ActionType action, bool pushed) {
 			else
 				_key_action[action].setKey(SDLK_s);
 		}
+		if (action == POCKET_ACTION_SKIP && ConfMan.get("gameid") == "agi") {
+			// In several AGI games (for example SQ2) it is needed to press F10 to exit from
+			// a screen. But we still want be able to skip normally with the skip button.
+			// Because of this, we inject a F10 keystroke here (this works and doesn't seem
+			// to have side-effects)
+			_key_action[action].setKey(Common::ASCII_F10, SDLK_F10); // F10
+			EventsBuffer::simulateKey(&_key_action[action], true);
+			_key_action[action].setKey(KEY_ALL_SKIP);
+		}
 		EventsBuffer::simulateKey(&_key_action[action], true);
 		return true;
 	case POCKET_ACTION_KEYBOARD:
-		_CESystem->swap_panel();
+		_graphicsMan->swap_panel();
 		return true;
 	case POCKET_ACTION_HIDE:
-		_CESystem->swap_panel_visibility();
+		_graphicsMan->swap_panel_visibility();
 		return true;
 	case POCKET_ACTION_SOUND:
 		_CESystem->swap_sound_master();
 		return true;
 	case POCKET_ACTION_RIGHTCLICK:
-		_CESystem->add_right_click(true);
+		_graphicsMan->add_right_click(true);
 		return true;
 	case POCKET_ACTION_CURSOR:
-		_CESystem->swap_mouse_visibility();
+		_graphicsMan->swap_mouse_visibility();
 		return true;
 	case POCKET_ACTION_FREELOOK:
-		_CESystem->swap_freeLook();
+		_graphicsMan->swap_freeLook();
 		return true;
 	case POCKET_ACTION_ZOOM_UP:
-		_CESystem->swap_zoom_up();
+		_graphicsMan->swap_zoom_up();
 		return true;
 	case POCKET_ACTION_ZOOM_DOWN:
-		_CESystem->swap_zoom_down();
+		_graphicsMan->swap_zoom_down();
 		return true;
 	case POCKET_ACTION_LEFTCLICK:
-		_CESystem->add_left_click(true);
+		_graphicsMan->add_left_click(true);
 		return true;
 	case POCKET_ACTION_UP:
-		_CESystem->move_cursor_up();
+		_graphicsMan->move_cursor_up();
 		return true;
 	case POCKET_ACTION_DOWN:
-		_CESystem->move_cursor_down();
+		_graphicsMan->move_cursor_down();
 		return true;
 	case POCKET_ACTION_LEFT:
-		_CESystem->move_cursor_left();
+		_graphicsMan->move_cursor_left();
 		return true;
 	case POCKET_ACTION_RIGHT:
-		_CESystem->move_cursor_right();
+		_graphicsMan->move_cursor_right();
 		return true;
 	case POCKET_ACTION_QUIT:
 		if (!quitdialog) {

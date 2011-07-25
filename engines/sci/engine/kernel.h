@@ -18,9 +18,6 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
- * $URL$
- * $Id$
- *
  */
 
 #ifndef SCI_ENGINE_KERNEL_H
@@ -255,6 +252,11 @@ private:
 	Common::StringArray checkStaticSelectorNames();
 
 	/**
+	 * Automatically find specific selectors
+	 */
+	void findSpecificSelectors(Common::StringArray &selectorNames);
+
+	/**
 	 * Maps special selectors.
 	 */
 	void mapSelectors();
@@ -270,7 +272,7 @@ private:
 	// Kernel-related lists
 	Common::StringArray _selectorNames;
 	Common::StringArray _kernelNames;
-	
+
 	const Common::String _invalid;
 };
 

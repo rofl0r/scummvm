@@ -18,9 +18,6 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
- * $URL$
- * $Id$
- *
  * Prototypes of actor functions
  */
 
@@ -109,7 +106,7 @@ void ActorEvent(int ano, TINSEL_EVENT event, PLR_EVENT be);
 
 void storeActorAttr(int ano, int r1, int g1, int b1);
 COLORREF GetActorRGB(int ano);
-void SetActorRGB(int ano, COLORREF colour);
+void SetActorRGB(int ano, COLORREF color);
 void SetActorZfactor(int ano, uint32 zFactor);
 uint32 GetActorZfactor(int ano);
 

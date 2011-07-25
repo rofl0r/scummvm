@@ -18,9 +18,6 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
- * $URL$
- * $Id$
- *
  */
 
 
@@ -61,14 +58,14 @@ void Object::init(byte *buf, reg_t obj_pos, bool initVariables) {
 
 	if (getSciVersion() <= SCI_VERSION_1_LATE) {
 		_variables.resize(READ_LE_UINT16(data + kOffsetSelectorCounter));
-		_baseVars = (uint16 *)(_baseObj + _variables.size() * 2);
+		_baseVars = (const uint16 *)(_baseObj + _variables.size() * 2);
 		_methodCount = READ_LE_UINT16(data + READ_LE_UINT16(data + kOffsetFunctionArea) - 2);
 		for (int i = 0; i < _methodCount * 2 + 2; ++i) {
 			_baseMethod.push_back(READ_SCI11ENDIAN_UINT16(data + READ_LE_UINT16(data + kOffsetFunctionArea) + i * 2));
 		}
 	} else if (getSciVersion() >= SCI_VERSION_1_1 && getSciVersion() <= SCI_VERSION_2_1) {
 		_variables.resize(READ_SCI11ENDIAN_UINT16(data + 2));
-		_baseVars = (uint16 *)(buf + READ_SCI11ENDIAN_UINT16(data + 4));
+		_baseVars = (const uint16 *)(buf + READ_SCI11ENDIAN_UINT16(data + 4));
 		_methodCount = READ_SCI11ENDIAN_UINT16(buf + READ_SCI11ENDIAN_UINT16(data + 6));
 		for (int i = 0; i < _methodCount * 2 + 3; ++i) {
 			_baseMethod.push_back(READ_SCI11ENDIAN_UINT16(buf + READ_SCI11ENDIAN_UINT16(data + 6) + i * 2));
@@ -172,11 +169,73 @@ bool Object::initBaseObject(SegManager *segMan, reg_t addr, bool doInitSuperClas
 	const Object *baseObj = segMan->getObject(getSpeciesSelector());
 
 	if (baseObj) {
-		_variables.resize(baseObj->getVarCount());
+		uint originalVarCount = _variables.size();
+
+		if (_variables.size() != baseObj->getVarCount())
+			_variables.resize(baseObj->getVarCount());
 		// Copy base from species class, as we need its selector IDs
 		_baseObj = baseObj->_baseObj;
 		if (doInitSuperClass)
 			initSuperClass(segMan, addr);
+
+		if (_variables.size() != originalVarCount) {
+			// These objects are probably broken.
+			// An example is 'witchCage' in script 200 in KQ5 (#3034714),
+			// but also 'girl' in script 216 and 'door' in script 22.
+			// In LSL3 a number of sound objects trigger this right away.
+			// SQ4-floppy's bug #3037938 also seems related.
+
+			// The effect is that a number of its method selectors may be
+			// treated as variable selectors, causing unpredictable effects.
+			int objScript = segMan->getScript(_pos.segment)->getScriptNumber();
+
+			// We have to do a little bit of work to get the name of the object
+			// before any relocations are done.
+			reg_t nameReg = getNameSelector();
+			const char *name;
+			if (nameReg.isNull()) {
+				name = "<no name>";
+			} else {
+				nameReg.segment = _pos.segment;
+				name = segMan->derefString(nameReg);
+				if (!name)
+					name = "<invalid name>";
+			}
+
+			warning("Object %04x:%04x (name %s, script %d) varnum doesn't "
+			        "match baseObj's: obj %d, base %d", PRINT_REG(_pos),
+			        name, objScript, originalVarCount, baseObj->getVarCount());
+
+#if 0
+			// We enumerate the methods selectors which could be hidden here
+			if (getSciVersion() <= SCI_VERSION_2_1) {
+				const SegmentRef objRef = segMan->dereference(baseObj->_pos);
+				assert(objRef.isRaw);
+				uint segBound = objRef.maxSize/2 - baseObj->getVarCount();
+				const byte* buf = (const byte *)baseObj->_baseVars;
+				if (!buf) {
+					// While loading this may happen due to objects being loaded
+					// out of order, and we can't proceed then, unfortunately.
+					segBound = 0;
+				}
+				for (uint i = baseObj->getVarCount();
+				         i < originalVarCount && i < segBound; ++i) {
+					uint16 slc = READ_SCI11ENDIAN_UINT16(buf + 2*i);
+					// Skip any numbers which happen to be varselectors too
+					bool found = false;
+					for (uint j = 0; j < baseObj->getVarCount() && !found; ++j)
+						found = READ_SCI11ENDIAN_UINT16(buf + 2*j) == slc;
+					if (found) continue;
+					// Skip any selectors which aren't method selectors,
+					// so couldn't be mistaken for varselectors
+					if (lookupSelector(segMan, _pos, slc, 0, 0) != kSelectorMethod) continue;
+					warning("    Possibly affected selector: %02x (%s)", slc,
+					        g_sci->getKernel()->getSelectorName(slc).c_str());
+				}
+			}
+#endif
+		}
+
 		return true;
 	}
 
@@ -200,13 +259,13 @@ void Object::initSelectorsSci3(const byte *buf) {
 	// two selectors are always reserved (because their storage
 	// space is used by the typeMask).
 	// We don't know beforehand how many methods and properties
-	// there are, so we count them first. 
+	// there are, so we count them first.
 	for (int groupNr = 0; groupNr < groups; ++groupNr) {
 		byte groupLocation = groupInfo[groupNr];
 		const byte *seeker = selectorBase + groupLocation * 32 * 2;
 
 		if (groupLocation != 0)	{
-			// This object actually has selectors belonging to this group 
+			// This object actually has selectors belonging to this group
 			int typeMask = READ_SCI11ENDIAN_UINT32(seeker);
 
 			for (int bit = 2; bit < 32; ++bit) {
@@ -218,7 +277,7 @@ void Object::initSelectorsSci3(const byte *buf) {
 				} else {
 					// Undefined selector
 				}
-				       
+
 			}
 		}
 	}
@@ -237,7 +296,7 @@ void Object::initSelectorsSci3(const byte *buf) {
 		const byte *seeker = selectorBase + groupLocation * 32 * 2;
 
 		if (groupLocation != 0)	{
-			// This object actually has selectors belonging to this group 
+			// This object actually has selectors belonging to this group
 			int typeMask = READ_SCI11ENDIAN_UINT32(seeker);
 			int groupBaseId = groupNr * 32;
 
@@ -264,7 +323,7 @@ void Object::initSelectorsSci3(const byte *buf) {
 				} else {
 					// Undefined selector
 				}
-				       
+
 			}
 		}
 	}

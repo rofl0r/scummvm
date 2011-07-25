@@ -18,9 +18,6 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
- * $URL$
- * $Id$
- *
  */
 
 #include "sci/sci.h"
@@ -70,7 +67,7 @@ void Script::init(int script_nr, ResourceManager *resMan) {
 	Resource *script = resMan->findResource(ResourceId(kResourceTypeScript, script_nr), 0);
 
 	if (!script)
-		error("Script %d not found\n", script_nr);
+		error("Script %d not found", script_nr);
 
 	_localsOffset = 0;
 	_localsBlock = NULL;
@@ -129,6 +126,17 @@ void Script::load(ResourceManager *resMan) {
 	Resource *script = resMan->findResource(ResourceId(kResourceTypeScript, _nr), 0);
 	assert(script != 0);
 
+	uint extraLocalsWorkaround = 0;
+	if (g_sci->getGameId() == GID_FANMADE && _nr == 1 && script->size == 11140) {
+		// WORKAROUND: Script 1 in Ocean Battle doesn't have enough locals to
+		// fit the string showing how many shots are left (a nasty script bug,
+		// corrupting heap memory). We add 10 more locals so that it has enough
+		// space to use as the target for its kFormat operation. Fixes bug
+		// #3059871.
+		extraLocalsWorkaround = 10;
+	}
+	_bufSize += extraLocalsWorkaround * 2;
+
 	_buf = (byte *)malloc(_bufSize);
 	assert(_buf);
 
@@ -152,7 +160,7 @@ void Script::load(ResourceManager *resMan) {
 	_numExports = 0;
 	_synonyms = 0;
 	_numSynonyms = 0;
-	
+
 	if (getSciVersion() <= SCI_VERSION_1_LATE) {
 		_exportTable = (const uint16 *)findBlockSCI0(SCI_OBJ_EXPORTS);
 		if (_exportTable) {
@@ -187,6 +195,9 @@ void Script::load(ResourceManager *resMan) {
 			_localsOffset = 24 + _numExports * 2;
 	}
 
+	// WORKAROUND: Increase locals, if needed (check above)
+	_localsCount += extraLocalsWorkaround;
+
 	if (getSciVersion() == SCI_VERSION_0_EARLY) {
 		// SCI0 early
 		// Old script block. There won't be a localvar block in this case.
@@ -202,7 +213,7 @@ void Script::load(ResourceManager *resMan) {
 
 		if (_localsOffset + _localsCount * 2 + 1 >= (int)_bufSize) {
 			error("Locals extend beyond end of script: offset %04x, count %d vs size %d", _localsOffset, _localsCount, _bufSize);
-			_localsCount = (_bufSize - _localsOffset) >> 1;
+			//_localsCount = (_bufSize - _localsOffset) >> 1;
 		}
 	}
 }
@@ -243,9 +254,8 @@ Object *Script::scriptObjInit(reg_t obj_pos, bool fullObjectInit) {
 	if (getSciVersion() < SCI_VERSION_1_1 && fullObjectInit)
 		obj_pos.offset += 8;	// magic offset (SCRIPT_OBJECT_MAGIC_OFFSET)
 
-	VERIFY(obj_pos.offset < _bufSize, "Attempt to initialize object beyond end of script\n");
-
-	VERIFY(obj_pos.offset + kOffsetFunctionArea < (int)_bufSize, "Function area pointer stored beyond end of script\n");
+	if (obj_pos.offset >= _bufSize)
+		error("Attempt to initialize object beyond end of script");
 
 	// Get the object at the specified position and init it. This will
 	// automatically "allocate" space for it in the _objects map if necessary.
@@ -313,8 +323,9 @@ void Script::relocateSci0Sci21(reg_t block) {
 		heapOffset = _scriptSize;
 	}
 
-	VERIFY(block.offset < (uint16)heapSize && READ_SCI11ENDIAN_UINT16(heap + block.offset) * 2 + block.offset < (uint16)heapSize,
-	       "Relocation block outside of script\n");
+	if (block.offset >= (uint16)heapSize ||
+		READ_SCI11ENDIAN_UINT16(heap + block.offset) * 2 + block.offset >= (uint16)heapSize)
+	    error("Relocation block outside of script");
 
 	int count = READ_SCI11ENDIAN_UINT16(heap + block.offset);
 	int exportIndex = 0;
@@ -369,6 +380,7 @@ void Script::relocateSci3(reg_t block) {
 }
 
 void Script::incrementLockers() {
+	assert(!_markedAsDeleted);
 	_lockers++;
 }
 
@@ -382,6 +394,7 @@ int Script::getLockers() const {
 }
 
 void Script::setLockers(int lockers) {
+	assert(lockers == 0 || !_markedAsDeleted);
 	_lockers = lockers;
 }
 
@@ -404,7 +417,8 @@ uint16 Script::validateExportFunc(int pubfunct, bool relocate) {
 		offset = relocateOffsetSci3(pubfunct * 2 + 22);
 	}
 
-	VERIFY(offset < _bufSize, "invalid export function pointer");
+	if (offset >= _bufSize)
+		error("Invalid export function pointer");
 
 	// Check if the offset found points to a second export table (e.g. script 912
 	// in Camelot and script 306 in KQ4). Such offsets are usually small (i.e. < 10),
@@ -418,7 +432,8 @@ uint16 Script::validateExportFunc(int pubfunct, bool relocate) {
 		if (secondExportTable) {
 			secondExportTable += 3;	// skip header plus 2 bytes (secondExportTable is a uint16 pointer)
 			offset = READ_SCI11ENDIAN_UINT16(secondExportTable + pubfunct);
-			VERIFY(offset < _bufSize, "invalid export function pointer");
+			if (offset >= _bufSize)
+				error("Invalid export function pointer");
 		}
 	}
 
@@ -477,7 +492,7 @@ SegmentRef Script::dereference(reg_t pointer) {
 	return ret;
 }
 
-void Script::initialiseLocals(SegManager *segMan) {
+void Script::initializeLocals(SegManager *segMan) {
 	LocalVariables *locals = segMan->allocLocalsSegment(this);
 	if (locals) {
 		if (getSciVersion() > SCI_VERSION_0_EARLY) {
@@ -493,7 +508,7 @@ void Script::initialiseLocals(SegManager *segMan) {
 	}
 }
 
-void Script::initialiseClasses(SegManager *segMan) {
+void Script::initializeClasses(SegManager *segMan) {
 	const byte *seeker = 0;
 	uint16 mult = 0;
 
@@ -565,7 +580,7 @@ void Script::initialiseClasses(SegManager *segMan) {
 	}
 }
 
-void Script::initialiseObjectsSci0(SegManager *segMan, SegmentId segmentId) {
+void Script::initializeObjectsSci0(SegManager *segMan, SegmentId segmentId) {
 	bool oldScriptHeader = (getSciVersion() == SCI_VERSION_0_EARLY);
 
 	// We need to make two passes, as the objects in the script might be in the
@@ -595,7 +610,7 @@ void Script::initialiseObjectsSci0(SegManager *segMan, SegmentId segmentId) {
 								// #3150767.
 								// Same happens with script 764, it seems to
 								// contain junk towards its end.
-								_objects.erase(addr.toUint16() + (getSciVersion() < SCI_VERSION_1_1) ? 8 : 0);
+								_objects.erase(addr.toUint16() - SCRIPT_OBJECT_MAGIC_OFFSET);
 							} else {
 								error("Failed to locate base object for object at %04X:%04X", PRINT_REG(addr));
 							}
@@ -617,7 +632,7 @@ void Script::initialiseObjectsSci0(SegManager *segMan, SegmentId segmentId) {
 		relocateSci0Sci21(make_reg(segmentId, relocationBlock - getBuf() + 4));
 }
 
-void Script::initialiseObjectsSci11(SegManager *segMan, SegmentId segmentId) {
+void Script::initializeObjectsSci11(SegManager *segMan, SegmentId segmentId) {
 	const byte *seeker = _heapStart + 4 + READ_SCI11ENDIAN_UINT16(_heapStart + 2) * 2;
 
 	while (READ_SCI11ENDIAN_UINT16(seeker) == SCRIPT_OBJECT_MAGIC_NUMBER) {
@@ -652,7 +667,7 @@ void Script::initialiseObjectsSci11(SegManager *segMan, SegmentId segmentId) {
 	relocateSci0Sci21(make_reg(segmentId, READ_SCI11ENDIAN_UINT16(_heapStart)));
 }
 
-void Script::initialiseObjectsSci3(SegManager *segMan, SegmentId segmentId) {
+void Script::initializeObjectsSci3(SegManager *segMan, SegmentId segmentId) {
 	const byte *seeker = getSci3ObjectsPointer();
 
 	while (READ_SCI11ENDIAN_UINT16(seeker) == SCRIPT_OBJECT_MAGIC_NUMBER) {
@@ -666,13 +681,13 @@ void Script::initialiseObjectsSci3(SegManager *segMan, SegmentId segmentId) {
 	relocateSci3(make_reg(segmentId, 0));
 }
 
-void Script::initialiseObjects(SegManager *segMan, SegmentId segmentId) {
+void Script::initializeObjects(SegManager *segMan, SegmentId segmentId) {
 	if (getSciVersion() <= SCI_VERSION_1_LATE)
-		initialiseObjectsSci0(segMan, segmentId);
+		initializeObjectsSci0(segMan, segmentId);
 	else if (getSciVersion() >= SCI_VERSION_1_1 && getSciVersion() <= SCI_VERSION_2_1)
-		initialiseObjectsSci11(segMan, segmentId);
+		initializeObjectsSci11(segMan, segmentId);
 	else if (getSciVersion() == SCI_VERSION_3)
-		initialiseObjectsSci3(segMan, segmentId);
+		initializeObjectsSci3(segMan, segmentId);
 }
 
 reg_t Script::findCanonicAddress(SegManager *segMan, reg_t addr) const {

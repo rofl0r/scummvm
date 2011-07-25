@@ -18,9 +18,6 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
- * $URL$
- * $Id$
- *
  */
 
 #ifndef M4_MADS_VIEWS_H
@@ -37,7 +34,8 @@ namespace M4 {
 class MadsView;
 
 enum MadsActionMode {ACTMODE_NONE = 0, ACTMODE_VERB = 1, ACTMODE_OBJECT = 3, ACTMODE_TALK = 6};
-enum MAdsActionMode2 {ACTMODE2_0 = 0, ACTMODE2_2 = 2, ACTMODE2_4 = 4, ACTMODE2_5 = 5};
+enum MadsActionMode2 {ACTMODE2_0 = 0, ACTMODE2_2 = 2, ACTMODE2_4 = 4, ACTMODE2_5 = 5};
+enum AbortTimerMode {ABORTMODE_0 = 0, ABORTMODE_1 = 1, ABORTMODE_2 = 2};
 
 struct ActionDetails {
 	int verbId;
@@ -65,7 +63,7 @@ public:
 	int _currentAction;
 	int8 _flags1, _flags2;
 	MadsActionMode _actionMode;
-	MAdsActionMode2 _actionMode2;
+	MadsActionMode2 _actionMode2;
 	int _articleNumber;
 	bool _lookFlag;
 	int _selectedRow;
@@ -85,7 +83,7 @@ public:
 	int16 _v86F4C;
 	int _v83338;
 	bool _inProgress;
-	bool _v8453A;
+	AbortTimerMode _v8453A;
 
 public:
 	MadsAction(MadsView &owner);
@@ -98,8 +96,6 @@ public:
 	void checkAction();
 	bool isAction(int verbId, int objectNameId = 0, int indirectObjectId = 0);
 };
-
-enum AbortTimerMode {ABORTMODE_0 = 0, ABORTMODE_1 = 1, ABORTMODE_2 = 2};
 
 class SpriteSlotSubset {
 public:
@@ -174,8 +170,8 @@ public:
 	int expire;
 	int spacing;
 	Common::Rect bounds;
-	uint8 colour1;
-	uint8 colour2;
+	uint8 color1;
+	uint8 color2;
 	Font *font;
 	const char *msg;
 
@@ -201,7 +197,7 @@ public:
 		_entries[idx].expire = -1;
 	}
 
-	int add(int xp, int yp, uint fontColour, int charSpacing, const char *msg, Font *font);
+	int add(int xp, int yp, uint fontColor, int charSpacing, const char *msg, Font *font);
 	void clear();
 	void draw(M4Surface *view);
 	void setDirtyAreas();
@@ -212,7 +208,7 @@ public:
 #define TIMED_TEXT_SIZE 10
 #define INDEFINITE_TIMEOUT 9999999
 
-enum KernelMessageFlags {KMSG_QUOTED = 1, KMSG_PLAYER_TIMEOUT = 2, KMSG_SEQ_ENTRY = 4, KMSG_SCROLL = 8, KMSG_RIGHT_ALIGN = 0x10, 
+enum KernelMessageFlags {KMSG_QUOTED = 1, KMSG_PLAYER_TIMEOUT = 2, KMSG_SEQ_ENTRY = 4, KMSG_SCROLL = 8, KMSG_RIGHT_ALIGN = 0x10,
 	KMSG_CENTER_ALIGN = 0x20, KMSG_EXPIRE = 0x40, KMSG_ACTIVE = 0x80};
 
 class MadsKernelMessageEntry {
@@ -221,8 +217,8 @@ public:
 	int sequenceIndex;
 	char asciiChar;
 	char asciiChar2;
-	int colour1;
-	int colour2;
+	int color1;
+	int color2;
 	Common::Point position;
 	int textDisplayIndex;
 	int msgOffset;
@@ -251,7 +247,7 @@ public:
 	MadsKernelMessageList(MadsView &owner);
 
 	void clear();
-	int add(const Common::Point &pt, uint fontColour, uint8 flags, uint8 abortTimers, uint32 timeout, const char *msg);
+	int add(const Common::Point &pt, uint fontColor, uint8 flags, uint8 abortTimers, uint32 timeout, const char *msg);
 	int addQuote(int quoteId, int abortTimers, uint32 timeout);
 	void scrollMessage(int msgIndex, int numTicks, bool quoted);
 	void setSeqIndex(int msgIndex, int seqIndex);
@@ -392,7 +388,7 @@ struct MadsSequenceEntry {
 	int8 active;
 	int8 spriteListIndex;
 	bool flipped;
-	
+
 	int frameIndex;
 	int frameStart;
 	int numSprites;
@@ -406,7 +402,7 @@ struct MadsSequenceEntry {
 
 	bool nonFixed;
 	int field_13;
-	
+
 	Common::Point msgPos;
 	int triggerCountdown;
 	bool doneFlag;
@@ -428,10 +424,10 @@ private:
 public:
 	MadsSequenceList(MadsView &owner);
 
-	MadsSequenceEntry &operator[](int index) { return _entries[index]; }	
+	MadsSequenceEntry &operator[](int index) { return _entries[index]; }
 	void clear();
 	bool addSubEntry(int index, SequenceSubEntryMode mode, int frameIndex, int abortVal);
-	int add(int spriteListIndex, bool flipped, int frameIndex, int triggerCountdown, int delayTicks, 
+	int add(int spriteListIndex, bool flipped, int frameIndex, int triggerCountdown, int delayTicks,
 		int extraTicks, int numTicks, int msgX, int msgY, bool nonFixed, char scale, uint8 depth,
 		int frameInc, SpriteAnimType animType, int numSprites, int frameStart);
 	void remove(int seqIndex);
@@ -450,13 +446,13 @@ protected:
 public:
 	Animation(MadsM4Engine *vm);
 	virtual ~Animation();
-	virtual void initialise(const Common::String &filename, uint16 flags, M4Surface *surface, M4Surface *depthSurface) = 0;
+	virtual void initialize(const Common::String &filename, uint16 flags, M4Surface *surface, M4Surface *depthSurface) = 0;
 	virtual void load(const Common::String &filename, int v0) = 0;
 	virtual void update() = 0;
 	virtual void setCurrentFrame(int frameNumber) = 0;
 	virtual int getCurrentFrame() = 0;
 };
-	
+
 
 class MadsView {
 private:

@@ -18,9 +18,6 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
- * $URL$
- * $Id$
- *
  */
 
 #include "cruise/cruise_main.h"
@@ -214,7 +211,7 @@ int m_color;
    This "worked" on many platforms so far, but on OSX apparently the buffers don't
    occupy contiguous memory, and this causes severe corruption and subsequent crashes.
    Since I'm not really familiar with how the strange drawing code is supposed to work,
-   or whether this behaviour is intentional or not, the short-term fix is to allocate a big
+   or whether this behavior is intentional or not, the short-term fix is to allocate a big
    buffer and setup pointers within it.  This fixes the crashes I'm seeing without causing any
    (visual) side-effects.
    If anyone wants to look, this is easily reproduced by starting the game and examining the rug.
@@ -443,7 +440,6 @@ void buildSegment() {
 
 		// is segment on screen ?
 		if (!((tempAX > 199) || (tempDX < 0))) {
-			int dx = Y1;
 			int cx = X2 - X1;
 			if (cx == 0) {
 				// vertical line
@@ -476,7 +472,6 @@ void buildSegment() {
 			} else {
 				if (cx < 0) {
 					cx = -cx;
-					dx = Y2;
 
 					SWAP(X1, X2);
 					SWAP(Y1, Y2);
@@ -1081,8 +1076,6 @@ void mainDrawPolygons(int fileIndex, cellStruct *plWork, int X, int scale, int Y
 	int newScale;
 	char *newFrame;
 
-	int var_8;		// unused
-
 	int sizeTable[4];	// 0 = left, 1 = right, 2 = bottom, 3 = top
 
 	// this function checks if the dataPtr is not 0, else it retrives the data for X, Y, scale and DataPtr again (OLD: mainDrawSub1Sub1)
@@ -1124,8 +1117,6 @@ void mainDrawPolygons(int fileIndex, cellStruct *plWork, int X, int scale, int Y
 		return;
 
 	gfxModuleData_addDirtyRect(Common::Rect(spriteX2, spriteY2, spriteX1, spriteY1));
-
-	var_8 = 0;
 
 	memset(polygonMask, 0xFF, (320*200) / 8);
 
@@ -1497,9 +1488,6 @@ void mainDraw(int16 param) {
 								if (currentObjPtr->animLoop > 0)
 									currentObjPtr->animLoop--;
 							} else {
-								int16 data2;
-								data2 = currentObjPtr->animStart;
-
 								change = false;
 								currentObjPtr->animStep = 0;
 
@@ -1519,9 +1507,6 @@ void mainDraw(int16 param) {
 								if (currentObjPtr->animLoop > 0)
 									currentObjPtr->animLoop--;
 							} else {
-								int16 data2;
-								data2 = currentObjPtr->animStart;
-
 								change = false;
 								currentObjPtr->animStep = 0;
 

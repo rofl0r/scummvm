@@ -18,9 +18,6 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
- * $URL$
- * $Id$
- *
  */
 
 #ifndef AGOS_AGOS_H
@@ -29,6 +26,7 @@
 #include "engines/engine.h"
 
 #include "common/array.h"
+#include "common/error.h"
 #include "common/keyboard.h"
 #include "common/random.h"
 #include "common/rect.h"
@@ -178,6 +176,7 @@ class Debugger;
 #endif
 
 class AGOSEngine : public Engine {
+protected:
 	friend class Debugger;
 
 	// Engine APIs
@@ -186,7 +185,7 @@ class AGOSEngine : public Engine {
 	virtual Common::Error run() {
 		Common::Error err;
 		err = init();
-		if (err != Common::kNoError)
+		if (err.getCode() != Common::kNoError)
 			return err;
 		return go();
 	}
@@ -195,7 +194,6 @@ class AGOSEngine : public Engine {
 	virtual void syncSoundSettings();
 	virtual void pauseEngineIntern(bool pause);
 
-public:
 	virtual void setupOpcodes();
 	uint16 _numOpcodes, _opcode;
 
@@ -207,8 +205,9 @@ public:
 
 	virtual void setupVideoOpcodes(VgaOpcodeProc *op);
 
-	const AGOSGameDescription *_gameDescription;
+	const AGOSGameDescription * const _gameDescription;
 
+public:
 	virtual void setupGame();
 
 	int getGameId() const;
@@ -550,9 +549,7 @@ protected:
 	byte _lettersToPrintBuf[80];
 
 	MidiPlayer _midi;
-	MidiDriver *_driver;
 	bool _midiEnabled;
-	bool _nativeMT32;
 
 	int _vgaTickCounter;
 
@@ -588,7 +585,7 @@ protected:
 	byte _hebrewCharWidths[32];
 
 public:
-	AGOSEngine(OSystem *syst);
+	AGOSEngine(OSystem *system, const AGOSGameDescription *gd);
 	virtual ~AGOSEngine();
 
 	byte *_curSfxFile;
@@ -1142,7 +1139,7 @@ protected:
 	int getScale(int16 y, int16 x);
 	void checkScrollX(int16 x, int16 xpos);
 	void checkScrollY(int16 y, int16 ypos);
-	void centreScroll();
+	void centerScroll();
 
 	virtual void clearVideoWindow(uint16 windowNum, uint16 color);
 	void clearVideoBackGround(uint16 windowNum, uint16 color);
@@ -1285,7 +1282,7 @@ class AGOSEngine_PN : public AGOSEngine {
 	void setupBoxes();
 	int readfromline();
 public:
-	AGOSEngine_PN(OSystem *system);
+	AGOSEngine_PN(OSystem *system, const AGOSGameDescription *gd);
 	~AGOSEngine_PN();
 
 	virtual void setupGame();
@@ -1527,7 +1524,7 @@ protected:
 
 class AGOSEngine_Elvira1 : public AGOSEngine {
 public:
-	AGOSEngine_Elvira1(OSystem *system);
+	AGOSEngine_Elvira1(OSystem *system, const AGOSGameDescription *gd);
 	//~AGOSEngine_Elvira1();
 
 	virtual void setupGame();
@@ -1608,7 +1605,7 @@ protected:
 
 class AGOSEngine_Elvira2 : public AGOSEngine_Elvira1 {
 public:
-	AGOSEngine_Elvira2(OSystem *system);
+	AGOSEngine_Elvira2(OSystem *system, const AGOSGameDescription *gd);
 	//~AGOSEngine_Elvira2();
 
 	virtual void setupGame();
@@ -1703,7 +1700,7 @@ protected:
 
 class AGOSEngine_Waxworks : public AGOSEngine_Elvira2 {
 public:
-	AGOSEngine_Waxworks(OSystem *system);
+	AGOSEngine_Waxworks(OSystem *system, const AGOSGameDescription *gd);
 	//~AGOSEngine_Waxworks();
 
 	virtual void setupGame();
@@ -1770,7 +1767,7 @@ protected:
 
 class AGOSEngine_Simon1 : public AGOSEngine_Waxworks {
 public:
-	AGOSEngine_Simon1(OSystem *system);
+	AGOSEngine_Simon1(OSystem *system, const AGOSGameDescription *gd);
 	//~AGOSEngine_Simon1();
 
 	virtual void setupGame();
@@ -1841,7 +1838,7 @@ protected:
 
 class AGOSEngine_Simon2 : public AGOSEngine_Simon1 {
 public:
-	AGOSEngine_Simon2(OSystem *system);
+	AGOSEngine_Simon2(OSystem *system, const AGOSGameDescription *gd);
 	//~AGOSEngine_Simon2();
 
 	virtual void setupGame();
@@ -1888,7 +1885,7 @@ protected:
 #ifdef ENABLE_AGOS2
 class AGOSEngine_Feeble : public AGOSEngine_Simon2 {
 public:
-	AGOSEngine_Feeble(OSystem *system);
+	AGOSEngine_Feeble(OSystem *system, const AGOSGameDescription *gd);
 	~AGOSEngine_Feeble();
 
 	virtual void setupGame();
@@ -1923,7 +1920,7 @@ public:
 	void off_mouseOff();
 	void off_loadVideo();
 	void off_playVideo();
-	void off_centreScroll();
+	void off_centerScroll();
 	void off_resetPVCount();
 	void off_setPathValues();
 	void off_stopClock();
@@ -2018,7 +2015,7 @@ protected:
 	void scrollOracleUp();
 	void scrollOracleDown();
 
-	void listSaveGames(int n);
+	void listSaveGamesFeeble();
 	void saveUserGame(int slot);
 	void windowBackSpace(WindowBlock *window);
 
@@ -2027,7 +2024,7 @@ protected:
 
 class AGOSEngine_FeebleDemo : public AGOSEngine_Feeble {
 public:
-	AGOSEngine_FeebleDemo(OSystem *system);
+	AGOSEngine_FeebleDemo(OSystem *system, const AGOSGameDescription *gd);
 
 protected:
 	bool _filmMenuUsed;
@@ -2048,7 +2045,7 @@ protected:
 
 class AGOSEngine_PuzzlePack : public AGOSEngine_Feeble {
 public:
-	AGOSEngine_PuzzlePack(OSystem *system);
+	AGOSEngine_PuzzlePack(OSystem *system, const AGOSGameDescription *gd);
 	//~AGOSEngine_PuzzlePack();
 
 	virtual void setupGame();
@@ -2107,7 +2104,7 @@ protected:
 
 class AGOSEngine_DIMP : public AGOSEngine_PuzzlePack {
 public:
-	AGOSEngine_DIMP(OSystem *system);
+	AGOSEngine_DIMP(OSystem *system, const AGOSGameDescription *gd);
 	//~AGOSEngine_DIMP();
 
 	virtual void setupOpcodes();

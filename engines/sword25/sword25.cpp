@@ -18,9 +18,6 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
- * $URL$
- * $Id$
- *
  */
 
 /*
@@ -34,10 +31,18 @@
 
 #include "common/config-manager.h"
 #include "common/debug-channels.h"
+#include "common/algorithm.h"
+#include "common/array.h"
+#include "common/error.h"
+#include "common/fs.h"
+#include "common/singleton.h"
+#include "common/str-array.h"
+#include "common/str.h"
+#include "common/system.h"
+#include "common/textconsole.h"
 #include "engines/util.h"
 
 #include "sword25/sword25.h"
-#include "sword25/kernel/filesystemutil.h"
 #include "sword25/kernel/kernel.h"
 #include "sword25/kernel/persistenceservice.h"
 #include "sword25/package/packagemanager.h"
@@ -45,7 +50,9 @@
 
 #include "sword25/gfx/animationtemplateregistry.h"	// Needed so we can destroy the singleton
 #include "sword25/gfx/renderobjectregistry.h"		// Needed so we can destroy the singleton
+namespace Common {
 DECLARE_SINGLETON(Sword25::RenderObjectRegistry);
+}
 #include "sword25/math/regionregistry.h"			// Needed so we can destroy the singleton
 
 namespace Sword25 {
@@ -56,6 +63,8 @@ const char *const DEFAULT_SCRIPT_FILE = "/system/boot.lua";
 Sword25Engine::Sword25Engine(OSystem *syst, const ADGameDescription *gameDesc):
 	Engine(syst),
 	_gameDescription(gameDesc) {
+	// Setup mixer
+	syncSoundSettings();
 
 	DebugMan.addDebugChannel(kDebugScript, "Script", "Script debug level");
 	DebugMan.addDebugChannel(kDebugScript, "Scripts", "Script debug level");
@@ -71,10 +80,10 @@ Sword25Engine::~Sword25Engine() {
 
 Common::Error Sword25Engine::run() {
 	// Engine initialisation
-	Common::Error errorCode = appStart();
-	if (errorCode != Common::kNoError) {
+	Common::Error error = appStart();
+	if (error.getCode() != Common::kNoError) {
 		appEnd();
-		return errorCode;
+		return error;
 	}
 
 	// Run the game
@@ -87,7 +96,7 @@ Common::Error Sword25Engine::run() {
 }
 
 Common::Error Sword25Engine::appStart() {
-	// Initialise the graphics mode to ARGB8888
+	// Initialize the graphics mode to ARGB8888
 	Graphics::PixelFormat format = Graphics::PixelFormat(4, 8, 8, 8, 8, 16, 8, 0, 24);
 	initGraphics(800, 600, true, &format);
 	if (format != g_system->getScreenFormat())
@@ -135,7 +144,7 @@ bool Sword25Engine::appMain() {
 }
 
 bool Sword25Engine::appEnd() {
-	// The kernel is shutdown, and un-initialises all subsystems
+	// The kernel is shutdown, and un-initializes all subsystems
 	Kernel::deleteInstance();
 
 	AnimationTemplateRegistry::destroy();

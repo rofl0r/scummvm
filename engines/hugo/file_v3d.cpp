@@ -18,9 +18,6 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
- * $URL$
- * $Id$
- *
  */
 
 /*
@@ -30,7 +27,9 @@
  *
  */
 
+#include "common/debug.h"
 #include "common/system.h"
+#include "common/textconsole.h"
 
 #include "hugo/hugo.h"
 #include "hugo/file.h"
@@ -144,7 +143,7 @@ void FileManager_v3d::readOverlay(const int screenNum, image_pt image, ovl_t ove
 			break;
 		}
 		if (i == 0) {
-			memset(image, 0, sizeof(image));
+			memset(image, 0, kOvlSize);
 			return;
 		}
 
@@ -183,7 +182,7 @@ void FileManager_v3d::readOverlay(const int screenNum, image_pt image, ovl_t ove
 			break;
 		}
 		if (i == 0) {
-			memset(image, 0, sizeof(image));
+			memset(image, 0, kOvlSize);
 			return;
 		}
 

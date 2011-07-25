@@ -18,9 +18,6 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
- * $URL$
- * $Id$
- *
  */
 
 // SAGA Image resource management routines
@@ -322,7 +319,6 @@ void SagaEngine::unbankBGImage(byte *dst_buf, const byte *src_buf, int columns, 
 	int rowjump_src;
 	int rowjump_dest;
 	const byte *src_p;
-	byte *dst_p;
 	const byte *srcptr1, *srcptr2, *srcptr3, *srcptr4;
 	byte *dstptr1, *dstptr2, *dstptr3, *dstptr4;
 
@@ -332,7 +328,6 @@ void SagaEngine::unbankBGImage(byte *dst_buf, const byte *src_buf, int columns, 
 	assert(scanlines > 0);
 
 	src_p = src_buf;
-	dst_p = dst_buf + columns;
 
 	srcptr1 = src_p;
 	srcptr2 = src_p + 1;

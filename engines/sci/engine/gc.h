@@ -18,9 +18,6 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
- * $URL$
- * $Id$
- *
  */
 
 
@@ -57,6 +54,15 @@ AddrSet *findAllActiveReferences(EngineState *s);
  * @param s The state in which we should gc
  */
 void run_gc(EngineState *s);
+
+struct WorklistManager {
+	Common::Array<reg_t> _worklist;
+	AddrSet _map;	// used for 2 contains() calls, inside push() and run_gc()
+
+	void push(reg_t reg);
+	void pushArray(const Common::Array<reg_t> &tmp);
+};
+
 
 } // End of namespace Sci
 

@@ -18,16 +18,10 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
- * $URL$
- * $Id$
- *
  */
 
 #include "common/events.h"
-#include "common/EventRecorder.h"
 #include "common/keyboard.h"
-#include "common/file.h"
-#include "common/savefile.h"
 #include "common/config-manager.h"
 #include "common/stream.h"
 
@@ -77,8 +71,7 @@ MadeEngine::MadeEngine(OSystem *syst, const MadeGameDescription *gameDesc) : Eng
 		if (!scumm_stricmp(g->gameid, gameid))
 			_gameId = g->id;
 
-	_rnd = new Common::RandomSource();
-	g_eventRec.registerRandomSource(*_rnd, "made");
+	_rnd = new Common::RandomSource("made");
 
 	_console = new MadeConsole(this);
 
@@ -100,18 +93,7 @@ MadeEngine::MadeEngine(OSystem *syst, const MadeGameDescription *gameDesc) : Eng
 
 	_script = new ScriptInterpreter(this);
 
-	MidiDriver::DeviceHandle dev = MidiDriver::detectDevice(MDT_MIDI | MDT_ADLIB | MDT_PREFER_GM);
-	bool native_mt32 = ((MidiDriver::getMusicType(dev) == MT_MT32) || ConfMan.getBool("native_mt32"));
-	//bool adlib = (MidiDriver::getMusicType(dev) == MT_ADLIB);
-
-	MidiDriver *driver = MidiDriver::createMidi(dev);
-	if (native_mt32)
-		driver->property(MidiDriver::PROP_CHANNEL_MASK, 0x03FE);
-
-	_music = new MusicPlayer(driver);
-	_music->setNativeMT32(native_mt32);
-	_music->open();
-	//_music->setAdLib(adlib);
+	_music = new MusicPlayer();
 
 	// Set default sound frequency
 	switch (getGameID()) {
@@ -146,11 +128,15 @@ MadeEngine::~MadeEngine() {
 }
 
 void MadeEngine::syncSoundSettings() {
-	_music->setVolume(ConfMan.getInt("music_volume"));
-	_mixer->setVolumeForSoundType(Audio::Mixer::kPlainSoundType, ConfMan.getInt("sfx_volume"));
-	_mixer->setVolumeForSoundType(Audio::Mixer::kSFXSoundType, ConfMan.getInt("sfx_volume"));
-	_mixer->setVolumeForSoundType(Audio::Mixer::kSpeechSoundType, ConfMan.getInt("speech_volume"));
-	_mixer->setVolumeForSoundType(Audio::Mixer::kMusicSoundType, ConfMan.getInt("music_volume"));
+	Engine::syncSoundSettings();
+
+	bool mute = false;
+	if (ConfMan.hasKey("mute"))
+		mute = ConfMan.getBool("mute");
+
+	_music->setVolume(mute ? 0 : ConfMan.getInt("music_volume"));
+	_mixer->setVolumeForSoundType(Audio::Mixer::kPlainSoundType,
+									mute ? 0 : ConfMan.getInt("sfx_volume"));
 }
 
 int16 MadeEngine::getTicks() {
@@ -195,9 +181,7 @@ void MadeEngine::resetAllTimers() {
 }
 
 Common::String MadeEngine::getSavegameFilename(int16 saveNum) {
-	char filename[256];
-	snprintf(filename, 256, "%s.%03d", getTargetName().c_str(), saveNum);
-	return filename;
+	return Common::String::format("%s.%03d", getTargetName().c_str(), saveNum);
 }
 
 void MadeEngine::handleEvents() {

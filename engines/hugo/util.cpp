@@ -18,9 +18,6 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
- * $URL$
- * $Id$
- *
  */
 
 /*
@@ -41,10 +38,12 @@
 
 namespace Hugo {
 
+namespace Utils {
+
 /**
  * Returns index (0 to 7) of first 1 in supplied byte, or 8 if not found
  */
-int Utils::firstBit(byte data) {
+int firstBit(byte data) {
 	if (!data)
 		return 8;
 
@@ -60,7 +59,7 @@ int Utils::firstBit(byte data) {
 /**
  * Returns index (0 to 7) of last 1 in supplied byte, or 8 if not found
  */
-int Utils::lastBit(byte data) {
+int lastBit(byte data) {
 	if (!data)
 		return 8;
 
@@ -76,7 +75,7 @@ int Utils::lastBit(byte data) {
 /**
  * Reverse the bit order in supplied byte
  */
-void Utils::reverseByte(byte *data) {
+void reverseByte(byte *data) {
 	byte maskIn = 0x80;
 	byte maskOut = 0x01;
 	byte result = 0;
@@ -89,67 +88,45 @@ void Utils::reverseByte(byte *data) {
 	*data = result;
 }
 
-char *Utils::Box(box_t dismiss, const char *s, ...) {
-	static char buffer[kMaxStrLength + 1];          // Format text into this
+void notifyBox(const Common::String &msg) {
+	if (msg.empty())
+		return;
 
-	if (!s)
-		return 0;                                   // NULL strings catered for
-
-	if (s[0] == '\0')
-		return 0;
-
-	if (strlen(s) > kMaxStrLength - 100) {          // Test length
-		warning("String too long: '%s'", s);
-		return 0;
-	}
-
-	va_list marker;
-	va_start(marker, s);
-	vsprintf(buffer, s, marker);                    // Format string into buffer
-	va_end(marker);
-
-	if (buffer[0] == '\0')
-		return 0;
-
-	switch(dismiss) {
-	case kBoxAny:
-	case kBoxOk: {
-		GUI::MessageDialog dialog(buffer, "OK");
-		dialog.runModal();
-		break;
-		}
-	case kBoxYesNo: {
-		GUI::MessageDialog dialog(buffer, "YES", "NO");
-		if (dialog.runModal() == GUI::kMessageOK)
-			return buffer;
-		return 0;
-		break;
-		}
-	case kBoxPrompt: {
-		// TODO: Some boxes (i.e. the combination code for the shed), needs to return an input.
-		warning("Box: unhandled BOX_PROMPT");
-		int boxTime = strlen(buffer) * 30;
-		GUI::TimedMessageDialog dialog(buffer, MAX(1500, boxTime));
-		dialog.runModal();
-		break;
-		}
-	default:
-		error("Unknown BOX Type %d", dismiss);
-	}
-
-	return buffer;
+	GUI::MessageDialog dialog(msg, "OK");
+	dialog.runModal();
 }
 
-char *Utils::strlwr(char *buffer) {
+Common::String promptBox(const Common::String &msg) {
+	if (msg.empty())
+		return Common::String();
+
+	EntryDialog dialog(msg, "OK", "");
+
+	dialog.runModal();
+
+	return dialog.getEditString();
+}
+
+bool yesNoBox(const Common::String &msg) {
+	if (msg.empty())
+		return 0;
+
+	GUI::MessageDialog dialog(msg, "YES", "NO");
+	return (dialog.runModal() == GUI::kMessageOK);
+}
+
+char *strlwr(char *buffer) {
 	char *result = buffer;
 
 	while (*buffer != '\0') {
-		if (isupper(*buffer))
+		if (isupper(static_cast<unsigned char>(*buffer)))
 			*buffer = tolower(*buffer);
 		buffer++;
 	}
 
 	return result;
 }
+
+} // End of namespace Utils
 
 } // End of namespace Hugo

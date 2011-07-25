@@ -17,13 +17,13 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
- * $URL$
- * $Id$
- *
  */
 
 #include "common/system.h"
+#include "common/textconsole.h"
 #include "common/util.h"
+
+#include "graphics/palette.h"
 
 #include "scumm/resource.h"
 #include "scumm/scumm.h"
@@ -48,11 +48,7 @@ uint8 *ScummEngine::getHEPaletteSlot(uint16 palSlot) {
 }
 
 uint16 ScummEngine::get16BitColor(uint8 r, uint8 g, uint8 b) {
-	uint16 ar = (r >> 3) << 10;
-	uint16 ag = (g >> 3) <<  5;
-	uint16 ab = (b >> 3) <<  0;
-	uint16 col = ar | ag | ab;
-	return col;
+	return _outputPixelFormat.RGBToColor(r, g, b);
 }
 
 void ScummEngine::resetPalette() {
@@ -214,7 +210,7 @@ void ScummEngine::resetPalette() {
 	} else {
 		if ((_game.platform == Common::kPlatformAmiga) && _game.version == 4) {
 			// if rendermode is set to EGA we use the full palette from the resources
-			// else we initialise and then lock down the first 16 colors.
+			// else we initialize and then lock down the first 16 colors.
 			if (_renderMode != Common::kRenderEGA)
 				setPaletteFromTable(tableAmigaMIPalette, sizeof(tableAmigaMIPalette) / 3);
 #ifndef DISABLE_TOWNS_DUAL_LAYER_MODE
@@ -1006,9 +1002,6 @@ void ScummEngine::setPalColor(int idx, int r, int g, int b) {
 }
 
 void ScummEngine::setCurrentPalette(int palindex) {
-	// TODO: This method could almost be moved to ScummEngin_v6, the only
-	// problem is that it is called by ScummEngine::resetRoomSubBlocks().
-	// But it should be possible to get rid of that, too (with some care).
 	const byte *pals;
 
 	_curPalIndex = palindex;
@@ -1029,7 +1022,7 @@ void ScummEngine::setCurrentPalette(int palindex) {
 void ScummEngine::setRoomPalette(int palindex, int room) {
 	const byte *roomptr = getResourceAddress(rtRoom, room);
 	assert(roomptr);
-	const byte *pals = findResource(MKID_BE('PALS'), roomptr);
+	const byte *pals = findResource(MKTAG('P','A','L','S'), roomptr);
 	assert(pals);
 	const byte *rgbs = findPalInPals(pals, palindex);
 	assert(rgbs);
@@ -1040,11 +1033,11 @@ const byte *ScummEngine::findPalInPals(const byte *pal, int idx) {
 	const byte *offs;
 	uint32 size;
 
-	pal = findResource(MKID_BE('WRAP'), pal);
+	pal = findResource(MKTAG('W','R','A','P'), pal);
 	if (pal == NULL)
 		return NULL;
 
-	offs = findResourceData(MKID_BE('OFFS'), pal);
+	offs = findResourceData(MKTAG('O','F','F','S'), pal);
 	if (offs == NULL)
 		return NULL;
 

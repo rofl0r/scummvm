@@ -18,9 +18,6 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
- * $URL$
- * $Id$
- *
  */
 
 #include "common/scummsys.h"
@@ -32,7 +29,11 @@
 #include "common/config-manager.h"
 #include "common/file.h"
 #include "common/mutex.h"
+#include "common/textconsole.h"
 #include "common/translation.h"
+#ifdef USE_OSD
+#include "common/tokenizer.h"
+#endif
 #include "graphics/font.h"
 #include "graphics/fontman.h"
 
@@ -50,8 +51,7 @@ OpenGLGraphicsManager::OpenGLGraphicsManager()
 	_cursorVisible(false), _cursorKeyColor(0),
 	_cursorTargetScale(1),
 	_formatBGR(false),
-	_displayX(0), _displayY(0), _displayWidth(0), _displayHeight(0),
-	_aspectRatioCorrection(false) {
+	_displayX(0), _displayY(0), _displayWidth(0), _displayHeight(0) {
 
 	memset(&_oldVideoMode, 0, sizeof(_oldVideoMode));
 	memset(&_videoMode, 0, sizeof(_videoMode));
@@ -91,22 +91,44 @@ void OpenGLGraphicsManager::initEventObserver() {
 bool OpenGLGraphicsManager::hasFeature(OSystem::Feature f) {
 	return
 		(f == OSystem::kFeatureAspectRatioCorrection) ||
-		(f == OSystem::kFeatureCursorHasPalette);
+		(f == OSystem::kFeatureCursorPalette);
 }
 
 void OpenGLGraphicsManager::setFeatureState(OSystem::Feature f, bool enable) {
 	switch (f) {
-	case OSystem::kFeatureAspectRatioCorrection:
-		_videoMode.mode = OpenGL::GFX_4_3;
-		_aspectRatioCorrection = enable;
+	case OSystem::kFeatureFullscreenMode:
+		setFullscreenMode(enable);
 		break;
+
+	case OSystem::kFeatureAspectRatioCorrection:
+		_videoMode.aspectRatioCorrection = enable;
+		_transactionDetails.needRefresh = true;
+		break;
+
+	case OSystem::kFeatureCursorPalette:
+		_cursorPaletteDisabled = !enable;
+		_cursorNeedsRedraw = true;
+		break;
+
 	default:
 		break;
 	}
 }
 
 bool OpenGLGraphicsManager::getFeatureState(OSystem::Feature f) {
-	return false;
+	switch (f) {
+	case OSystem::kFeatureFullscreenMode:
+		return _videoMode.fullscreen;
+
+	case OSystem::kFeatureAspectRatioCorrection:
+		return _videoMode.aspectRatioCorrection;
+
+	case OSystem::kFeatureCursorPalette:
+		return !_cursorPaletteDisabled;
+
+	default:
+		return false;
+	}
 }
 
 //
@@ -116,7 +138,6 @@ bool OpenGLGraphicsManager::getFeatureState(OSystem::Feature f) {
 static const OSystem::GraphicsMode s_supportedGraphicsModes[] = {
 	{"gl1", _s("OpenGL Normal"), OpenGL::GFX_NORMAL},
 	{"gl2", _s("OpenGL Conserve"), OpenGL::GFX_CONSERVE},
-	{"gl3", _s("OpenGL 4/3"), OpenGL::GFX_4_3},
 	{"gl4", _s("OpenGL Original"), OpenGL::GFX_ORIGINAL},
 	{0, 0, 0}
 };
@@ -144,11 +165,10 @@ bool OpenGLGraphicsManager::setGraphicsMode(int mode) {
 	switch (mode) {
 	case OpenGL::GFX_NORMAL:
 	case OpenGL::GFX_CONSERVE:
-	case OpenGL::GFX_4_3:
 	case OpenGL::GFX_ORIGINAL:
 		break;
 	default:
-		warning("unknown gfx mode %d", mode);
+		warning("Unknown gfx mode %d", mode);
 		return false;
 	}
 
@@ -159,7 +179,7 @@ bool OpenGLGraphicsManager::setGraphicsMode(int mode) {
 }
 
 int OpenGLGraphicsManager::getGraphicsMode() const {
-	assert (_transactionMode == kTransactionNone);
+	assert(_transactionMode == kTransactionNone);
 	return _videoMode.mode;
 }
 
@@ -168,11 +188,9 @@ void OpenGLGraphicsManager::resetGraphicsScale() {
 }
 
 #ifdef USE_RGB_COLOR
-
 Graphics::PixelFormat OpenGLGraphicsManager::getScreenFormat() const {
 	return _screenFormat;
 }
-
 #endif
 
 void OpenGLGraphicsManager::initSize(uint width, uint height, const Graphics::PixelFormat *format) {
@@ -310,7 +328,7 @@ int16 OpenGLGraphicsManager::getWidth() {
 
 void OpenGLGraphicsManager::setPalette(const byte *colors, uint start, uint num) {
 	assert(colors);
-	
+
 #ifdef USE_RGB_COLOR
 	assert(_screenFormat.bytesPerPixel == 1);
 #endif
@@ -326,7 +344,7 @@ void OpenGLGraphicsManager::setPalette(const byte *colors, uint start, uint num)
 
 void OpenGLGraphicsManager::grabPalette(byte *colors, uint start, uint num) {
 	assert(colors);
-	
+
 #ifdef USE_RGB_COLOR
 	assert(_screenFormat.bytesPerPixel == 1);
 #endif
@@ -343,9 +361,9 @@ void OpenGLGraphicsManager::copyRectToScreen(const byte *buf, int pitch, int x, 
 
 	// Copy buffer data to game screen internal buffer
 	const byte *src = buf;
-	byte *dst = (byte *)_screenData.pixels + y * _screenData.pitch + x * _screenData.bytesPerPixel;
+	byte *dst = (byte *)_screenData.pixels + y * _screenData.pitch + x * _screenData.format.bytesPerPixel;
 	for (int i = 0; i < h; i++) {
-		memcpy(dst, src, w * _screenData.bytesPerPixel);
+		memcpy(dst, src, w * _screenData.format.bytesPerPixel);
 		src += pitch;
 		dst += _screenData.pitch;
 	}
@@ -369,6 +387,7 @@ void OpenGLGraphicsManager::fillScreen(uint32 col) {
 	if (_gameTexture == NULL)
 		return;
 
+#ifdef USE_RGB_COLOR
 	if (_screenFormat.bytesPerPixel == 1) {
 		memset(_screenData.pixels, col, _screenData.h * _screenData.pitch);
 	} else if (_screenFormat.bytesPerPixel == 2) {
@@ -394,17 +413,19 @@ void OpenGLGraphicsManager::fillScreen(uint32 col) {
 			pixels[i] = col;
 		}
 	}
-
+#else
+	memset(_screenData.pixels, col, _screenData.h * _screenData.pitch);
+#endif
 	_screenNeedsRedraw = true;
 }
 
 void OpenGLGraphicsManager::updateScreen() {
-	assert (_transactionMode == kTransactionNone);
+	assert(_transactionMode == kTransactionNone);
 	internUpdateScreen();
 }
 
 void OpenGLGraphicsManager::setShakePos(int shakeOffset) {
-	assert (_transactionMode == kTransactionNone);
+	assert(_transactionMode == kTransactionNone);
 	_shakePos = shakeOffset;
 }
 
@@ -419,7 +440,7 @@ void OpenGLGraphicsManager::clearFocusRectangle() {
 //
 
 void OpenGLGraphicsManager::showOverlay() {
-	assert (_transactionMode == kTransactionNone);
+	assert(_transactionMode == kTransactionNone);
 
 	if (_overlayVisible)
 		return;
@@ -430,7 +451,7 @@ void OpenGLGraphicsManager::showOverlay() {
 }
 
 void OpenGLGraphicsManager::hideOverlay() {
-	assert (_transactionMode == kTransactionNone);
+	assert(_transactionMode == kTransactionNone);
 
 	if (!_overlayVisible)
 		return;
@@ -451,7 +472,7 @@ void OpenGLGraphicsManager::clearOverlay() {
 }
 
 void OpenGLGraphicsManager::grabOverlay(OverlayColor *buf, int pitch) {
-	assert(_overlayData.bytesPerPixel == sizeof(buf[0]));
+	assert(_overlayData.format.bytesPerPixel == sizeof(buf[0]));
 	const byte *src = (byte *)_overlayData.pixels;
 	for (int i = 0; i < _overlayData.h; i++) {
 		// Copy overlay data to buffer
@@ -462,7 +483,7 @@ void OpenGLGraphicsManager::grabOverlay(OverlayColor *buf, int pitch) {
 }
 
 void OpenGLGraphicsManager::copyRectToOverlay(const OverlayColor *buf, int pitch, int x, int y, int w, int h) {
-	assert (_transactionMode == kTransactionNone);
+	assert(_transactionMode == kTransactionNone);
 
 	if (_overlayTexture == NULL)
 		return;
@@ -504,7 +525,7 @@ void OpenGLGraphicsManager::copyRectToOverlay(const OverlayColor *buf, int pitch
 		const byte *src = (const byte *)buf;
 		byte *dst = (byte *)_overlayData.pixels + y * _overlayData.pitch;
 		for (int i = 0; i < h; i++) {
-			memcpy(dst + x * _overlayData.bytesPerPixel, src, w * _overlayData.bytesPerPixel);
+			memcpy(dst + x * _overlayData.format.bytesPerPixel, src, w * _overlayData.format.bytesPerPixel);
 			src += pitch * sizeof(buf[0]);
 			dst += _overlayData.pitch;
 		}
@@ -539,13 +560,53 @@ bool OpenGLGraphicsManager::showMouse(bool visible) {
 	return last;
 }
 
-void OpenGLGraphicsManager::setMousePos(int x, int y) {
-	_cursorState.x = x;
-	_cursorState.y = y;
-}
-
 void OpenGLGraphicsManager::warpMouse(int x, int y) {
-	setMousePos(x, y);
+	int scaledX = x;
+	int scaledY = y;
+
+	int16 currentX = _cursorState.x;
+	int16 currentY = _cursorState.y;
+
+	adjustMousePosition(currentX, currentY);
+
+	// Do not adjust the real screen position, when the current game / overlay
+	// coordinates match the requested coordinates. This avoids a slight
+	// movement which might occur otherwise when the mouse is at a subpixel
+	// position.
+	if (x == currentX && y == currentY)
+		return;
+
+	if (_videoMode.mode == OpenGL::GFX_NORMAL) {
+		if (_videoMode.hardwareWidth != _videoMode.overlayWidth)
+			scaledX = scaledX * _videoMode.hardwareWidth / _videoMode.overlayWidth;
+		if (_videoMode.hardwareHeight != _videoMode.overlayHeight)
+			scaledY = scaledY * _videoMode.hardwareHeight / _videoMode.overlayHeight;
+
+		if (!_overlayVisible) {
+			scaledX *= _videoMode.scaleFactor;
+			scaledY *= _videoMode.scaleFactor;
+		}
+	} else {
+		if (_overlayVisible) {
+			if (_displayWidth != _videoMode.overlayWidth)
+				scaledX = scaledX * _displayWidth / _videoMode.overlayWidth;
+			if (_displayHeight != _videoMode.overlayHeight)
+				scaledY = scaledY * _displayHeight / _videoMode.overlayHeight;
+		} else {
+			if (_displayWidth != _videoMode.screenWidth)
+				scaledX = scaledX * _displayWidth / _videoMode.screenWidth;
+			if (_displayHeight != _videoMode.screenHeight)
+				scaledY = scaledY * _displayHeight / _videoMode.screenHeight;
+		}
+
+		scaledX += _displayX;
+		scaledY += _displayY;
+	}
+
+	setInternalMousePosition(scaledX, scaledY);
+
+	_cursorState.x = scaledX;
+	_cursorState.y = scaledY;
 }
 
 void OpenGLGraphicsManager::setMouseCursor(const byte *buf, uint w, uint h, int hotspotX, int hotspotY, uint32 keycolor, int cursorTargetScale, const Graphics::PixelFormat *format) {
@@ -561,8 +622,8 @@ void OpenGLGraphicsManager::setMouseCursor(const byte *buf, uint w, uint h, int 
 
 	// Allocate space for cursor data
 	if (_cursorData.w != w || _cursorData.h != h ||
-			_cursorData.bytesPerPixel != _cursorFormat.bytesPerPixel)
-		_cursorData.create(w, h, _cursorFormat.bytesPerPixel);
+			_cursorData.format.bytesPerPixel != _cursorFormat.bytesPerPixel)
+		_cursorData.create(w, h, _cursorFormat);
 
 	// Save cursor data
 	memcpy(_cursorData.pixels, buf, h * _cursorData.pitch);
@@ -581,16 +642,11 @@ void OpenGLGraphicsManager::setMouseCursor(const byte *buf, uint w, uint h, int 
 
 void OpenGLGraphicsManager::setCursorPalette(const byte *colors, uint start, uint num) {
 	assert(colors);
-	
+
 	// Save the cursor palette
 	memcpy(_cursorPalette + start * 3, colors, num * 3);
 
 	_cursorPaletteDisabled = false;
-	_cursorNeedsRedraw = true;
-}
-
-void OpenGLGraphicsManager::disableCursorPalette(bool disable) {
-	_cursorPaletteDisabled = disable;
 	_cursorNeedsRedraw = true;
 }
 
@@ -602,61 +658,13 @@ void OpenGLGraphicsManager::displayMessageOnOSD(const char *msg) {
 	assert(_transactionMode == kTransactionNone);
 	assert(msg);
 
-	// The font we are going to use:
-	const Graphics::Font *font = FontMan.getFontByUsage(Graphics::FontManager::kOSDFont);
-
-	if (_osdSurface.w != _osdTexture->getWidth() || _osdSurface.h != _osdTexture->getHeight())
-		_osdSurface.create(_osdTexture->getWidth(), _osdTexture->getHeight(), 2);
-	else
-		// Clear everything
-		memset(_osdSurface.pixels, 0, _osdSurface.h * _osdSurface.pitch);
-
+#ifdef USE_OSD
 	// Split the message into separate lines.
-	Common::Array<Common::String> lines;
-	const char *ptr;
-	for (ptr = msg; *ptr; ++ptr) {
-		if (*ptr == '\n') {
-			lines.push_back(Common::String(msg, ptr - msg));
-			msg = ptr + 1;
-		}
-	}
-	lines.push_back(Common::String(msg, ptr - msg));
+	_osdLines.clear();
 
-	// Determine a rect which would contain the message string (clipped to the
-	// screen dimensions).
-	const int vOffset = 6;
-	const int lineSpacing = 1;
-	const int lineHeight = font->getFontHeight() + 2 * lineSpacing;
-	int width = 0;
-	int height = lineHeight * lines.size() + 2 * vOffset;
-	for (uint i = 0; i < lines.size(); i++) {
-		width = MAX(width, font->getStringWidth(lines[i]) + 14);
-	}
-
-	// Clip the rect
-	if (width > _osdSurface.w)
-		width = _osdSurface.w;
-	if (height > _osdSurface.h)
-		height = _osdSurface.h;
-
-	int dstX = (_osdSurface.w - width) / 2;
-	int dstY = (_osdSurface.h - height) / 2;
-
-	// Draw a dark gray rect
-	uint16 color = 0x294B;
-	uint16 *dst = (uint16 *)_osdSurface.pixels + dstY * _osdSurface.w + dstX;
-	for (int i = 0; i < height; i++) {
-		for (int j = 0; j < width; j++)
-			dst[j] = color;
-		dst += _osdSurface.w;
-	}
-
-	// Render the message, centered, and in white
-	for (uint i = 0; i < lines.size(); i++) {
-		font->drawString(&_osdSurface, lines[i],
-							dstX, dstY + i * lineHeight + vOffset + lineSpacing, width,
-							0xFFFF, Graphics::kTextAlignCenter);
-	}
+	Common::StringTokenizer tokenizer(msg, "\n");
+	while (!tokenizer.empty())
+		_osdLines.push_back(tokenizer.nextToken());
 
 	// Request update of the texture
 	_requireOSDUpdate = true;
@@ -664,11 +672,24 @@ void OpenGLGraphicsManager::displayMessageOnOSD(const char *msg) {
 	// Init the OSD display parameters, and the fade out
 	_osdAlpha = kOSDInitialAlpha;
 	_osdFadeStartTime = g_system->getMillis() + kOSDFadeOutDelay;
+#endif
 }
 
 //
 // Intern
 //
+
+void OpenGLGraphicsManager::setFullscreenMode(bool enable) {
+	assert(_transactionMode == kTransactionActive);
+
+	if (_oldVideoMode.setup && _oldVideoMode.fullscreen == enable)
+		return;
+
+	if (_transactionMode == kTransactionActive) {
+		_videoMode.fullscreen = enable;
+		_transactionDetails.needRefresh = true;
+	}
+}
 
 void OpenGLGraphicsManager::refreshGameScreen() {
 	if (_screenNeedsRedraw)
@@ -679,13 +700,13 @@ void OpenGLGraphicsManager::refreshGameScreen() {
 	int w = _screenDirtyRect.width();
 	int h = _screenDirtyRect.height();
 
-	if (_screenData.bytesPerPixel == 1) {
+	if (_screenData.format.bytesPerPixel == 1) {
 		// Create a temporary RGB888 surface
 		byte *surface = new byte[w * h * 3];
 
 		// Convert the paletted buffer to RGB888
 		const byte *src = (byte *)_screenData.pixels + y * _screenData.pitch;
-		src += x * _screenData.bytesPerPixel;
+		src += x * _screenData.format.bytesPerPixel;
 		byte *dst = surface;
 		for (int i = 0; i < h; i++) {
 			for (int j = 0; j < w; j++) {
@@ -705,7 +726,7 @@ void OpenGLGraphicsManager::refreshGameScreen() {
 	} else {
 		// Update the texture
 		_gameTexture->updateBuffer((byte *)_screenData.pixels + y * _screenData.pitch +
-			x * _screenData.bytesPerPixel, _screenData.pitch, x, y, w, h);
+			x * _screenData.format.bytesPerPixel, _screenData.pitch, x, y, w, h);
 	}
 
 	_screenNeedsRedraw = false;
@@ -721,13 +742,13 @@ void OpenGLGraphicsManager::refreshOverlay() {
 	int w = _overlayDirtyRect.width();
 	int h = _overlayDirtyRect.height();
 
-	if (_overlayData.bytesPerPixel == 1) {
+	if (_overlayData.format.bytesPerPixel == 1) {
 		// Create a temporary RGB888 surface
 		byte *surface = new byte[w * h * 3];
 
 		// Convert the paletted buffer to RGB888
 		const byte *src = (byte *)_overlayData.pixels + y * _overlayData.pitch;
-		src += x * _overlayData.bytesPerPixel;
+		src += x * _overlayData.format.bytesPerPixel;
 		byte *dst = surface;
 		for (int i = 0; i < h; i++) {
 			for (int j = 0; j < w; j++) {
@@ -747,7 +768,7 @@ void OpenGLGraphicsManager::refreshOverlay() {
 	} else {
 		// Update the texture
 		_overlayTexture->updateBuffer((byte *)_overlayData.pixels + y * _overlayData.pitch +
-			x * _overlayData.bytesPerPixel, _overlayData.pitch, x, y, w, h);
+			x * _overlayData.format.bytesPerPixel, _overlayData.pitch, x, y, w, h);
 	}
 
 	_overlayNeedsRedraw = false;
@@ -845,7 +866,8 @@ void OpenGLGraphicsManager::refreshCursorScale() {
 	} else {
 		// Otherwise, scale the cursor for the overlay
 		int targetScaleFactor = MIN(_cursorTargetScale, _videoMode.scaleFactor);
-		int actualFactor = screenScaleFactor - (targetScaleFactor - 1) * 10000;
+		// We limit the maximum scale to 3 here to avoid too big cursors, for large overlay resolutions
+		int actualFactor = MIN<uint>(3, screenScaleFactor - (targetScaleFactor - 1)) * 10000;
 		_cursorState.rW = (int16)(_cursorState.w * actualFactor / 10000);
 		_cursorState.rH = (int16)(_cursorState.h * actualFactor / 10000);
 		_cursorState.rHotX = (int16)(_cursorState.hotX * actualFactor / 10000);
@@ -861,8 +883,8 @@ void OpenGLGraphicsManager::refreshCursorScale() {
 
 void OpenGLGraphicsManager::calculateDisplaySize(int &width, int &height) {
 	if (_videoMode.mode == OpenGL::GFX_ORIGINAL) {
-		width = _videoMode.overlayWidth;
-		height = _videoMode.overlayHeight;
+		width = _videoMode.screenWidth;
+		height = _videoMode.screenHeight;
 	} else {
 		width = _videoMode.hardwareWidth;
 		height = _videoMode.hardwareHeight;
@@ -1002,7 +1024,7 @@ void OpenGLGraphicsManager::internUpdateScreen() {
 			refreshOverlay();
 
 		// Draw the overlay
-		_overlayTexture->drawTexture(_displayX, _displayY, _displayWidth, _displayHeight);
+		_overlayTexture->drawTexture(0, 0, _videoMode.overlayWidth, _videoMode.overlayHeight);
 	}
 
 	if (_cursorVisible) {
@@ -1029,9 +1051,7 @@ void OpenGLGraphicsManager::internUpdateScreen() {
 #ifdef USE_OSD
 	if (_osdAlpha > 0) {
 		if (_requireOSDUpdate) {
-			// Update the texture
-			_osdTexture->updateBuffer(_osdSurface.pixels, _osdSurface.pitch, 0, 0, 
-			                          _osdSurface.w, _osdSurface.h);
+			updateOSD();
 			_requireOSDUpdate = false;
 		}
 
@@ -1137,7 +1157,7 @@ void OpenGLGraphicsManager::loadTextures() {
 		_cursorTexture = new GLTexture(4, GL_RGBA, GL_RGBA, GL_UNSIGNED_BYTE);
 	else
 		_cursorTexture->refresh();
-		
+
 	GLint filter = _videoMode.antialiasing ? GL_LINEAR : GL_NEAREST;
 	_gameTexture->setFilter(filter);
 	_overlayTexture->setFilter(filter);
@@ -1148,17 +1168,26 @@ void OpenGLGraphicsManager::loadTextures() {
 	_overlayTexture->allocBuffer(_videoMode.overlayWidth, _videoMode.overlayHeight);
 	_cursorTexture->allocBuffer(_cursorState.w, _cursorState.h);
 
-	if (_transactionDetails.formatChanged || 
+	if (
+#ifdef USE_RGB_COLOR
+			_transactionDetails.formatChanged ||
+#endif
 			_oldVideoMode.screenWidth != _videoMode.screenWidth ||
 			_oldVideoMode.screenHeight != _videoMode.screenHeight)
 		_screenData.create(_videoMode.screenWidth, _videoMode.screenHeight,
-			_screenFormat.bytesPerPixel);
+#ifdef USE_RGB_COLOR
+			_screenFormat
+#else
+			Graphics::PixelFormat::createFormatCLUT8()
+#endif
+			);
+
 
 	if (_oldVideoMode.overlayWidth != _videoMode.overlayWidth ||
 		_oldVideoMode.overlayHeight != _videoMode.overlayHeight)
 		_overlayData.create(_videoMode.overlayWidth, _videoMode.overlayHeight,
-			_overlayFormat.bytesPerPixel);
-	
+			_overlayFormat);
+
 	_screenNeedsRedraw = true;
 	_overlayNeedsRedraw = true;
 	_cursorNeedsRedraw = true;
@@ -1171,6 +1200,11 @@ void OpenGLGraphicsManager::loadTextures() {
 	if (gameScreenBPP)
 		glPixelStorei(GL_UNPACK_ALIGNMENT, Common::gcd<uint>(gameScreenBPP, 2));
 
+	// We use a "pack" alignment (when reading from textures) to 4 here,
+	// since the only place where we really use it is the BMP screenshot
+	// code and that requires the same alignment too.
+	glPixelStorei(GL_PACK_ALIGNMENT, 4);
+
 #ifdef USE_OSD
 	if (!_osdTexture)
 		_osdTexture = new GLTexture(2, GL_RGBA, GL_RGBA, GL_UNSIGNED_SHORT_5_5_5_1);
@@ -1178,6 +1212,9 @@ void OpenGLGraphicsManager::loadTextures() {
 		_osdTexture->refresh();
 
 	_osdTexture->allocBuffer(_videoMode.overlayWidth, _videoMode.overlayHeight);
+
+	// Update the OSD in case it is used right now
+	_requireOSDUpdate = true;
 #endif
 }
 
@@ -1201,6 +1238,8 @@ void OpenGLGraphicsManager::unloadGFXMode() {
 }
 
 void OpenGLGraphicsManager::setScale(int newScale) {
+	assert(_transactionMode == kTransactionActive);
+
 	if (newScale == _videoMode.scaleFactor)
 		return;
 
@@ -1208,50 +1247,48 @@ void OpenGLGraphicsManager::setScale(int newScale) {
 	_transactionDetails.sizeChanged = true;
 }
 
+void OpenGLGraphicsManager::toggleAntialiasing() {
+	assert(_transactionMode == kTransactionActive);
+
+	_videoMode.antialiasing = !_videoMode.antialiasing;
+	_transactionDetails.filterChanged = true;
+}
+
 uint OpenGLGraphicsManager::getAspectRatio() {
-	if (_videoMode.mode == OpenGL::GFX_NORMAL)
-		return _videoMode.hardwareWidth * 10000 / _videoMode.hardwareHeight;
-	else if (_videoMode.mode == OpenGL::GFX_4_3)
+	// In case we enable aspect ratio correction we force a 4/3 ratio.
+	// TODO: This makes OpenGL Normal behave like OpenGL Conserve, when aspect
+	// ratio correction is enabled, but it's better than the previous 4/3 mode
+	// mess at least...
+	if (_videoMode.aspectRatioCorrection)
 		return 13333;
+	else if (_videoMode.mode == OpenGL::GFX_NORMAL)
+		return _videoMode.hardwareWidth * 10000 / _videoMode.hardwareHeight;
 	else
 		return _videoMode.screenWidth * 10000 / _videoMode.screenHeight;
 }
 
 void OpenGLGraphicsManager::adjustMousePosition(int16 &x, int16 &y) {
-	if (_videoMode.mode == OpenGL::GFX_NORMAL) {
-		if (_videoMode.hardwareWidth != _videoMode.overlayWidth)
-			x = x * _videoMode.overlayWidth / _videoMode.hardwareWidth;
-		if (_videoMode.hardwareHeight != _videoMode.overlayHeight)
-			y = y * _videoMode.overlayHeight / _videoMode.hardwareHeight;
+	if (_overlayVisible)
+		return;
 
-		if (!_overlayVisible) {
-			x /= _videoMode.scaleFactor;
-			y /= _videoMode.scaleFactor;
-		}
-
-	} else {
+	if (!_overlayVisible) {
 		x -= _displayX;
 		y -= _displayY;
 
-		if (_overlayVisible) {
-			if (_displayWidth != _videoMode.overlayWidth)
-				x = x * _videoMode.overlayWidth / _displayWidth;
-			if (_displayHeight != _videoMode.overlayHeight)
-				y = y * _videoMode.overlayHeight / _displayHeight;
-		} else {
-			if (_displayWidth != _videoMode.screenWidth)
-				x = x * _videoMode.screenWidth / _displayWidth;
-			if (_displayHeight != _videoMode.screenHeight)
-				y = y * _videoMode.screenHeight / _displayHeight;
-		}
+		if (_displayWidth != _videoMode.screenWidth)
+			x = x * _videoMode.screenWidth / _displayWidth;
+		if (_displayHeight != _videoMode.screenHeight)
+			y = y * _videoMode.screenHeight / _displayHeight;
 	}
 }
 
 bool OpenGLGraphicsManager::notifyEvent(const Common::Event &event) {
 	switch (event.type) {
 	case Common::EVENT_MOUSEMOVE:
-		if (!event.synthetic)
-			setMousePos(event.mouse.x, event.mouse.y);
+		if (!event.synthetic) {
+			_cursorState.x = event.mouse.x;
+			_cursorState.y = event.mouse.y;
+		}
 	case Common::EVENT_LBUTTONDOWN:
 	case Common::EVENT_RBUTTONDOWN:
 	case Common::EVENT_WHEELUP:
@@ -1278,9 +1315,17 @@ bool OpenGLGraphicsManager::notifyEvent(const Common::Event &event) {
 bool OpenGLGraphicsManager::saveScreenshot(const char *filename) {
 	int width = _videoMode.hardwareWidth;
 	int height = _videoMode.hardwareHeight;
-	
+
+	// A line of a BMP image must have a size divisible by 4.
+	// We calculate the padding bytes needed here.
+	// Since we use a 3 byte per pixel mode, we can use width % 4 here, since
+	// it is equal to 4 - (width * 3) % 4. (4 - (width * Bpp) % 4, is the
+	// usual way of computing the padding bytes required).
+	const int linePaddingSize = width % 4;
+	const int lineSize = width * 3 + linePaddingSize;
+
 	// Allocate memory for screenshot
-	uint8 *pixels = new uint8[width * height * 3];
+	uint8 *pixels = new uint8[lineSize * height];
 
 	// Get pixel data from OpenGL buffer
 #ifdef USE_GLES
@@ -1300,9 +1345,9 @@ bool OpenGLGraphicsManager::saveScreenshot(const char *filename) {
 	// Write BMP header
 	out.writeByte('B');
 	out.writeByte('M');
-	out.writeUint32LE(height * width * 3 + 52);
+	out.writeUint32LE(height * lineSize + 54);
 	out.writeUint32LE(0);
-	out.writeUint32LE(52);
+	out.writeUint32LE(54);
 	out.writeUint32LE(40);
 	out.writeUint32LE(width);
 	out.writeUint32LE(height);
@@ -1313,10 +1358,10 @@ bool OpenGLGraphicsManager::saveScreenshot(const char *filename) {
 	out.writeUint32LE(0);
 	out.writeUint32LE(0);
 	out.writeUint32LE(0);
-	out.writeUint32LE(0); 
+	out.writeUint32LE(0);
 
 	// Write pixel data to BMP
-	out.write(pixels, width * height * 3);
+	out.write(pixels, lineSize * height);
 
 	// Free allocated memory
 	delete[] pixels;
@@ -1337,21 +1382,52 @@ const char *OpenGLGraphicsManager::getCurrentModeName() {
 	return modeName;
 }
 
-void OpenGLGraphicsManager::switchDisplayMode(int mode) {
-	if (_oldVideoMode.setup && _oldVideoMode.mode == mode)
-		return;
+#ifdef USE_OSD
+void OpenGLGraphicsManager::updateOSD() {
+	// The font we are going to use:
+	const Graphics::Font *font = FontMan.getFontByUsage(Graphics::FontManager::kLocalizedFont);
 
-	if (_transactionMode == kTransactionActive) {
-		if (mode == -1) // If -1, switch to next mode
-			_videoMode.mode = (_videoMode.mode + 1) % 4;
-		else if (mode == -2) // If -2, switch to previous mode
-			_videoMode.mode = (_videoMode.mode + 3) % 4;
-		else
-			_videoMode.mode = mode;
+	if (_osdSurface.w != _osdTexture->getWidth() || _osdSurface.h != _osdTexture->getHeight())
+		_osdSurface.create(_osdTexture->getWidth(), _osdTexture->getHeight(), _overlayFormat);
+	else
+		// Clear everything
+		memset(_osdSurface.pixels, 0, _osdSurface.h * _osdSurface.pitch);
 
-		_transactionDetails.needRefresh = true;
-		_aspectRatioCorrection = false;
+	// Determine a rect which would contain the message string (clipped to the
+	// screen dimensions).
+	const int vOffset = 6;
+	const int lineSpacing = 1;
+	const int lineHeight = font->getFontHeight() + 2 * lineSpacing;
+	int width = 0;
+	int height = lineHeight * _osdLines.size() + 2 * vOffset;
+	for (uint i = 0; i < _osdLines.size(); i++) {
+		width = MAX(width, font->getStringWidth(_osdLines[i]) + 14);
 	}
+
+	// Clip the rect
+	if (width > _osdSurface.w)
+		width = _osdSurface.w;
+	if (height > _osdSurface.h)
+		height = _osdSurface.h;
+
+	int dstX = (_osdSurface.w - width) / 2;
+	int dstY = (_osdSurface.h - height) / 2;
+
+	// Draw a dark gray rect (R = 40, G = 40, B = 40)
+	const uint16 color = 0x294B;
+	_osdSurface.fillRect(Common::Rect(dstX, dstY, dstX + width, dstY + height), color);
+
+	// Render the message, centered, and in white
+	for (uint i = 0; i < _osdLines.size(); i++) {
+		font->drawString(&_osdSurface, _osdLines[i],
+		                 dstX, dstY + i * lineHeight + vOffset + lineSpacing, width,
+		                 0xFFFF, Graphics::kTextAlignCenter);
+	}
+
+	// Update the texture
+	_osdTexture->updateBuffer(_osdSurface.pixels, _osdSurface.pitch, 0, 0,
+	                          _osdSurface.w, _osdSurface.h);
 }
+#endif
 
 #endif

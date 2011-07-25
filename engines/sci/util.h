@@ -18,9 +18,6 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
- * $URL$
- * $Id$
- *
  */
 
 #ifndef SCI_UTIL_H
@@ -29,6 +26,11 @@
 #include "common/scummsys.h"
 
 namespace Sci {
+
+// Wrappers for reading/writing 16-bit values in the endianness
+// of the original game platform.
+uint16 READ_SCIENDIAN_UINT16(const void *ptr);
+void WRITE_SCIENDIAN_UINT16(void *ptr, uint16 val);
 
 // Wrappers for reading integer values for SCI1.1+.
 // Mac versions have big endian data for some fields.

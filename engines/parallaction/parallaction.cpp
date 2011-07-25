@@ -18,18 +18,11 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
- * $URL$
- * $Id$
- *
  */
 
-#include "common/config-manager.h"
 #include "common/debug-channels.h"
-#include "common/events.h"
-#include "common/EventRecorder.h"
-#include "common/file.h"
-#include "common/util.h"
 #include "common/system.h"
+#include "common/textconsole.h"
 
 #include "parallaction/exec.h"
 #include "parallaction/input.h"
@@ -51,7 +44,9 @@ uint32		_globalFlags = 0;
 
 Parallaction::Parallaction(OSystem *syst, const PARALLACTIONGameDescription *gameDesc) :
 	Engine(syst), _gameDescription(gameDesc), _location(getGameType()),
-	_dialogueMan(0) {
+	_dialogueMan(0), _rnd("parallaction") {
+	// Setup mixer
+	syncSoundSettings();
 
 	_vm = this;
 	DebugMan.addDebugChannel(kDebugDialogue, "dialogue", "Dialogues debug level");
@@ -64,8 +59,6 @@ Parallaction::Parallaction(OSystem *syst, const PARALLACTIONGameDescription *gam
 	DebugMan.addDebugChannel(kDebugAudio, "audio", "Audio debug level");
 	DebugMan.addDebugChannel(kDebugMenu, "menu", "Menu debug level");
 	DebugMan.addDebugChannel(kDebugInventory, "inventory", "Inventory debug level");
-
-	g_eventRec.registerRandomSource(_rnd, "parallaction");
 }
 
 Parallaction::~Parallaction() {
@@ -634,7 +627,7 @@ bool Parallaction::checkSpecialZoneBox(ZonePtr z, uint32 type, uint x, uint y) {
 			return false;
 		}
 	}
-	
+
 	// WORKAROUND: this huge condition is needed because we made TypeData a collection of structs
 	// instead of an union. So, merge->_obj1 and get->_icon were just aliases in the original engine,
 	// but we need to check it separately here. The same workaround is applied in freeZones.
@@ -666,14 +659,14 @@ bool Parallaction::checkZoneType(ZonePtr z, uint32 type) {
 
 	if (_gameType == GType_BRA) {
 		if (type == 0) {
-			if (ITEMTYPE(z) == 0) {			
+			if (ITEMTYPE(z) == 0) {
 				if (ACTIONTYPE(z) != kZonePath) {
 					return true;
 				}
-			} 
+			}
 			if (ACTIONTYPE(z) == kZoneDoor) {
 				return true;
-			}	
+			}
 		}
 	}
 
@@ -758,7 +751,7 @@ ZonePtr Parallaction::hitZone(uint32 type, uint16 x, uint16 y) {
 		AnimationPtr a = *ait;
 
 		_a = (a->_flags & kFlagsActive) ? 1 : 0;	// _a: active Animation
-		
+
 		if (!_a) {
 			if (_gameType == GType_BRA && ACTIONTYPE(a) != kZoneTrap) {
 				continue;

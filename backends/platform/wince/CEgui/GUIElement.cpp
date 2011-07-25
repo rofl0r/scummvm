@@ -18,9 +18,6 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
- * $URL$
- * $Id$
- *
  */
 
 #include "backends/platform/sdl/sdl-sys.h"
@@ -32,7 +29,7 @@
 namespace CEGUI {
 
 GUIElement::GUIElement(int x, int y, int width, int height) :
-_background(0), _drawn(false), _visible(true), _x(x), _y(y), _width(width), _height(height) {
+	_background(0), _drawn(false), _visible(true), _x(x), _y(y), _width(width), _height(height) {
 }
 
 bool GUIElement::setBackground(WORD backgroundReference) {
@@ -45,9 +42,7 @@ bool GUIElement::setBackground(WORD backgroundReference) {
 	if (!_height && !_width) {
 		_height = _background->height();
 		_width = _background->width();
-	}
-	else
-	if (_background->height() != _height || _background->width() != _width) {
+	} else if (_background->height() != _height || _background->width() != _width) {
 		delete _background;
 		_background = NULL;
 		return false;
@@ -74,8 +69,7 @@ bool GUIElement::draw(SDL_Surface *surface) {
 		_drawn = true;
 
 		return true;
-	}
-	else
+	} else
 		return false;
 }
 

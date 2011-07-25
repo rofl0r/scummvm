@@ -18,9 +18,6 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
- * $URL$
- * $Id$
- *
  */
 
 #ifndef SOUND_MIXER_INTERN_H
@@ -64,7 +61,14 @@ private:
 	bool _mixerReady;
 	uint32 _handleSeed;
 
-	int _volumeForSoundType[4];
+	struct SoundTypeSettings {
+		SoundTypeSettings() : mute(false), volume(kMaxMixerVolume) {}
+
+		bool mute;
+		int volume;
+	};
+
+	SoundTypeSettings _soundTypeSettings[4];
 	Channel *_channels[NUM_CHANNELS];
 
 
@@ -97,8 +101,13 @@ public:
 
 	virtual bool isSoundHandleActive(SoundHandle handle);
 
+	virtual void muteSoundType(SoundType type, bool mute);
+	virtual bool isSoundTypeMuted(SoundType type) const;
+
 	virtual void setChannelVolume(SoundHandle handle, byte volume);
+	virtual byte getChannelVolume(SoundHandle handle);
 	virtual void setChannelBalance(SoundHandle handle, int8 balance);
+	virtual int8 getChannelBalance(SoundHandle handle);
 
 	virtual uint32 getSoundElapsedTime(SoundHandle handle);
 	virtual Timestamp getElapsedTime(SoundHandle handle);
@@ -118,8 +127,12 @@ public:
 	 * The mixer callback function, to be called at regular intervals by
 	 * the backend (e.g. from an audio mixing thread). All the actual mixing
 	 * work is done from here.
+	 *
+	 * @param samples Sample buffer, in which stereo 16-bit samples will be stored.
+	 * @param len Length of the provided buffer to fill (in bytes, should be divisible by 4).
+	 * @return number of sample pairs processed (which can still be silence!)
 	 */
-	void mixCallback(byte *samples, uint len);
+	int mixCallback(byte *samples, uint len);
 
 	/**
 	 * Set the internal 'is ready' flag of the mixer.

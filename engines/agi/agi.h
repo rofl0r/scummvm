@@ -18,18 +18,16 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
- * $URL$
- * $Id$
- *
  */
 
 #ifndef AGI_H
 #define AGI_H
 
 #include "common/scummsys.h"
-#include "common/endian.h"
+#include "common/error.h"
 #include "common/util.h"
 #include "common/file.h"
+#include "common/rect.h"
 #include "common/stack.h"
 #include "common/system.h"
 
@@ -45,7 +43,9 @@
 #include "agi/sound.h"
 
 
-namespace Common { class RandomSource; }
+namespace Common {
+class RandomSource;
+}
 
 /**
  * This is the namespace of the AGI engine.
@@ -92,7 +92,7 @@ typedef signed int Err;
 #define	CRYPT_KEY_SIERRA	"Avis Durgan"
 #define CRYPT_KEY_AGDS		"Alex Simkin"
 
-#define	MSG_BOX_COLOUR	0x0f	// White
+#define	MSG_BOX_COLOR	0x0f	// White
 #define MSG_BOX_TEXT	0x00	// Black
 #define MSG_BOX_LINE	0x04	// Red
 #define BUTTON_BORDER	0x00	// Black
@@ -693,7 +693,6 @@ public:
 class GfxMgr;
 class SpritesMgr;
 class Menu;
-class SearchTree;
 
 // Image stack support
 struct ImageStackElement {
@@ -727,7 +726,7 @@ protected:
 	virtual Common::Error run() {
 		Common::Error err;
 		err = init();
-		if (err != Common::kNoError)
+		if (err.getCode() != Common::kNoError)
 			return err;
 		return go();
 	}
@@ -756,6 +755,7 @@ public:
 	virtual void clearKeyQueue() = 0;
 
 	AgiBase(OSystem *syst, const AGIGameDescription *gameDesc);
+	~AgiBase();
 
 	virtual void clearImageStack() = 0;
 	virtual void recordImageStackCall(uint8 type, int16 p1, int16 p2, int16 p3,
@@ -807,12 +807,10 @@ public:
 	virtual ~AgiEngine();
 
 	Common::Error loadGameState(int slot);
-	Common::Error saveGameState(int slot, const char *desc);
+	Common::Error saveGameState(int slot, const Common::String &desc);
 
 private:
-
-	uint32 _tickTimer;
-	uint32 _lastTickTimer;
+	uint32 _lastTick;
 
 	int _keyQueue[KEY_QUEUE_SIZE];
 	int _keyQueueStart;
@@ -883,7 +881,6 @@ public:
 	virtual bool isKeypress();
 	virtual void clearKeyQueue();
 
-	static void agiTimerFunctionLow(void *refCon);
 	void initPriTable();
 
 	void newInputMode(InputMode mode);
@@ -938,7 +935,7 @@ public:
 private:
 	// Some submethods of testIfCode
 	uint8 testObjRight(uint8, uint8, uint8, uint8, uint8);
-	uint8 testObjCentre(uint8, uint8, uint8, uint8, uint8);
+	uint8 testObjCenter(uint8, uint8, uint8, uint8, uint8);
 	uint8 testObjInBox(uint8, uint8, uint8, uint8, uint8);
 	uint8 testPosn(uint8, uint8, uint8, uint8, uint8);
 	uint8 testSaid(uint8, uint8 *);
@@ -972,7 +969,7 @@ public:
 	int showWords();
 	int loadWords(const char *);
 	void unloadWords();
-	int findWord(char *word, int *flen);
+	int findWord(const char *word, int *flen);
 	void dictionaryWords(char *);
 
 	// Motion

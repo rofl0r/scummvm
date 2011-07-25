@@ -18,9 +18,6 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
- * $URL$
- * $Id$
- *
  */
 
 #ifndef COMMON_ENDIAN_H
@@ -141,52 +138,25 @@
 
 /**
  * A wrapper macro used around four character constants, like 'DATA', to
- * ensure portability. Typical usage: MKID_BE('DATA').
+ * ensure portability. Typical usage: MKTAG('D','A','T','A').
  *
  * Why is this necessary? The C/C++ standard does not define the endianess to
  * be used for character constants. Hence if one uses multi-byte character
  * constants, a potential portability problem opens up.
- *
- * Fortunately, a semi-standard has been established: On almost all systems
- * and compilers, multi-byte character constants are encoded using the big
- * endian convention (probably in analogy to the encoding of string constants).
- * Still some systems differ. This is why we provide the MKID_BE macro. If
- * you wrap your four character constants with it, the result will always be
- * BE encoded, even on systems which differ from the default BE encoding.
- *
- * For the latter systems we provide the INVERSE_MKID override.
  */
-#if defined(INVERSE_MKID)
-#define MKID_BE(a) SWAP_CONSTANT_32(a)
+#define MKTAG(a0,a1,a2,a3) ((uint32)((a3) | ((a2) << 8) | ((a1) << 16) | ((a0) << 24)))
 
-#else
-#  define MKID_BE(a) ((uint32)(a))
-#endif
+// Functions for reading/writing native integers.
+// They also transparently handle the need for alignment.
 
-// Functions for reading/writing native Integers,
-// this transparently handles the need for alignment
-
-#if !defined(SCUMM_NEED_ALIGNMENT)
-
-	FORCEINLINE uint16 READ_UINT16(const void *ptr) {
-		return *(const uint16 *)(ptr);
-	}
-
-	FORCEINLINE uint32 READ_UINT32(const void *ptr) {
-		return *(const uint32 *)(ptr);
-	}
-
-	FORCEINLINE void WRITE_UINT16(void *ptr, uint16 value) {
-		*(uint16 *)(ptr) = value;
-	}
-
-	FORCEINLINE void WRITE_UINT32(void *ptr, uint32 value) {
-		*(uint32 *)(ptr) = value;
-	}
-
-// test for GCC >= 4.0. these implementations will automatically use CPU-specific
-// instructions for unaligned data when they are available (eg. MIPS)
-#elif defined(__GNUC__) && (__GNUC__ >= 4)
+// Test for GCC >= 4.0. These implementations will automatically use
+// CPU-specific instructions for unaligned data when they are available (eg.
+// MIPS). See also this email thread on scummvm-devel for details:
+// <http://thread.gmane.org/gmane.games.devel.scummvm/8063>
+//
+// Moreover, we activate this code for GCC >= 3.3 but *only* if unaligned access
+// is allowed.
+#if defined(__GNUC__) && ((__GNUC__ >= 4) || (__GNUC__ == 3 && __GNUC_MINOR__ >= 3 && !defined(SCUMM_NEED_ALIGNMENT)))
 
 	FORCEINLINE uint16 READ_UINT16(const void *ptr) {
 		struct Unaligned16 { uint16 val; } __attribute__ ((__packed__, __may_alias__));
@@ -207,6 +177,25 @@
 		struct Unaligned32 { uint32 val; } __attribute__ ((__packed__, __may_alias__));
 		((Unaligned32 *)ptr)->val = value;
 	}
+
+#elif !defined(SCUMM_NEED_ALIGNMENT)
+
+	FORCEINLINE uint16 READ_UINT16(const void *ptr) {
+		return *(const uint16 *)(ptr);
+	}
+
+	FORCEINLINE uint32 READ_UINT32(const void *ptr) {
+		return *(const uint32 *)(ptr);
+	}
+
+	FORCEINLINE void WRITE_UINT16(void *ptr, uint16 value) {
+		*(uint16 *)(ptr) = value;
+	}
+
+	FORCEINLINE void WRITE_UINT32(void *ptr, uint32 value) {
+		*(uint32 *)(ptr) = value;
+	}
+
 
 // use software fallback by loading each byte explicitely
 #else
@@ -330,8 +319,6 @@
 #	endif	// if defined(SCUMM_NEED_ALIGNMENT)
 
 #elif defined(SCUMM_BIG_ENDIAN)
-
-	#define MKID_BE(a) ((uint32)(a))
 
 	#define READ_BE_UINT16(a) READ_UINT16(a)
 	#define READ_BE_UINT32(a) READ_UINT32(a)

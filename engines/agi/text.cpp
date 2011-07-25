@@ -18,9 +18,6 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
- * $URL$
- * $Id$
- *
  */
 
 #include "agi/agi.h"
@@ -92,8 +89,11 @@ void AgiEngine::printText2(int l, const char *msg, int foff, int xoff, int yoff,
 				x1++;
 
 				// DF: changed the len-1 to len...
-				if (x1 == len && m[len] != '\n')
-					y1++, x1 = foff = 0;
+				// FIXME: m[len] doesn't make sense and may read out of bounds?
+				if (x1 == len && m[len] != '\n') {
+					y1++;
+					x1 = foff = 0;
+				}
 			} else {
 				y1++;
 				x1 = foff = 0;
@@ -166,7 +166,7 @@ void AgiEngine::blitTextbox(const char *p, int y, int x, int len) {
 	drawWindow(xoff, yoff, xoff + w - 1, yoff + h - 1);
 
 	printText2(2, msg, 0, CHAR_COLS + xoff, CHAR_LINES + yoff,
-			len + 1, MSG_BOX_TEXT, MSG_BOX_COLOUR);
+			len + 1, MSG_BOX_TEXT, MSG_BOX_COLOR);
 
 	free(msg);
 
@@ -504,17 +504,16 @@ int AgiEngine::print(const char *p, int lin, int col, int len) {
  *
  */
 void AgiEngine::printStatus(const char *message, ...) {
-	char x[42];
 	va_list args;
 
 	va_start(args, message);
 
-	vsprintf(x, message, args);
+	Common::String x = Common::String::vformat(message, args);
 
 	va_end(args);
 
 	debugC(4, kDebugLevelText, "fg=%d, bg=%d", STATUS_FG, STATUS_BG);
-	printText(x, 0, 0, _game.lineStatus, 40, STATUS_FG, STATUS_BG);
+	printText(x.c_str(), 0, 0, _game.lineStatus, 40, STATUS_FG, STATUS_BG);
 }
 
 static void safeStrcat(Common::String &p, const char *t) {
@@ -730,7 +729,7 @@ void AgiEngine::drawWindow(int x1, int y1, int x2, int y2) {
 
 	debugC(4, kDebugLevelText, "x1=%d, y1=%d, x2=%d, y2=%d", x1, y1, x2, y2);
 	_gfx->saveBlock(x1, y1, x2, y2, _game.window.buffer);
-	_gfx->drawBox(x1, y1, x2, y2, MSG_BOX_COLOUR, MSG_BOX_LINE, 2);
+	_gfx->drawBox(x1, y1, x2, y2, MSG_BOX_COLOR, MSG_BOX_LINE, 2);
 }
 
 } // End of namespace Agi

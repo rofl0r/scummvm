@@ -18,9 +18,6 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
- * $URL$
- * $Id$
- *
  */
 
 // Disable symbol overrides so that we can use system headers.
@@ -312,7 +309,7 @@ void OSystem_IPHONE::drawMouseCursorOnRectUpdate(const Common::Rect& updatedRect
 		uint16 *dst = &_fullscreen[top * _screenWidth + left];
 		for (int y = displayHeight; y > srcY; y--) {
 			for (int x = displayWidth; x > srcX; x--) {
-				if (*src != _mouseKeyColour)
+				if (*src != _mouseKeyColor)
 					*dst = _palette[*src];
 				dst++;
 				src++;
@@ -334,7 +331,7 @@ Graphics::Surface *OSystem_IPHONE::lockScreen() {
 	_framebuffer.w = _screenWidth;
 	_framebuffer.h = _screenHeight;
 	_framebuffer.pitch = _screenWidth;
-	_framebuffer.bytesPerPixel = 1;
+	_framebuffer.format = Graphics::PixelFormat::createFormatCLUT8();
 
 	return &_framebuffer;
 }
@@ -352,6 +349,7 @@ void OSystem_IPHONE::showOverlay() {
 	//printf("showOverlay()\n");
 	_overlayVisible = true;
 	dirtyFullOverlayScreen();
+	updateScreen();
 	iPhone_enableOverlay(true);
 }
 
@@ -371,7 +369,7 @@ void OSystem_IPHONE::clearOverlay() {
 
 void OSystem_IPHONE::grabOverlay(OverlayColor *buf, int pitch) {
 	//printf("grabOverlay()\n");
-	int h = _screenHeight;
+	int h = _overlayHeight;
 	OverlayColor *src = _overlayBuffer;
 
 	do {
@@ -497,7 +495,7 @@ void OSystem_IPHONE::setMouseCursor(const byte *buf, uint w, uint h, int hotspot
 	_mouseHotspotX = hotspotX;
 	_mouseHotspotY = hotspotY;
 
-	_mouseKeyColour = (byte)keycolor;
+	_mouseKeyColor = (byte)keycolor;
 
 	memcpy(_mouseBuf, buf, w * h);
 

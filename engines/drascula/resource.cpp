@@ -18,9 +18,6 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
- * $URL$
- * $Id$
- *
  */
 
 #include "drascula/drascula.h"
@@ -48,7 +45,7 @@ TextResourceParser::TextResourceParser(Common::SeekableReadStream *stream, Dispo
 	_stream(stream), _dispose(dispose) {
 
 	// NOTE: strangely enough, the code before this refactoring used the size of
-	// the stream as a fixed maximum length for the parser. Using an updated 
+	// the stream as a fixed maximum length for the parser. Using an updated
 	// (size-pos) would make more sense to me, but let's see what the experts say.
 	_maxLen = _stream->size();
 }

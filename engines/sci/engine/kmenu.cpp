@@ -18,9 +18,6 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
- * $URL$
- * $Id$
- *
  */
 
 #include "sci/sci.h"
@@ -29,6 +26,7 @@
 #include "sci/engine/kernel.h"
 #include "sci/graphics/cursor.h"
 #include "sci/graphics/menu.h"
+#include "sci/graphics/screen.h"
 
 namespace Sci {
 
@@ -71,7 +69,7 @@ reg_t kDrawStatus(EngineState *s, int argc, reg_t *argv) {
 	reg_t textReference = argv[0];
 	Common::String text;
 	int16 colorPen = (argc > 1) ? argv[1].toSint16() : 0;
-	int16 colorBack = (argc > 2) ? argv[2].toSint16() : g_sci->getResMan()->isVGA() ? 255 : 15;
+	int16 colorBack = (argc > 2) ? argv[2].toSint16() : g_sci->_gfxScreen->getColorWhite();
 
 	if (!textReference.isNull()) {
 		// Sometimes this is called without giving text, if thats the case dont process it.

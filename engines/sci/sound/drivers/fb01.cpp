@@ -18,9 +18,6 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
- * $URL$
- * $Id$
- *
  */
 
 #include "sci/sci.h"
@@ -30,6 +27,7 @@
 
 #include "common/file.h"
 #include "common/system.h"
+#include "common/textconsole.h"
 
 namespace Sci {
 
@@ -129,7 +127,7 @@ private:
 
 MidiPlayer_Fb01::MidiPlayer_Fb01(SciVersion version) : MidiPlayer(version), _playSwitch(true), _masterVolume(15), _timerParam(NULL), _timerProc(NULL) {
 	MidiDriver::DeviceHandle dev = MidiDriver::detectDevice(MDT_MIDI);
-	_driver = createMidi(dev);
+	_driver = MidiDriver::createMidi(dev);
 
 	_sysExBuf[0] = 0x43;
 	_sysExBuf[1] = 0x75;

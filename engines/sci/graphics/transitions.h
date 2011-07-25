@@ -18,9 +18,6 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
- * $URL$
- * $Id$
- *
  */
 
 #ifndef SCI_GRAPHICS_TRANSITIONS_H
@@ -65,7 +62,7 @@ class Screen;
  */
 class GfxTransitions {
 public:
-	GfxTransitions(GfxScreen *screen, GfxPalette *palette, bool isVGA);
+	GfxTransitions(GfxScreen *screen, GfxPalette *palette);
 	~GfxTransitions();
 
 	void setup(int16 number, bool blackoutFlag);
@@ -97,7 +94,6 @@ private:
 	GfxScreen *_screen;
 	GfxPalette *_palette;
 
-	bool _isVGA;
 	const GfxTransitionTranslateEntry *_translationTable;
 	int16 _number;
 	bool _blackoutFlag;

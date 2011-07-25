@@ -20,9 +20,6 @@
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * $URL$
- * $Id$
  */
 
 // logic management
@@ -260,7 +257,7 @@ public:
 	int32 fnStandAtAnim(int32 *params);
 	int32 fnSetScrollLeftMouse(int32 *params);
 	int32 fnSetScrollRightMouse(int32 *params);
-	int32 fnColour(int32 *params);
+	int32 fnColor(int32 *params);
 	int32 fnFlash(int32 *params);
 	int32 fnPreFetch(int32 *params);
 	int32 fnGetPlayerSaveData(int32 *params);

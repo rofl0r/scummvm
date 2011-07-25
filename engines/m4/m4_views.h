@@ -18,9 +18,6 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
- * $URL$
- * $Id$
- *
  */
 
 #ifndef M4_M4_VIEWS_H
@@ -42,7 +39,7 @@ public:
 	int iconIndex;
 
 	GUIInventoryItem(const char *_name, const char *_verb, M4Surface *_icon, int _iconIndex) {
-		name = _name; _verb = verb; icon = _icon; iconIndex = _iconIndex;
+		name = _name; verb = _verb; icon = _icon; iconIndex = _iconIndex;
 	}
 };
 

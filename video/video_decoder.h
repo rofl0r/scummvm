@@ -18,26 +18,24 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
- * $URL$
- * $Id$
- *
  */
 
 #ifndef VIDEO_DECODER_H
 #define VIDEO_DECODER_H
 
-#include "common/events.h"
-#include "common/list.h"
-#include "common/rational.h"
-
-#include "graphics/surface.h"
-#include "graphics/pixelformat.h"
+#include "common/str.h"
 
 #include "audio/timestamp.h"	// TODO: Move this to common/ ?
 
 
 namespace Common {
-	class SeekableReadStream;
+class Rational;
+class SeekableReadStream;
+}
+
+namespace Graphics {
+struct PixelFormat;
+struct Surface;
 }
 
 namespace Video {
@@ -266,6 +264,11 @@ public:
 	 * Implementation of RewindableVideoDecoder::rewind().
 	 */
 	virtual void rewind() { seekToTime(0); }
+
+	/**
+	 * Get the total duration of the video (in ms).
+	 */
+	virtual uint32 getDuration() const = 0;
 };
 
 } // End of namespace Video

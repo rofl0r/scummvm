@@ -18,9 +18,6 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
- * $URL$
- * $Id$
- *
  */
 
 
@@ -369,7 +366,7 @@ void AGOSEngine_Feeble::swapCharacterLogo() {
 	}
 }
 
-void AGOSEngine_Feeble::listSaveGames(int n) {
+void AGOSEngine_Feeble::listSaveGamesFeeble() {
 	char b[108];
 	Common::InSaveFile *in;
 	uint16 j, k, z, maxFiles;
@@ -377,8 +374,8 @@ void AGOSEngine_Feeble::listSaveGames(int n) {
 	memset(b, 0, 108);
 
 	maxFiles = countSaveGames() - 1;
-	j = maxFiles - n + 1;
-	k = maxFiles - j + 1;
+	j = maxFiles;
+	k = 1;
 	z = maxFiles;
 	if (getBitFlag(95)) {
 		j++;

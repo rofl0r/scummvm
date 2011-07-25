@@ -18,14 +18,12 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
- * $URL$
- * $Id$
- *
  */
 
 #include "engines/advancedDetector.h"
 #include "common/system.h"
 #include "common/savefile.h"
+#include "common/textconsole.h"
 #include "graphics/thumbnail.h"
 #include "graphics/surface.h"
 
@@ -133,37 +131,13 @@ static const HugoGameDescription gameDescriptions[] = {
 	{AD_TABLE_END_MARKER, kGameTypeNone}
 };
 
-static const ADParams detectionParams = {
-	// Pointer to ADGameDescription or its superset structure
-	(const byte *)gameDescriptions,
-	// Size of that superset structure
-	sizeof(HugoGameDescription),
-	// Number of bytes to compute MD5 sum for
-	5000,
-	// List of all engine targets
-	hugoGames,
-	// Structure for autoupgrading obsolete targets
-	0,
-	// Name of single gameid (optional)
-	0,
-	// List of files for file-based fallback detection (optional)
-	0,
-	// Flags
-	0,
-	// Additional GUI options (for every game}
-	Common::GUIO_NONE,
-	// Maximum directory depth
-	1,
-	// List of directory globs
-	0
-};
-
 class HugoMetaEngine : public AdvancedMetaEngine {
 public:
-	HugoMetaEngine() : AdvancedMetaEngine(detectionParams) {}
+	HugoMetaEngine() : AdvancedMetaEngine(gameDescriptions, sizeof(HugoGameDescription), hugoGames) {
+	}
 
 	const char *getName() const {
-		return "Hugo Engine";
+		return "Hugo";
 	}
 
 	const char *getOriginalCopyright() const {
@@ -291,6 +265,11 @@ SaveStateDescriptor HugoMetaEngine::querySaveMetaInfos(const char *target, int s
 		int minutes = saveTime & 0xFF;
 
 		desc.setSaveTime(hour, minutes);
+
+		// Slot 0 is used for the 'restart game' save in all Hugo games, thus
+		// we prevent it from being deleted.
+		desc.setDeletableFlag(slot != 0);
+		desc.setWriteProtectedFlag(slot == 0);
 
 		delete file;
 		return desc;

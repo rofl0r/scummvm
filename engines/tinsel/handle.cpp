@@ -18,15 +18,13 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
- * $URL$
- * $Id$
- *
  * This file contains the handle based Memory Manager code
  */
 
 #define BODGE
 
 #include "common/file.h"
+#include "common/textconsole.h"
 
 #include "tinsel/drives.h"
 #include "tinsel/dw.h"
@@ -65,8 +63,6 @@ enum {
 	fLoaded		= 0x20000000L	///< set when file data has been loaded
 };
 #define	FSIZE_MASK	0x00FFFFFFL	///< mask to isolate the filesize
-#define	MALLOC_MASK	0xFF000000L	///< mask to isolate the memory allocation flags
-//#define	HANDLEMASK		0xFF800000L	///< get handle of address
 
 //----------------- LOCAL GLOBAL DATA --------------------
 
@@ -80,7 +76,6 @@ static uint numHandles = 0;
 
 static uint32 cdPlayHandle = (uint32)-1;
 
-static int	cdPlayFileNum, cdPlaySceneNum;
 static SCNHANDLE cdBaseHandle = 0, cdTopHandle = 0;
 static Common::File *cdGraphStream = 0;
 
@@ -235,7 +230,7 @@ void LoadCDGraphData(MEMHANDLE *pH) {
 	// clear the loading flag
 //	pH->filesize &= ~fLoading;
 
-	if (bytes != ((cdTopHandle-cdBaseHandle) & OFFSETMASK))
+	if (bytes != ((cdTopHandle - cdBaseHandle) & OFFSETMASK))
 		// file is corrupt
 		error(FILE_READ_ERROR, "CD play file");
 }
@@ -248,9 +243,6 @@ void LoadCDGraphData(MEMHANDLE *pH) {
  * @param next			Handle of end of range + 1
  */
 void LoadExtraGraphData(SCNHANDLE start, SCNHANDLE next) {
-	if (cdPlayFileNum == cdPlaySceneNum && start == cdBaseHandle)
-		return;
-
 	OpenCDGraphFile();
 
 	MemoryDiscard((handleTable + cdPlayHandle)->_node); // Free it
@@ -264,7 +256,6 @@ void LoadExtraGraphData(SCNHANDLE start, SCNHANDLE next) {
 }
 
 void SetCdPlaySceneDetails(int fileNum, const char *fileName) {
-	cdPlaySceneNum = fileNum;
 	strcpy(szCdPlayFile, fileName);
 }
 

@@ -18,9 +18,6 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
- * $URL$
- * $Id$
- *
  */
 
 #ifndef RIVEN_SCRIPTS_H
@@ -28,12 +25,14 @@
 
 #include "common/str-array.h"
 #include "common/ptr.h"
+#include "common/textconsole.h"
 
 class MohawkEngine_Riven;
 
 #define DECLARE_OPCODE(x) void x(uint16 op, uint16 argc, uint16 *argv)
 
 namespace Mohawk {
+
 // Script Types
 enum {
 	kMouseDownScript = 0,
@@ -46,7 +45,9 @@ enum {
 	kCardLoadScript = 6,
 	kCardLeaveScript = 7,
 	kCardOpenScript = 9,
-	kCardUpdateScript = 10
+	kCardUpdateScript = 10,
+
+	kStoredOpcodeScript // This is ScummVM-only to denote the script from a storeMovieOpcode() call
 };
 
 class RivenScript;
@@ -114,7 +115,7 @@ private:
 	DECLARE_OPCODE(stopMovie);
 	DECLARE_OPCODE(unk_36);
 	DECLARE_OPCODE(fadeAmbientSounds);
-	DECLARE_OPCODE(complexPlayMovie);
+	DECLARE_OPCODE(storeMovieOpcode);
 	DECLARE_OPCODE(activatePLST);
 	DECLARE_OPCODE(activateSLST);
 	DECLARE_OPCODE(activateMLSTAndPlay);
@@ -134,10 +135,24 @@ public:
 	RivenScriptList readScripts(Common::SeekableReadStream *stream, bool garbageCollect = true);
 	void stopAllScripts();
 
+	struct StoredMovieOpcode {
+		RivenScript *script;
+		uint32 time;
+		uint16 id;
+	};
+
+	uint16 getStoredMovieOpcodeID() { return _storedMovieOpcode.id; }
+	uint32 getStoredMovieOpcodeTime() { return _storedMovieOpcode.time; }
+	void setStoredMovieOpcode(const StoredMovieOpcode &op);
+	void runStoredMovieOpcode();
+	void clearStoredMovieOpcode();
+
 private:
 	void unloadUnusedScripts();
 	RivenScriptList _currentScripts;
 	MohawkEngine_Riven *_vm;
+
+	StoredMovieOpcode _storedMovieOpcode;
 };
 
 } // End of namespace Mohawk

@@ -18,20 +18,17 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
- * $URL$
- * $Id$
- *
  */
 
 #include "common/md5.h"
 #include "common/events.h"
-#include "common/EventRecorder.h"
 #include "common/file.h"
 #include "common/memstream.h"
 #include "common/savefile.h"
 #include "common/config-manager.h"
 #include "common/debug-channels.h"
 #include "common/random.h"
+#include "common/textconsole.h"
 
 #include "engines/util.h"
 
@@ -134,46 +131,65 @@ void AgiEngine::processEvents() {
 			switch (key = event.kbd.keycode) {
 			case Common::KEYCODE_LEFT:
 			case Common::KEYCODE_KP4:
-				if (_allowSynthetic || !event.synthetic)
+				if (_predictiveDialogRunning && key == Common::KEYCODE_KP4)
+					key = event.kbd.ascii;
+				else if (_allowSynthetic || !event.synthetic)
 					key = KEY_LEFT;
 				break;
 			case Common::KEYCODE_RIGHT:
 			case Common::KEYCODE_KP6:
-				if (_allowSynthetic || !event.synthetic)
+				if (_predictiveDialogRunning && key == Common::KEYCODE_KP6)
+					key = event.kbd.ascii;
+				else if (_allowSynthetic || !event.synthetic)
 					key = KEY_RIGHT;
 				break;
 			case Common::KEYCODE_UP:
 			case Common::KEYCODE_KP8:
-				if (_allowSynthetic || !event.synthetic)
+				if (_predictiveDialogRunning && key == Common::KEYCODE_KP8)
+					key = event.kbd.ascii;
+				else if (_allowSynthetic || !event.synthetic)
 					key = KEY_UP;
 				break;
 			case Common::KEYCODE_DOWN:
 			case Common::KEYCODE_KP2:
-				if (_allowSynthetic || !event.synthetic)
+				if (_predictiveDialogRunning && key == Common::KEYCODE_KP2)
+					key = event.kbd.ascii;
+				else if (_allowSynthetic || !event.synthetic)
 					key = KEY_DOWN;
 				break;
 			case Common::KEYCODE_PAGEUP:
 			case Common::KEYCODE_KP9:
-				if (_allowSynthetic || !event.synthetic)
+				if (_predictiveDialogRunning && key == Common::KEYCODE_KP9)
+					key = event.kbd.ascii;
+				else if (_allowSynthetic || !event.synthetic)
 					key = KEY_UP_RIGHT;
 				break;
 			case Common::KEYCODE_PAGEDOWN:
 			case Common::KEYCODE_KP3:
-				if (_allowSynthetic || !event.synthetic)
+				if (_predictiveDialogRunning && key == Common::KEYCODE_KP3)
+					key = event.kbd.ascii;
+				else if (_allowSynthetic || !event.synthetic)
 					key = KEY_DOWN_RIGHT;
 				break;
 			case Common::KEYCODE_HOME:
 			case Common::KEYCODE_KP7:
-				if (_allowSynthetic || !event.synthetic)
+				if (_predictiveDialogRunning && key == Common::KEYCODE_KP7)
+					key = event.kbd.ascii;
+				else if (_allowSynthetic || !event.synthetic)
 					key = KEY_UP_LEFT;
 				break;
 			case Common::KEYCODE_END:
 			case Common::KEYCODE_KP1:
-				if (_allowSynthetic || !event.synthetic)
+				if (_predictiveDialogRunning && key == Common::KEYCODE_KP1)
+					key = event.kbd.ascii;
+				else if (_allowSynthetic || !event.synthetic)
 					key = KEY_DOWN_LEFT;
 				break;
 			case Common::KEYCODE_KP5:
-				key = KEY_STATIONARY;
+				if (_predictiveDialogRunning)
+					key = event.kbd.ascii;
+				else
+					key = KEY_STATIONARY;
 				break;
 			case Common::KEYCODE_PLUS:
 				key = '+';
@@ -273,23 +289,16 @@ void AgiEngine::processEvents() {
 }
 
 void AgiEngine::pollTimer() {
-	uint32 dm;
+	_lastTick += 50;
 
-	if (_tickTimer < _lastTickTimer)
-		_lastTickTimer = 0;
-
-	while ((dm = _tickTimer - _lastTickTimer) < 5) {
+	while (_system->getMillis() < _lastTick) {
 		processEvents();
 		_console->onFrame();
 		_system->delayMillis(10);
 		_system->updateScreen();
 	}
-	_lastTickTimer = _tickTimer;
-}
 
-void AgiEngine::agiTimerFunctionLow(void *refCon) {
-	AgiEngine *self = (AgiEngine *)refCon;
-	self->_tickTimer++;
+	_lastTick = _system->getMillis();
 }
 
 void AgiEngine::pause(uint32 msec) {
@@ -361,12 +370,12 @@ int AgiEngine::agiInit() {
 
 	switch (getVersion() >> 12) {
 	case 2:
-		debug("Emulating Sierra AGI v%x.%03x\n",
+		debug("Emulating Sierra AGI v%x.%03x",
 				(int)(getVersion() >> 12) & 0xF,
 				(int)(getVersion()) & 0xFFF);
 		break;
 	case 3:
-		debug("Emulating Sierra AGI v%x.002.%03x\n",
+		debug("Emulating Sierra AGI v%x.002.%03x",
 				(int)(getVersion() >> 12) & 0xF,
 				(int)(getVersion()) & 0xFFF);
 		break;
@@ -494,8 +503,14 @@ static const GameSettings agiSettings[] = {
 AgiBase::AgiBase(OSystem *syst, const AGIGameDescription *gameDesc) : Engine(syst), _gameDescription(gameDesc) {
 	_noSaveLoadAllowed = false;
 
+	_rnd = new Common::RandomSource("agi");
+
 	initFeatures();
 	initVersion();
+}
+
+AgiBase::~AgiBase() {
+	delete _rnd;
 }
 
 AgiEngine::AgiEngine(OSystem *syst, const AGIGameDescription *gameDesc) : AgiBase(syst, gameDesc) {
@@ -504,9 +519,6 @@ AgiEngine::AgiEngine(OSystem *syst, const AGIGameDescription *gameDesc) : AgiBas
 	syncSoundSettings();
 
 	parseFeatures();
-
-	_rnd = new Common::RandomSource();
-	g_eventRec.registerRandomSource(*_rnd, "agi");
 
 	DebugMan.addDebugChannel(kDebugLevelMain, "Main", "Generic debug level");
 	DebugMan.addDebugChannel(kDebugLevelResources, "Resources", "Resources debugging");
@@ -531,9 +543,6 @@ AgiEngine::AgiEngine(OSystem *syst, const AGIGameDescription *gameDesc) : AgiBas
 	_keyQueueEnd = 0;
 
 	_allowSynthetic = false;
-
-	_tickTimer = 0;
-	_lastTickTimer = 0;
 
 	_intobj = NULL;
 
@@ -646,10 +655,9 @@ void AgiEngine::initialize() {
 
 	_lastSaveTime = 0;
 
-	_timer->installTimerProc(agiTimerFunctionLow, 10 * 1000, this);
+	_lastTick = _system->getMillis();
 
 	debugC(2, kDebugLevelMain, "Detect game");
-
 
 	if (agiDetectGame() == errOK) {
 		_game.state = STATE_LOADED;
@@ -662,12 +670,11 @@ void AgiEngine::initialize() {
 }
 
 AgiEngine::~AgiEngine() {
-	_timer->removeTimerProc(agiTimerFunctionLow);
-
-	// If the engine hasn't been initialized yet via AgiEngine::initialize(), don't attempt to free any resources,
-	// as they haven't been allocated. Fixes bug #1742432 - AGI: Engine crashes if no game is detected
+	// If the engine hasn't been initialized yet via
+	// AgiEngine::initialize(), don't attempt to free any resources, as
+	// they haven't been allocated. Fixes bug #1742432 - AGI: Engine
+	// crashes if no game is detected
 	if (_game.state == STATE_INIT) {
-		delete _rnd;	// delete _rnd, as it is allocated in the constructor, not in initialize()
 		return;
 	}
 
@@ -681,7 +688,6 @@ AgiEngine::~AgiEngine() {
 	free(_game.sbufOrig);
 	_gfx->deinitMachine();
 	delete _gfx;
-	delete _rnd;
 	delete _console;
 
 	free(_predictiveDictLine);
@@ -719,7 +725,7 @@ void AgiEngine::parseFeatures() {
 	/* FIXME: Seems this method doesn't really do anything. It might
 	   be a leftover that could be removed, except that some of its
 	   intended purpose may still need to be reimplemented.
-	   
+
 	[0:29] <Fingolfin> can you tell me what the point behind AgiEngine::parseFeatures() is?
 	[0:30] <_sev> when games are created with WAGI studio
 	[0:31] <_sev> it creates .wag site with game-specific features such as full game title, whether to use AGIMOUSE etc

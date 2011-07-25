@@ -18,9 +18,6 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
- * $URL$
- * $Id$
- *
  */
 
 // The hash map (associative array) implementation in this file is
@@ -47,8 +44,6 @@
 
 
 #include "common/func.h"
-#include "common/str.h"
-#include "common/util.h"
 
 #ifdef DEBUG_HASH_COLLISIONS
 #include "common/debug.h"
@@ -111,8 +106,9 @@ private:
 		HASHMAP_MEMORYPOOL_SIZE = HASHMAP_MIN_CAPACITY * HASHMAP_LOADFACTOR_NUMERATOR / HASHMAP_LOADFACTOR_DENOMINATOR
 	};
 
-
+#ifdef USE_HASHMAP_MEMORY_POOL
 	ObjectPool<Node, HASHMAP_MEMORYPOOL_SIZE> _nodePool;
+#endif
 
 	Node **_storage;	///< hashtable of size arrsize.
 	uint _mask;		///< Capacity of the HashMap minus one; must be a power of two of minus one
@@ -133,17 +129,25 @@ private:
 #endif
 
 	Node *allocNode(const Key &key) {
+#ifdef USE_HASHMAP_MEMORY_POOL
 		return new (_nodePool) Node(key);
+#else
+		return new Node(key);
+#endif
 	}
 
 	void freeNode(Node *node) {
 		if (node && node != HASHMAP_DUMMY_NODE)
+#ifdef USE_HASHMAP_MEMORY_POOL
 			_nodePool.deleteChunk(node);
+#else
+			delete node;
+#endif
 	}
 
 	void assign(const HM_t &map);
-	int lookup(const Key &key) const;
-	int lookupAndCreateIfMissing(const Key &key);
+	uint lookup(const Key &key) const;
+	uint lookupAndCreateIfMissing(const Key &key);
 	void expandStorage(uint newCapacity);
 
 #if !defined(__sgi) || defined(__GNUC__)
@@ -456,7 +460,7 @@ void HashMap<Key, Val, HashFunc, EqualFunc>::expandStorage(uint newCapacity) {
 }
 
 template<class Key, class Val, class HashFunc, class EqualFunc>
-int HashMap<Key, Val, HashFunc, EqualFunc>::lookup(const Key &key) const {
+uint HashMap<Key, Val, HashFunc, EqualFunc>::lookup(const Key &key) const {
 	const uint hash = _hash(key);
 	uint ctr = hash & _mask;
 	for (uint perturb = hash; ; perturb >>= HASHMAP_PERTURB_SHIFT) {
@@ -487,7 +491,7 @@ int HashMap<Key, Val, HashFunc, EqualFunc>::lookup(const Key &key) const {
 }
 
 template<class Key, class Val, class HashFunc, class EqualFunc>
-int HashMap<Key, Val, HashFunc, EqualFunc>::lookupAndCreateIfMissing(const Key &key) {
+uint HashMap<Key, Val, HashFunc, EqualFunc>::lookupAndCreateIfMissing(const Key &key) {
 	const uint hash = _hash(key);
 	uint ctr = hash & _mask;
 	const uint NONE_FOUND = _mask + 1;

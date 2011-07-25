@@ -17,9 +17,6 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
- * $URL$
- * $Id$
- *
  */
 
 #include "common/system.h"
@@ -240,7 +237,7 @@ void ScummEngine_v6::setCursorFromImg(uint img, uint room, uint imgindex) {
 		room = getObjectRoom(img);
 
 	findObjectInRoom(&foir, foCodeHeader | foImageHeader | foCheckAlreadyLoaded, img, room);
-	imhd = (const ImageHeader *)findResourceData(MKID_BE('IMHD'), foir.obim);
+	imhd = (const ImageHeader *)findResourceData(MKTAG('I','M','H','D'), foir.obim);
 
 	if (_game.version == 8) {
 		setCursorHotspot(READ_LE_UINT32(&imhd->v8.hotspot[0].x),
@@ -270,7 +267,7 @@ void ScummEngine_v6::setCursorFromImg(uint img, uint room, uint imgindex) {
 		if (size > sizeof(_grabbedCursor))
 			error("setCursorFromImg: Cursor image too large");
 
-		bomp = findResource(MKID_BE('BOMP'), dataptr);
+		bomp = findResource(MKTAG('B','O','M','P'), dataptr);
 	}
 
 	if (bomp != NULL)
@@ -385,7 +382,7 @@ void ScummEngine_v5::redefineBuiltinCursorFromChar(int index, int chr) {
 		s.pitch = s.w;
 		// s.h = 17 for FM-TOWNS Loom Japanese. Fixes bug #1166917
 		assert(s.w <= 16 && s.h <= 17);
-		s.bytesPerPixel = 1;
+		s.format = Graphics::PixelFormat::createFormatCLUT8();
 
 		_charset->drawChar(chr, s, 0, 0);
 
@@ -554,7 +551,7 @@ void ScummEngine_v5::setBuiltinCursor(int idx) {
 	uint16 color;
 	const uint16 *src = _cursorImages[_currentCursor];
 
-	if (_bytesPerPixelOutput == 2) {
+	if (_outputPixelFormat.bytesPerPixel == 2) {
 		if (_game.id == GID_LOOM && _game.platform == Common::kPlatformPCEngine) {
 			byte r, g, b;
 			colorPCEToRGB(default_pce_cursor_colors[idx], &r, &g, &b);
@@ -580,14 +577,14 @@ void ScummEngine_v5::setBuiltinCursor(int idx) {
 	_cursor.width = 16 * _textSurfaceMultiplier;
 	_cursor.height = 16 * _textSurfaceMultiplier;
 
-	int scl = _bytesPerPixelOutput * _textSurfaceMultiplier;
+	int scl = _outputPixelFormat.bytesPerPixel * _textSurfaceMultiplier;
 
 	for (i = 0; i < 16; i++) {
 		for (j = 0; j < 16; j++) {
 			if (src[i] & (1 << j)) {
 				byte *dst1 = _grabbedCursor + 16 * scl * i * _textSurfaceMultiplier + (15 - j) * scl;
 				byte *dst2 = (_textSurfaceMultiplier == 2) ? dst1 + 16 * scl : dst1;
-				if (_bytesPerPixelOutput == 2) {
+				if (_outputPixelFormat.bytesPerPixel == 2) {
 					for (int b = 0; b < scl; b += 2) {
 						*((uint16*)dst1) = *((uint16*)dst2) = color;
 						dst1 += 2;

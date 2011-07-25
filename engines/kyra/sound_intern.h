@@ -18,9 +18,6 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
- * $URL$
- * $Id$
- *
  */
 
 #ifndef KYRA_SOUND_INTERN_H
@@ -74,6 +71,8 @@ public:
 	void stopAllSoundEffects();
 
 	void beginFadeOut();
+
+	void pause(bool paused);
 private:
 	static void onTimer(void *data);
 
@@ -141,8 +140,6 @@ private:
 	uint8 _sfxChannel;
 
 	TownsEuphonyDriver *_driver;
-	
-	Common::Mutex _mutex;
 
 	bool _cdaPlaying;
 
@@ -219,12 +216,12 @@ public:
 	~MidiDriver_PCSpeaker();
 
 	// MidiDriver interface
-	void close() {}
+	virtual void close() {}
 
-	void send(uint32 data);
+	virtual void send(uint32 data);
 
-	MidiChannel *allocateChannel() { return 0; }
-	MidiChannel *getPercussionChannel() { return 0; }
+	virtual MidiChannel *allocateChannel() { return 0; }
+	virtual MidiChannel *getPercussionChannel() { return 0; }
 
 	// MidiDriver_Emulated interface
 	void generateSamples(int16 *buffer, int numSamples);

@@ -18,15 +18,13 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
- * $URL$
- * $Id$
- *
  */
 
 // Resource library
 
 #include "common/archive.h"
 #include "common/file.h"
+#include "common/textconsole.h"
 
 #include "sci/resource.h"
 #include "sci/resource_intern.h"
@@ -53,9 +51,9 @@ AudioVolumeResourceSource::AudioVolumeResourceSource(ResourceManager *resMan, co
 	fileStream->seek(0, SEEK_SET);
 	uint32 compressionType = fileStream->readUint32BE();
 	switch (compressionType) {
-	case MKID_BE('MP3 '):
-	case MKID_BE('OGG '):
-	case MKID_BE('FLAC'):
+	case MKTAG('M','P','3',' '):
+	case MKTAG('O','G','G',' '):
+	case MKTAG('F','L','A','C'):
 		// Detected a compressed audio volume
 		_audioCompressionType = compressionType;
 		// Now read the whole offset mapping table for later usage
@@ -91,7 +89,7 @@ bool Resource::loadFromWaveFile(Common::SeekableReadStream *file) {
 bool Resource::loadFromAudioVolumeSCI11(Common::SeekableReadStream *file) {
 	// Check for WAVE files here
 	uint32 riffTag = file->readUint32BE();
-	if (riffTag == MKID_BE('RIFF')) {
+	if (riffTag == MKTAG('R','I','F','F')) {
 		_headerSize = 0;
 		size = file->readUint32LE() + 8;
 		file->seek(-8, SEEK_CUR);
@@ -199,7 +197,7 @@ void ResourceManager::readWaveAudioPatches() {
 	for (Common::ArchiveMemberList::const_iterator x = files.begin(); x != files.end(); ++x) {
 		Common::String name = (*x)->getName();
 
-		if (isdigit(name[0]))
+		if (isdigit(static_cast<unsigned char>(name[0])))
 			processWavePatch(ResourceId(kResourceTypeAudio, atoi(name.c_str())), name);
 	}
 }
@@ -358,14 +356,14 @@ int ResourceManager::readAudioMapSCI11(ResourceSource *map) {
 			stream->seek(offset + 1);
 			byte headerSize = stream->readByte();
 			assert(headerSize == 11 || headerSize == 12);
-			
+
 			stream->skip(5);
 			uint32 size = stream->readUint32LE() + headerSize + 2;
 
 			addResource(ResourceId(kResourceTypeAudio, n), src, offset, size);
 		}
 	} else {
-		bool isEarly = (entrySize != 11); 
+		bool isEarly = (entrySize != 11);
 
 		if (!isEarly) {
 			offset = READ_LE_UINT32(ptr);

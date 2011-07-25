@@ -18,9 +18,6 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
- * $URL$
- * $Id$
- *
  */
 
 
@@ -201,7 +198,7 @@ void AGOSEngine::vc78_computeXY() {
 	if (getGameType() == GType_FF) {
 		setBitFlag(85, false);
 		if (getBitFlag(74)) {
-			centreScroll();
+			centerScroll();
 		}
 	}
 }
@@ -348,7 +345,7 @@ void AGOSEngine::checkScrollY(int16 y, int16 ypos) {
 	}
 }
 
-void AGOSEngine::centreScroll() {
+void AGOSEngine::centerScroll() {
 	int16 x, y, tmp;
 
 	if (_scrollXMax != 0) {

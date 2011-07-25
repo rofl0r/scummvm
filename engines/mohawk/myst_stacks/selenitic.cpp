@@ -18,9 +18,6 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
- * $URL$
- * $Id$
- *
  */
 
 #include "mohawk/cursors.h"
@@ -32,6 +29,8 @@
 #include "mohawk/video.h"
 #include "mohawk/myst_stacks/selenitic.h"
 
+#include "common/system.h"
+#include "common/textconsole.h"
 #include "gui/message.h"
 
 namespace Mohawk {
@@ -816,7 +815,7 @@ void Selenitic::o_soundLockEndMove(uint16 op, uint16 var, uint16 argc, uint16 *a
 	debugC(kDebugScript, "Opcode %d: Sound lock end move", op);
 
 	MystResourceType10 *slider = soundLockSliderFromVar(var);
-	uint16 *value = 0;
+	uint16 *value = &_state.soundLockSliderPositions[0];
 
 	switch (var) {
 	case 20: // Sound lock sliders
@@ -833,6 +832,9 @@ void Selenitic::o_soundLockEndMove(uint16 op, uint16 var, uint16 argc, uint16 *a
 		break;
 	case 24:
 		value = &_state.soundLockSliderPositions[4];
+		break;
+	default:
+		error("Incorrect var value for Selenitic opcode 114");
 		break;
 	}
 

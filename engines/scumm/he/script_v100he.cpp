@@ -18,9 +18,6 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
- * $URL$
- * $Id$
- *
  */
 
 #ifdef ENABLE_HE
@@ -2353,10 +2350,10 @@ void ScummEngine_v100he::o100_debugInput() {
 
 void ScummEngine_v100he::o100_isResourceLoaded() {
 	// Reports percentage of resource loaded by queue
-	int type;
+	ResType type;
 
 	byte subOp = fetchScriptByte();
-	/* int idx = */ pop();
+	int idx = pop();
 
 	switch (subOp) {
 	case 25:
@@ -2377,13 +2374,15 @@ void ScummEngine_v100he::o100_isResourceLoaded() {
 	default:
 		error("o100_isResourceLoaded: default case %d", subOp);
 	}
+	debug(7, "o100_isResourceLoaded(%d,%d)", type, idx);
 
 	push(100);
 }
 
 void ScummEngine_v100he::o100_getResourceSize() {
 	const byte *ptr;
-	int size, type;
+	int size;
+	ResType type;
 
 	int resid = pop();
 	byte subOp = fetchScriptByte();
@@ -2402,7 +2401,7 @@ void ScummEngine_v100he::o100_getResourceSize() {
 		type = rtScript;
 		break;
 	case 72:
-		push (getSoundResourceSize(resid));
+		push(getSoundResourceSize(resid));
 		return;
 	default:
 		error("o100_getResourceSize: default type %d", subOp);
@@ -2934,7 +2933,7 @@ void ScummEngine_v100he::o100_getVideoData() {
 		break;
 	case 73:
 		pop();
-		push(_moviePlay->endOfVideo() ? -1 : (_moviePlay->getCurFrame() + 1));
+		push(_moviePlay->getCurFrame());
 		break;
 	case 84:
 		pop();
@@ -2999,7 +2998,7 @@ void ScummEngine_v100he::decodeParseString(int m, int n) {
 	case 78:
 		{
 		byte *dataPtr = getResourceAddress(rtTalkie, pop());
-		byte *text = findWrappedBlock(MKID_BE('TEXT'), dataPtr, 0, 0);
+		byte *text = findWrappedBlock(MKTAG('T','E','X','T'), dataPtr, 0, 0);
 		size = getResourceDataSize(text);
 		memcpy(name, text, size);
 		printString(m, name);

@@ -18,9 +18,6 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
- * $URL$
- * $Id$
- *
  * The movie player.
  */
 
@@ -43,6 +40,8 @@
 #include "tinsel/tinsel.h"
 
 #include "audio/decoders/raw.h"
+
+#include "common/textconsole.h"
 
 namespace Tinsel {
 
@@ -81,7 +80,7 @@ namespace Tinsel {
 #define BIT0		0x01
 
 #define CD_XSCR		0x04	// Screen has a scroll offset
-#define CD_CMAP	0x08	// Colour map is included
+#define CD_CMAP	0x08	// Color map is included
 #define CD_CMND	0x10	// Command is included
 #define CD_AUDIO	0x20	// Audio data is included
 #define CD_EXTEND	0x40	// Extended modes "A"-"z"
@@ -350,7 +349,7 @@ BMVPlayer::BMVPlayer() {
 
 	memset(texts, 0, sizeof(texts));
 
-	talkColour = 0;
+	talkColor = 0;
 	bigProblemCount = 0;
 	bIsText = 0;
 	movieTick = 0;
@@ -382,11 +381,11 @@ void BMVPlayer::MoviePalette(int paletteOffset) {
 	UpdateDACqueue(1, 255, &moviePal[1]);
 
 	// Don't clobber talk
-	if (talkColour != 0)
-		SetTextPal(talkColour);
+	if (talkColor != 0)
+		SetTextPal(talkColor);
 }
 
-void BMVPlayer::InitialiseMovieSound() {
+void BMVPlayer::InitializeMovieSound() {
 	_audioStream = Audio::makeQueuingAudioStream(22050, true);
 	audioStarted = false;
 }
@@ -490,7 +489,7 @@ void BMVPlayer::BmvDrawText(bool bDraw) {
 |-------------------------------------------------------|
 \*-----------------------------------------------------*/
 
-void BMVPlayer::MovieText(CORO_PARAM, int stringId, int x, int y, int fontId, COLORREF *pTalkColour, int duration) {
+void BMVPlayer::MovieText(CORO_PARAM, int stringId, int x, int y, int fontId, COLORREF *pTalkColor, int duration) {
 	SCNHANDLE hFont;
 	int	index;
 
@@ -502,8 +501,8 @@ void BMVPlayer::MovieText(CORO_PARAM, int stringId, int x, int y, int fontId, CO
 	} else {
 		// It's a 'talk'
 
-		if (pTalkColour != NULL)
-			SetTextPal(*pTalkColour);
+		if (pTalkColor != NULL)
+			SetTextPal(*pTalkColor);
 		hFont = GetTalkFontHandle();
 		index = 1;
 	}
@@ -519,7 +518,7 @@ void BMVPlayer::MovieText(CORO_PARAM, int stringId, int x, int y, int fontId, CO
 						0,
 						x, y,
 						hFont,
-						TXT_CENTRE, 0);
+						TXT_CENTER, 0);
 	KeepOnScreen(texts[index].pText, &x, &y);
 }
 
@@ -541,13 +540,13 @@ int BMVPlayer::MovieCommand(char cmd, int commandOffset) {
 	} else {
 		if (_vm->_config->_useSubtitles) {
 			TALK_CMD *pCmd = (TALK_CMD *)(bigBuffer + commandOffset);
-			talkColour = TINSEL_RGB(pCmd->r, pCmd->g, pCmd->b);
+			talkColor = TINSEL_RGB(pCmd->r, pCmd->g, pCmd->b);
 
 			MovieText(nullContext, (int16)READ_LE_UINT16(&pCmd->stringId),
 					(int16)READ_LE_UINT16(&pCmd->x),
 					(int16)READ_LE_UINT16(&pCmd->y),
 					0,
-					&talkColour,
+					&talkColor,
 					pCmd->duration);
 		}
 		return sz_CMD_TALK_pkt;
@@ -664,7 +663,7 @@ void BMVPlayer::LoadSlots(int number) {
 /**
  * Called from the foreground when starting playback of a movie.
  */
-void BMVPlayer::InitialiseBMV() {
+void BMVPlayer::InitializeBMV() {
 	if (!stream.open(szMovieFile))
 		error(CANNOT_FIND_FILE, szMovieFile);
 
@@ -681,7 +680,7 @@ void BMVPlayer::InitialiseBMV() {
 	// Pass the sceen buffer to the decompresser
 	InitBMV(screenBuffer);
 
-	// Initialise some stuff
+	// Initialize some stuff
 	nextUseOffset = 0;
 	nextSoundOffset = 0;
 	wrapUseOffset = -1;
@@ -693,7 +692,7 @@ void BMVPlayer::InitialiseBMV() {
 	bFileEnd = false;
 	blobsInBuffer = 0;
 	memset(texts, 0, sizeof(texts));
-	talkColour = 0;
+	talkColor = 0;
 	bigProblemCount = 0;
 
 	movieTick = 0;
@@ -706,8 +705,8 @@ void BMVPlayer::InitialiseBMV() {
 	while (numAdvancePackets < ADVANCE_SOUND)
 		LoadSlots(1);
 
-	// Initialise the sound channel
-	InitialiseMovieSound();
+	// Initialize the sound channel
+	InitializeMovieSound();
 }
 
 /**
@@ -1025,7 +1024,6 @@ bool BMVPlayer::DoSoundFrame() {
 void BMVPlayer::CopyMovieToScreen() {
 	// Not if not up and running yet!
 	if (!screenBuffer || (currentFrame == 0)) {
-		ForceEntireRedraw();
 		DrawBackgnd();
 		return;
 	}
@@ -1046,21 +1044,6 @@ void BMVPlayer::CopyMovieToScreen() {
 }
 
 /**
- * LookAtBuffers
- */
-void BMVPlayer::LookAtBuffers() {
-	// FIXME: What's the point of this function???
-	// Maybe to ensure the relevant data is loaded into cache by the CPU?
-	static int junk;	// FIXME: Avoid non-const global vars
-	int i;
-
-	if (bigBuffer) {
-		for (i = 0; i < NUM_SLOTS; i++)
-			junk += bigBuffer[i*SLOT_SIZE];
-	}
-}
-
-/**
  * Handles playback of any active movie. Called from the foreground 24 times a second.
  */
 void BMVPlayer::FettleBMV() {
@@ -1078,14 +1061,12 @@ void BMVPlayer::FettleBMV() {
 		return;
 	}
 
-	LookAtBuffers();
-
 	if (!stream.isOpen()) {
 		int i;
 
 		// First time in with this movie
 
-		InitialiseBMV();
+		InitializeBMV();
 
 		for (i = 0; i < ADVANCE_SOUND;) {
 			if (DoSoundFrame())

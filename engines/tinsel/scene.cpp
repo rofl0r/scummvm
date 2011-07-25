@@ -18,9 +18,6 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
- * $URL$
- * $Id$
- *
  * Starts up new scenes.
  */
 
@@ -51,6 +48,7 @@
 #include "tinsel/sysvar.h"
 #include "tinsel/token.h"
 
+#include "common/textconsole.h"
 
 namespace Tinsel {
 
@@ -112,14 +110,10 @@ struct ENTRANCE_STRUC {
 static bool ShowPosition = false;	// Set when showpos() has been called
 #endif
 
-SCNHANDLE newestScene = 0;
-
 int sceneCtr = 0;
 static int initialMyEscape;
 
 static SCNHANDLE SceneHandle = 0;	// Current scene handle - stored in case of Save_Scene()
-
-static bool bWatchingOut = false;
 
 SCENE_STRUC tempStruc;
 
@@ -180,9 +174,6 @@ static void SceneTinselProcess(CORO_PARAM, const void *param) {
 		_ctx->myEscape);
 	CORO_INVOKE_1(Interpret, _ctx->pic);
 
-	if (_ctx->pInit->event == CLOSEDOWN || _ctx->pInit->event == LEAVE_T2)
-		bWatchingOut = false;
-
 	CORO_END_CODE;
 }
 
@@ -192,9 +183,6 @@ static void SceneTinselProcess(CORO_PARAM, const void *param) {
  */
 void SendSceneTinselProcess(TINSEL_EVENT event) {
 	SCENE_STRUC	*ss;
-
-	if (event == CLOSEDOWN || event == LEAVE_T2)
-		bWatchingOut = true;
 
 	if (SceneHandle != (SCNHANDLE)NULL) {
 		ss = (SCENE_STRUC *) FindChunk(SceneHandle, CHUNK_SCENE);
@@ -206,18 +194,15 @@ void SendSceneTinselProcess(TINSEL_EVENT event) {
 			init.hTinselCode = ss->hSceneScript;
 
 			g_scheduler->createProcess(PID_TCODE, SceneTinselProcess, &init, sizeof(init));
-		} else if (event == CLOSEDOWN)
-			bWatchingOut = false;
+		}
 	}
-	else if (event == CLOSEDOWN)
-		bWatchingOut = false;
 }
 
 
 /**
  * Get the SCENE_STRUC
- * Initialise polygons for the scene
- * Initialise the actors for this scene
+ * Initialize polygons for the scene
+ * Initialize the actors for this scene
  * Run the appropriate entrance code (if any)
  * Get the default refer type
  */
@@ -249,9 +234,6 @@ static void LoadScene(SCNHANDLE scene, int entry) {
 	assert(ss != NULL);
 
 	if (TinselV2) {
-		// Handle to scene description
-		newestScene = FROM_LE_32(ss->hSceneDesc);
-
 		// Music stuff
 		char *cptr = (char *)FindChunk(scene, CHUNK_MUSIC_FILENAME);
 		assert(cptr);
@@ -262,10 +244,10 @@ static void LoadScene(SCNHANDLE scene, int entry) {
 	if (entry == NO_ENTRY_NUM) {
 		// Restoring scene
 
-		// Initialise all the polygons for this scene
+		// Initialize all the polygons for this scene
 		InitPolygons(FROM_LE_32(ss->hPoly), FROM_LE_32(ss->numPoly), true);
 
-		// Initialise the actors for this scene
+		// Initialize the actors for this scene
 		StartTaggedActors(FROM_LE_32(ss->hTaggedActor), FROM_LE_32(ss->numTaggedActor), false);
 
 		if (TinselV2)
@@ -275,10 +257,10 @@ static void LoadScene(SCNHANDLE scene, int entry) {
 	} else {
 		// Genuine new scene
 
-		// Initialise all the polygons for this scene
+		// Initialize all the polygons for this scene
 		InitPolygons(FROM_LE_32(ss->hPoly), FROM_LE_32(ss->numPoly), false);
 
-		// Initialise the actors for this scene
+		// Initialize the actors for this scene
 		StartTaggedActors(FROM_LE_32(ss->hTaggedActor), FROM_LE_32(ss->numTaggedActor), true);
 
 		// Run the appropriate entrance code (if any)
@@ -397,7 +379,7 @@ void PrimeBackground() {
 
 	// structure for background
 	static const BACKGND backgnd = {
-		BLACK,			// sky colour
+		BLACK,			// sky color
 		Common::Point(0, 0),	// initial world pos
 		Common::Rect(0, 0, SCREEN_WIDTH, SCREEN_HEIGHT),	// scroll limits
 		0,				// no background update process

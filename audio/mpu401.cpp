@@ -17,9 +17,6 @@
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * $URL$
- * $Id$
  */
 
 #include "audio/mpu401.h"
@@ -36,7 +33,10 @@ void MidiChannel_MPU401::init(MidiDriver *owner, byte channel) {
 bool MidiChannel_MPU401::allocate() {
 	if (_allocated)
 		return false;
-	return (_allocated = true);
+
+	_allocated = true;
+
+	return true;
 }
 
 MidiDriver *MidiChannel_MPU401::device() {
@@ -101,12 +101,18 @@ MidiDriver_MPU401::MidiDriver_MPU401() :
 	}
 }
 
+MidiDriver_MPU401::~MidiDriver_MPU401() {
+}
+
 void MidiDriver_MPU401::close() {
-	if (_timer_proc)
+	if (_timer_proc) {
 		g_system->getTimerManager()->removeTimerProc(_timer_proc);
-	_timer_proc = 0;
-	for (int i = 0; i < 16; ++i)
-		send(0x7B << 8 | 0xB0 | i);
+		_timer_proc = 0;
+	}
+	if (isOpen()) {
+		for (int i = 0; i < 16; ++i)
+			send(0x7B << 8 | 0xB0 | i);
+	}
 }
 
 uint32 MidiDriver_MPU401::property(int prop, uint32 param) {

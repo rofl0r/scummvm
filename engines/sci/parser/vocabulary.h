@@ -18,9 +18,6 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
- * $URL$
- * $Id$
- *
  */
 
 #ifndef SCI_SCICORE_VOCABULARY_H
@@ -383,12 +380,11 @@ void vocab_dump_parse_tree(const char *tree_name, ParseTreeNode *nodes);
 
 /**
  * Builds a parse tree from a spec and compares it to a parse tree.
- * @param s			The affected state
  * @param spec		Pointer to the spec to build
  * @param verbose	Whether to display the parse tree after building it
  * @return 1 on a match, 0 otherwise
  */
-int said(EngineState *s, const byte *spec, bool verbose);
+int said(const byte *spec, bool verbose);
 
 } // End of namespace Sci
 

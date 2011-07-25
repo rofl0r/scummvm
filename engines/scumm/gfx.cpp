@@ -17,9 +17,6 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
- * $URL$
- * $Id$
- *
  */
 
 #include "common/system.h"
@@ -36,6 +33,12 @@
 #include "scumm/util.h"
 
 #ifdef USE_ARM_GFX_ASM
+
+#ifndef IPHONE
+#define asmDrawStripToScreen _asmDrawStripToScreen
+#define asmCopy8Col _asmCopy8Col
+#endif
+
 extern "C" void asmDrawStripToScreen(int height, int width, void const* text, void const* src, byte* dst,
 	int vsPitch, int vmScreenWidth, int textSurfacePitch);
 extern "C" void asmCopy8Col(byte* dst, int dstPitch, const byte* src, int height, uint8 bitDepth);
@@ -215,6 +218,10 @@ Gdi::Gdi(ScummEngine *vm) : _vm(vm) {
 Gdi::~Gdi() {
 }
 
+GdiHE::GdiHE(ScummEngine *vm) : Gdi(vm), _tmskPtr(0) {
+}
+
+
 GdiNES::GdiNES(ScummEngine *vm) : Gdi(vm) {
 	memset(&_NES, 0, sizeof(_NES));
 }
@@ -244,7 +251,7 @@ GdiV2::~GdiV2() {
 }
 
 #ifdef USE_RGB_COLOR
-Gdi16Bit::Gdi16Bit(ScummEngine *vm) : Gdi(vm) {
+GdiHE16bit::GdiHE16bit(ScummEngine *vm) : GdiHE(vm) {
 }
 #endif
 
@@ -283,7 +290,7 @@ void Gdi::loadTiles(byte *roomptr) {
 
 #ifdef USE_RGB_COLOR
 void GdiPCEngine::loadTiles(byte *roomptr) {
-	decodePCEngineTileData(_vm->findResourceData(MKID_BE('TILE'), roomptr));
+	decodePCEngineTileData(_vm->findResourceData(MKTAG('T','I','L','E'), roomptr));
 }
 #endif
 
@@ -385,8 +392,11 @@ void ScummEngine::initVirtScreen(VirtScreenNumber slot, int top, int width, int 
 	vs->hasTwoBuffers = twobufs;
 	vs->xstart = 0;
 	vs->backBuf = NULL;
-	vs->bytesPerPixel = (_game.features & GF_16BIT_COLOR) ? 2 : 1;
-	vs->pitch = width * vs->bytesPerPixel;
+	if (_game.features & GF_16BIT_COLOR)
+		vs->format = Graphics::PixelFormat(2, 5, 5, 5, 0, 10, 5, 0, 0);
+	else
+		vs->format = Graphics::PixelFormat::createFormatCLUT8();
+	vs->pitch = width * vs->format.bytesPerPixel;
 
 	if (_game.version >= 7) {
 		// Increase the pitch by one; needed to accomodate the extra screen
@@ -573,7 +583,7 @@ void ScummEngine::updateDirtyScreen(VirtScreenNumber slot) {
 			vs->tdirty[i] = vs->h;
 			vs->bdirty[i] = 0;
 			if (i != (_gdi->_numStrips - 1) && vs->bdirty[i + 1] == bottom && vs->tdirty[i + 1] == top) {
-				// Simple optimizations: if two or more neighbouring strips
+				// Simple optimizations: if two or more neighboring strips
 				// form one bigger rectangle, coalesce them.
 				w += 8;
 				continue;
@@ -622,7 +632,7 @@ void ScummEngine::drawStripToScreen(VirtScreen *vs, int x, int width, int top, i
 	int m = _textSurfaceMultiplier;
 	int vsPitch;
 	int pitch = vs->pitch;
-	vsPitch = vs->pitch - width * vs->bytesPerPixel;
+	vsPitch = vs->pitch - width * vs->format.bytesPerPixel;
 
 
 	if (_game.version < 7) {
@@ -642,16 +652,13 @@ void ScummEngine::drawStripToScreen(VirtScreen *vs, int x, int width, int top, i
 		assert(0 == (width & 3));
 
 		// Compose the text over the game graphics
-#ifdef USE_ARM_GFX_ASM
-		asmDrawStripToScreen(height, width, text, src, _compositeBuf, vs->pitch, width, _textSurface.pitch);
-#else
 #ifndef DISABLE_TOWNS_DUAL_LAYER_MODE
 		if (_game.platform == Common::kPlatformFMTowns) {
 			towns_drawStripToScreen(vs, x, y, x, top, width, height);
-			return;	
+			return;
 		} else
-#endif	
-		if (_bytesPerPixelOutput == 2) {
+#endif
+		if (_outputPixelFormat.bytesPerPixel == 2) {
 			const byte *srcPtr = (const byte *)src;
 			const byte *textPtr = (byte *)_textSurface.getBasePtr(x * m, y * m);
 			byte *dstPtr = _compositeBuf;
@@ -667,12 +674,16 @@ void ScummEngine::drawStripToScreen(VirtScreen *vs, int x, int width, int top, i
 					} else {
 						WRITE_UINT16(dstPtr, _16BitPalette[tmp]); dstPtr += 2;
 					}
-					srcPtr += vs->bytesPerPixel;
+					srcPtr += vs->format.bytesPerPixel;
 				}
 				srcPtr += vsPitch;
 				textPtr += _textSurface.pitch - width * m;
 			}
-		} else {
+		}
+#ifdef USE_ARM_GFX_ASM
+		asmDrawStripToScreen(height, width, text, src, _compositeBuf, vs->pitch, width, _textSurface.pitch);
+#else
+		else {
 			// We blit four pixels at a time, for improved performance.
 			const uint32 *src32 = (const uint32 *)src;
 			uint32 *dst32 = (uint32 *)_compositeBuf;
@@ -706,16 +717,16 @@ void ScummEngine::drawStripToScreen(VirtScreen *vs, int x, int width, int top, i
 		}
 #endif
 		src = _compositeBuf;
-		pitch = width * vs->bytesPerPixel;
+		pitch = width * vs->format.bytesPerPixel;
 
 		if (_renderMode == Common::kRenderHercA || _renderMode == Common::kRenderHercG) {
 			ditherHerc(_compositeBuf, _herculesBuf, width, &x, &y, &width, &height);
 
-			src = _herculesBuf + x + y * Common::kHercW;
-			pitch = Common::kHercW;
+			src = _herculesBuf + x + y * kHercWidth;
+			pitch = kHercWidth;
 
 			// center image on the screen
-			x += (Common::kHercW - _screenWidth * 2) / 2;	// (720 - 320*2)/2 = 40
+			x += (kHercWidth - _screenWidth * 2) / 2;	// (720 - 320*2)/2 = 40
 		} else if (_useCJKMode && m == 2) {
 			pitch *= m;
 			x *= m;
@@ -808,10 +819,10 @@ void ditherHerc(byte *src, byte *hercbuf, int srcPitch, int *x, int *y, int *wid
 	int dsty = yo*2 - yo/4;
 
 	for (int y1 = 0; y1 < heighto;) {
-		assert(dsty < Common::kHercH);
+		assert(dsty < kHercHeight);
 
 		srcptr = src + y1 * srcPitch;
-		dstptr = hercbuf + dsty * Common::kHercW + xo * 2;
+		dstptr = hercbuf + dsty * kHercWidth + xo * 2;
 
 		const int idx1 = (dsty % 7) % 2;
 		for (int x1 = 0; x1 < widtho; x1++) {
@@ -858,7 +869,7 @@ void ScummEngine::initBGBuffers(int height) {
 		_gdi->_numZBuffer = 2;
 	} else if (_game.features & GF_SMALL_HEADER) {
 		int off;
-		ptr = findResourceData(MKID_BE('SMAP'), room);
+		ptr = findResourceData(MKTAG('S','M','A','P'), room);
 		_gdi->_numZBuffer = 0;
 
 		if (_game.features & GF_16COLOR)
@@ -873,13 +884,13 @@ void ScummEngine::initBGBuffers(int height) {
 		}
 	} else if (_game.version == 8) {
 		// in V8 there is no RMIH and num z buffers is in RMHD
-		ptr = findResource(MKID_BE('RMHD'), room);
+		ptr = findResource(MKTAG('R','M','H','D'), room);
 		_gdi->_numZBuffer = READ_LE_UINT32(ptr + 24) + 1;
 	} else if (_game.heversion >= 70) {
-		ptr = findResource(MKID_BE('RMIH'), room);
+		ptr = findResource(MKTAG('R','M','I','H'), room);
 		_gdi->_numZBuffer = READ_LE_UINT16(ptr + 8) + 1;
 	} else {
-		ptr = findResource(MKID_BE('RMIH'), findResource(MKID_BE('RMIM'), room));
+		ptr = findResource(MKTAG('R','M','I','H'), findResource(MKTAG('R','M','I','M'), room));
 		_gdi->_numZBuffer = READ_LE_UINT16(ptr + 8) + 1;
 	}
 	assert(_gdi->_numZBuffer >= 1 && _gdi->_numZBuffer <= 8);
@@ -1013,7 +1024,7 @@ void ScummEngine::restoreBackground(Common::Rect rect, byte backColor) {
 
 	if (rect.left > vs->w)
 		return;
-	
+
 	// Convert 'rect' to local (virtual screen) coordinates
 	rect.top -= vs->topline;
 	rect.bottom -= vs->topline;
@@ -1036,17 +1047,17 @@ void ScummEngine::restoreBackground(Common::Rect rect, byte backColor) {
 		return;
 
 	if (vs->hasTwoBuffers && _currentRoom != 0 && isLightOn()) {
-		blit(screenBuf, vs->pitch, vs->getBackPixels(rect.left, rect.top), vs->pitch, width, height, vs->bytesPerPixel);
+		blit(screenBuf, vs->pitch, vs->getBackPixels(rect.left, rect.top), vs->pitch, width, height, vs->format.bytesPerPixel);
 		if (vs->number == kMainVirtScreen && _charset->_hasMask) {
 #ifndef DISABLE_TOWNS_DUAL_LAYER_MODE
 			if (_game.platform == Common::kPlatformFMTowns) {
 				byte *mask = (byte *)_textSurface.getBasePtr(rect.left * _textSurfaceMultiplier, (rect.top + vs->topline) * _textSurfaceMultiplier);
-				fill(mask, _textSurface.pitch, 0, width * _textSurfaceMultiplier, height * _textSurfaceMultiplier, _textSurface.bytesPerPixel);
+				fill(mask, _textSurface.pitch, 0, width * _textSurfaceMultiplier, height * _textSurfaceMultiplier, _textSurface.format.bytesPerPixel);
 			} else
 #endif
 			{
 				byte *mask = (byte *)_textSurface.getBasePtr(rect.left, rect.top - _screenTop);
-				fill(mask, _textSurface.pitch, CHARSET_MASK_TRANSPARENCY, width * _textSurfaceMultiplier, height * _textSurfaceMultiplier, _textSurface.bytesPerPixel);
+				fill(mask, _textSurface.pitch, CHARSET_MASK_TRANSPARENCY, width * _textSurfaceMultiplier, height * _textSurfaceMultiplier, _textSurface.format.bytesPerPixel);
 			}
 		}
 	} else {
@@ -1054,14 +1065,14 @@ void ScummEngine::restoreBackground(Common::Rect rect, byte backColor) {
 		if (_game.platform == Common::kPlatformFMTowns) {
 			backColor |= (backColor << 4);
 			byte *mask = (byte *)_textSurface.getBasePtr(rect.left * _textSurfaceMultiplier, (rect.top + vs->topline) * _textSurfaceMultiplier);
-			fill(mask, _textSurface.pitch, backColor, width * _textSurfaceMultiplier, height * _textSurfaceMultiplier, _textSurface.bytesPerPixel);
+			fill(mask, _textSurface.pitch, backColor, width * _textSurfaceMultiplier, height * _textSurfaceMultiplier, _textSurface.format.bytesPerPixel);
 		}
 #endif
-			
+
 		if (_game.features & GF_16BIT_COLOR)
-			fill(screenBuf, vs->pitch, _16BitPalette[backColor], width, height, vs->bytesPerPixel);
+			fill(screenBuf, vs->pitch, _16BitPalette[backColor], width, height, vs->format.bytesPerPixel);
 		else
-			fill(screenBuf, vs->pitch, backColor, width, height, vs->bytesPerPixel);
+			fill(screenBuf, vs->pitch, backColor, width, height, vs->format.bytesPerPixel);
 	}
 }
 
@@ -1090,7 +1101,7 @@ void ScummEngine::restoreCharsetBg() {
 			if (vs->number != kMainVirtScreen) {
 				// Restore from back buffer
 				const byte *backBuf = vs->getBackPixels(0, 0);
-				blit(screenBuf, vs->pitch, backBuf, vs->pitch, vs->w, vs->h, vs->bytesPerPixel);
+				blit(screenBuf, vs->pitch, backBuf, vs->pitch, vs->w, vs->h, vs->format.bytesPerPixel);
 			}
 		} else {
 			// Clear area
@@ -1117,8 +1128,8 @@ void ScummEngine::clearTextSurface() {
 	fill((byte*)_textSurface.pixels,  _textSurface.pitch,
 #ifndef DISABLE_TOWNS_DUAL_LAYER_MODE
 		_game.platform == Common::kPlatformFMTowns ? 0 :
-#endif		
-		CHARSET_MASK_TRANSPARENCY,  _textSurface.w, _textSurface.h, _textSurface.bytesPerPixel);
+#endif
+		CHARSET_MASK_TRANSPARENCY,  _textSurface.w, _textSurface.h, _textSurface.format.bytesPerPixel);
 }
 
 byte *ScummEngine::getMaskBuffer(int x, int y, int z) {
@@ -1283,66 +1294,64 @@ void ScummEngine::drawBox(int x, int y, int x2, int y2, int color) {
 		) {
 #ifndef DISABLE_TOWNS_DUAL_LAYER_MODE
 		if (_game.platform == Common::kPlatformFMTowns) {
-			if (color == 254) {
-				color = color;
+			if (color == 254)
 				towns_setupPalCycleField(x, y, x2, y2);
-			}
 		} else
 #endif
 		{
 			if (vs->number != kMainVirtScreen)
 				error("can only copy bg to main window");
 
-			blit(backbuff, vs->pitch, bgbuff, vs->pitch, width, height, vs->bytesPerPixel);
+			blit(backbuff, vs->pitch, bgbuff, vs->pitch, width, height, vs->format.bytesPerPixel);
 			if (_charset->_hasMask) {
 				byte *mask = (byte *)_textSurface.getBasePtr(x * _textSurfaceMultiplier, (y - _screenTop) * _textSurfaceMultiplier);
-				fill(mask, _textSurface.pitch, CHARSET_MASK_TRANSPARENCY, width * _textSurfaceMultiplier, height * _textSurfaceMultiplier, _textSurface.bytesPerPixel);
+				fill(mask, _textSurface.pitch, CHARSET_MASK_TRANSPARENCY, width * _textSurfaceMultiplier, height * _textSurfaceMultiplier, _textSurface.format.bytesPerPixel);
 			}
 		}
 	} else if (_game.heversion >= 72) {
 		// Flags are used for different methods in HE games
 		uint32 flags = color;
 		if ((flags & 0x2000) || (flags & 0x4000000)) {
-			blit(backbuff, vs->pitch, bgbuff, vs->pitch, width, height, vs->bytesPerPixel);
+			blit(backbuff, vs->pitch, bgbuff, vs->pitch, width, height, vs->format.bytesPerPixel);
 		} else if ((flags & 0x4000) || (flags & 0x2000000)) {
-			blit(bgbuff, vs->pitch, backbuff, vs->pitch, width, height, vs->bytesPerPixel);
+			blit(bgbuff, vs->pitch, backbuff, vs->pitch, width, height, vs->format.bytesPerPixel);
 		} else if ((flags & 0x8000) || (flags & 0x1000000)) {
 			flags &= (flags & 0x1000000) ? 0xFFFFFF : 0x7FFF;
-			fill(backbuff, vs->pitch, flags, width, height, vs->bytesPerPixel);
-			fill(bgbuff, vs->pitch, flags, width, height, vs->bytesPerPixel);
+			fill(backbuff, vs->pitch, flags, width, height, vs->format.bytesPerPixel);
+			fill(bgbuff, vs->pitch, flags, width, height, vs->format.bytesPerPixel);
 		} else {
-			fill(backbuff, vs->pitch, flags, width, height, vs->bytesPerPixel);
+			fill(backbuff, vs->pitch, flags, width, height, vs->format.bytesPerPixel);
 		}
 	} else if (_game.heversion >= 60) {
 		// Flags are used for different methods in HE games
 		uint16 flags = color;
 		if (flags & 0x2000) {
-			blit(backbuff, vs->pitch, bgbuff, vs->pitch, width, height, vs->bytesPerPixel);
+			blit(backbuff, vs->pitch, bgbuff, vs->pitch, width, height, vs->format.bytesPerPixel);
 		} else if (flags & 0x4000) {
-			blit(bgbuff, vs->pitch, backbuff, vs->pitch, width, height, vs->bytesPerPixel);
+			blit(bgbuff, vs->pitch, backbuff, vs->pitch, width, height, vs->format.bytesPerPixel);
 		} else if (flags & 0x8000) {
 			flags &= 0x7FFF;
-			fill(backbuff, vs->pitch, flags, width, height, vs->bytesPerPixel);
-			fill(bgbuff, vs->pitch, flags, width, height, vs->bytesPerPixel);
+			fill(backbuff, vs->pitch, flags, width, height, vs->format.bytesPerPixel);
+			fill(bgbuff, vs->pitch, flags, width, height, vs->format.bytesPerPixel);
 		} else {
-			fill(backbuff, vs->pitch, flags, width, height, vs->bytesPerPixel);
+			fill(backbuff, vs->pitch, flags, width, height, vs->format.bytesPerPixel);
 		}
 	} else {
 		if (_game.features & GF_16BIT_COLOR) {
-			fill(backbuff, vs->pitch, _16BitPalette[color], width, height, vs->bytesPerPixel);
+			fill(backbuff, vs->pitch, _16BitPalette[color], width, height, vs->format.bytesPerPixel);
 		} else {
 #ifndef DISABLE_TOWNS_DUAL_LAYER_MODE
 			if (_game.platform == Common::kPlatformFMTowns) {
 				color = ((color & 0x0f) << 4) | (color & 0x0f);
 				byte *mask = (byte *)_textSurface.getBasePtr(x * _textSurfaceMultiplier, (y - _screenTop + vs->topline) * _textSurfaceMultiplier);
-				fill(mask, _textSurface.pitch, color, width * _textSurfaceMultiplier, height * _textSurfaceMultiplier, _textSurface.bytesPerPixel);
-				
+				fill(mask, _textSurface.pitch, color, width * _textSurfaceMultiplier, height * _textSurfaceMultiplier, _textSurface.format.bytesPerPixel);
+
 				if (_game.id == GID_MONKEY2 || _game.id == GID_INDY4 || ((_game.id == GID_INDY3 || _game.id == GID_ZAK) && vs->number != kTextVirtScreen) || (_game.id == GID_LOOM && vs->number == kMainVirtScreen))
 					return;
 			}
 #endif
-			
-			fill(backbuff, vs->pitch, color, width, height, vs->bytesPerPixel);
+
+			fill(backbuff, vs->pitch, color, width, height, vs->format.bytesPerPixel);
 		}
 	}
 }
@@ -1381,7 +1390,7 @@ void ScummEngine_v5::drawFlashlight() {
 										_flashlight.y, _flashlight.y + _flashlight.h, USAGE_BIT_DIRTY);
 
 		if (_flashlight.buffer) {
-			fill(_flashlight.buffer, vs->pitch, 0, _flashlight.w, _flashlight.h, vs->bytesPerPixel);
+			fill(_flashlight.buffer, vs->pitch, 0, _flashlight.w, _flashlight.h, vs->format.bytesPerPixel);
 		}
 		_flashlight.isDrawn = false;
 	}
@@ -1428,20 +1437,20 @@ void ScummEngine_v5::drawFlashlight() {
 	_flashlight.buffer = vs->getPixels(_flashlight.x, _flashlight.y);
 	bgbak = vs->getBackPixels(_flashlight.x, _flashlight.y);
 
-	blit(_flashlight.buffer, vs->pitch, bgbak, vs->pitch, _flashlight.w, _flashlight.h, vs->bytesPerPixel);
+	blit(_flashlight.buffer, vs->pitch, bgbak, vs->pitch, _flashlight.w, _flashlight.h, vs->format.bytesPerPixel);
 
 	// Round the corners. To do so, we simply hard-code a set of nicely
 	// rounded corners.
 	static const int corner_data[] = { 8, 6, 4, 3, 2, 2, 1, 1 };
 	int minrow = 0;
-	int maxcol = (_flashlight.w - 1) * vs->bytesPerPixel;
+	int maxcol = (_flashlight.w - 1) * vs->format.bytesPerPixel;
 	int maxrow = (_flashlight.h - 1) * vs->pitch;
 
 	for (i = 0; i < 8; i++, minrow += vs->pitch, maxrow -= vs->pitch) {
 		int d = corner_data[i];
 
 		for (j = 0; j < d; j++) {
-			if (vs->bytesPerPixel == 2) {
+			if (vs->format.bytesPerPixel == 2) {
 				WRITE_UINT16(&_flashlight.buffer[minrow + 2 * j], 0);
 				WRITE_UINT16(&_flashlight.buffer[minrow + maxcol - 2 * j], 0);
 				WRITE_UINT16(&_flashlight.buffer[maxrow + 2 * j], 0);
@@ -1494,6 +1503,15 @@ void Gdi::prepareDrawBitmap(const byte *ptr, VirtScreen *vs,
 					const int x, const int y, const int width, const int height,
 	                int stripnr, int numstrip) {
 	// Do nothing by default
+}
+
+void GdiHE::prepareDrawBitmap(const byte *ptr, VirtScreen *vs,
+					const int x, const int y, const int width, const int height,
+	                int stripnr, int numstrip) {
+	if (_vm->_game.heversion >= 72) {
+		_tmskPtr = _vm->findResource(MKTAG('T','M','S','K'), ptr);
+	} else
+		_tmskPtr = 0;
 }
 
 void GdiV1::prepareDrawBitmap(const byte *ptr, VirtScreen *vs,
@@ -1649,9 +1667,9 @@ int Gdi::getZPlanes(const byte *ptr, const byte *zplane_list[9], bool bmapImage)
 	if ((_vm->_game.features & GF_SMALL_HEADER) || _vm->_game.version == 8)
 		zplane_list[0] = ptr;
 	else if (bmapImage)
-		zplane_list[0] = _vm->findResource(MKID_BE('BMAP'), ptr);
+		zplane_list[0] = _vm->findResource(MKTAG('B','M','A','P'), ptr);
 	else
-		zplane_list[0] = _vm->findResource(MKID_BE('SMAP'), ptr);
+		zplane_list[0] = _vm->findResource(MKTAG('S','M','A','P'), ptr);
 
 	if (_zbufferDisabled)
 		numzbuf = 0;
@@ -1694,11 +1712,11 @@ int Gdi::getZPlanes(const byte *ptr, const byte *zplane_list[9], bool bmapImage)
 			}
 		} else {
 			const uint32 zplane_tags[] = {
-				MKID_BE('ZP00'),
-				MKID_BE('ZP01'),
-				MKID_BE('ZP02'),
-				MKID_BE('ZP03'),
-				MKID_BE('ZP04')
+				MKTAG('Z','P','0','0'),
+				MKTAG('Z','P','0','1'),
+				MKTAG('Z','P','0','2'),
+				MKTAG('Z','P','0','3'),
+				MKTAG('Z','P','0','4')
 			};
 
 			for (i = 1; i < numzbuf; i++) {
@@ -1735,16 +1753,11 @@ void Gdi::drawBitmap(const byte *ptr, VirtScreen *vs, int x, const int y, const 
 		// Skip to the BSTR->WRAP->OFFS chunk
 		smap_ptr = ptr + 24;
 	} else {
-		smap_ptr = _vm->findResource(MKID_BE('SMAP'), ptr);
+		smap_ptr = _vm->findResource(MKTAG('S','M','A','P'), ptr);
 		assert(smap_ptr);
 	}
 
 	numzbuf = getZPlanes(ptr, zplane_list, false);
-
-	const byte *tmsk_ptr = NULL;
-	if (_vm->_game.heversion >= 72) {
-		tmsk_ptr = _vm->findResource(MKID_BE('TMSK'), ptr);
-	}
 
 	if (y + height > vs->h) {
 		warning("Gdi::drawBitmap, strip drawn to %d below window bottom %d", y + height, vs->h);
@@ -1757,7 +1770,7 @@ void Gdi::drawBitmap(const byte *ptr, VirtScreen *vs, int x, const int y, const 
 	}
 #endif
 
-	_vertStripNextInc = height * vs->pitch - 1 * vs->bytesPerPixel;
+	_vertStripNextInc = height * vs->pitch - 1 * vs->format.bytesPerPixel;
 
 	_objectMode = (flag & dbObjectMode) == dbObjectMode;
 	prepareDrawBitmap(ptr, vs, x, y, width, height, stripnr, numstrip);
@@ -1790,9 +1803,9 @@ void Gdi::drawBitmap(const byte *ptr, VirtScreen *vs, int x, const int y, const 
 		// In the case of a double buffered virtual screen, we draw to
 		// the backbuffer, otherwise to the primary surface memory.
 		if (vs->hasTwoBuffers)
-			dstPtr = vs->backBuf + y * vs->pitch + (x * 8 * vs->bytesPerPixel);
+			dstPtr = vs->backBuf + y * vs->pitch + (x * 8 * vs->format.bytesPerPixel);
 		else
-			dstPtr = (byte *)vs->pixels + y * vs->pitch + (x * 8 * vs->bytesPerPixel);
+			dstPtr = (byte *)vs->pixels + y * vs->pitch + (x * 8 * vs->format.bytesPerPixel);
 
 		transpStrip = drawStrip(dstPtr, vs, x, y, width, height, stripnr, smap_ptr);
 
@@ -1801,14 +1814,14 @@ void Gdi::drawBitmap(const byte *ptr, VirtScreen *vs, int x, const int y, const 
 			transpStrip = true;
 
 		if (vs->hasTwoBuffers) {
-			byte *frontBuf = (byte *)vs->pixels + y * vs->pitch + (x * 8 * vs->bytesPerPixel);
+			byte *frontBuf = (byte *)vs->pixels + y * vs->pitch + (x * 8 * vs->format.bytesPerPixel);
 			if (lightsOn)
-				copy8Col(frontBuf, vs->pitch, dstPtr, height, vs->bytesPerPixel);
+				copy8Col(frontBuf, vs->pitch, dstPtr, height, vs->format.bytesPerPixel);
 			else
-				clear8Col(frontBuf, vs->pitch, height, vs->bytesPerPixel);
+				clear8Col(frontBuf, vs->pitch, height, vs->format.bytesPerPixel);
 		}
 
-		decodeMask(x, y, width, height, stripnr, numzbuf, zplane_list, transpStrip, flag, tmsk_ptr);
+		decodeMask(x, y, width, height, stripnr, numzbuf, zplane_list, transpStrip, flag);
 
 #if 0
 		// HACK: blit mask(s) onto normal screen. Useful to debug masking
@@ -1897,7 +1910,7 @@ bool GdiV2::drawStrip(byte *dstPtr, VirtScreen *vs, int x, int y, const int widt
 
 void Gdi::decodeMask(int x, int y, const int width, const int height,
 	                int stripnr, int numzbuf, const byte *zplane_list[9],
-	                bool transpStrip, byte flag, const byte *tmsk_ptr) {
+	                bool transpStrip, byte flag) {
 	int i;
 	byte *mask_ptr;
 	const byte *z_plane_ptr;
@@ -1953,10 +1966,7 @@ void Gdi::decodeMask(int x, int y, const int width, const int height,
 			if (offs) {
 				z_plane_ptr = zplane_list[i] + offs;
 
-				if (tmsk_ptr) {
-					const byte *tmsk = tmsk_ptr + READ_LE_UINT16(tmsk_ptr + stripnr * 2 + 8);
-					decompressTMSK(mask_ptr, tmsk, z_plane_ptr, height);
-				} else if (transpStrip && (flag & dbAllowMaskOr)) {
+				if (transpStrip && (flag & dbAllowMaskOr)) {
 					decompressMaskImgOr(mask_ptr, z_plane_ptr, height);
 				} else {
 					decompressMaskImg(mask_ptr, z_plane_ptr, height);
@@ -1971,9 +1981,46 @@ void Gdi::decodeMask(int x, int y, const int width, const int height,
 	}
 }
 
+void GdiHE::decodeMask(int x, int y, const int width, const int height,
+	                int stripnr, int numzbuf, const byte *zplane_list[9],
+	                bool transpStrip, byte flag) {
+	int i;
+	byte *mask_ptr;
+	const byte *z_plane_ptr;
+
+	for (i = 1; i < numzbuf; i++) {
+		uint32 offs;
+
+		if (!zplane_list[i])
+			continue;
+
+		offs = READ_LE_UINT16(zplane_list[i] + stripnr * 2 + 8);
+
+		mask_ptr = getMaskBuffer(x, y, i);
+
+		if (offs) {
+			z_plane_ptr = zplane_list[i] + offs;
+
+			if (_tmskPtr) {
+				const byte *tmsk = _tmskPtr + READ_LE_UINT16(_tmskPtr + stripnr * 2 + 8);
+				decompressTMSK(mask_ptr, tmsk, z_plane_ptr, height);
+			} else if (transpStrip && (flag & dbAllowMaskOr)) {
+				decompressMaskImgOr(mask_ptr, z_plane_ptr, height);
+			} else {
+				decompressMaskImg(mask_ptr, z_plane_ptr, height);
+			}
+
+		} else {
+			if (!(transpStrip && (flag & dbAllowMaskOr)))
+				for (int h = 0; h < height; h++)
+					mask_ptr[h * _numStrips] = 0;
+		}
+	}
+}
+
 void GdiNES::decodeMask(int x, int y, const int width, const int height,
 	                int stripnr, int numzbuf, const byte *zplane_list[9],
-	                bool transpStrip, byte flag, const byte *tmsk_ptr) {
+	                bool transpStrip, byte flag) {
 	byte *mask_ptr = getMaskBuffer(x, y, 1);
 	drawStripNESMask(mask_ptr, stripnr, y, height);
 }
@@ -1981,7 +2028,7 @@ void GdiNES::decodeMask(int x, int y, const int width, const int height,
 #ifdef USE_RGB_COLOR
 void GdiPCEngine::decodeMask(int x, int y, const int width, const int height,
 	                int stripnr, int numzbuf, const byte *zplane_list[9],
-	                bool transpStrip, byte flag, const byte *tmsk_ptr) {
+	                bool transpStrip, byte flag) {
 	byte *mask_ptr = getMaskBuffer(x, y, 1);
 	drawStripPCEngineMask(mask_ptr, stripnr, y, height);
 }
@@ -1989,14 +2036,14 @@ void GdiPCEngine::decodeMask(int x, int y, const int width, const int height,
 
 void GdiV1::decodeMask(int x, int y, const int width, const int height,
 	                int stripnr, int numzbuf, const byte *zplane_list[9],
-	                bool transpStrip, byte flag, const byte *tmsk_ptr) {
+	                bool transpStrip, byte flag) {
 	byte *mask_ptr = getMaskBuffer(x, y, 1);
 	drawStripC64Mask(mask_ptr, stripnr, width, height);
 }
 
 void GdiV2::decodeMask(int x, int y, const int width, const int height,
 	                int stripnr, int numzbuf, const byte *zplane_list[9],
-	                bool transpStrip, byte flag, const byte *tmsk_ptr) {
+	                bool transpStrip, byte flag) {
 	// Do nothing here for V2 games - zplane was already handled.
 }
 
@@ -2013,7 +2060,7 @@ void Gdi::drawBMAPBg(const byte *ptr, VirtScreen *vs) {
 	byte *mask_ptr;
 	const byte *zplane_list[9];
 
-	const byte *bmap_ptr = _vm->findResourceData(MKID_BE('BMAP'), ptr);
+	const byte *bmap_ptr = _vm->findResourceData(MKTAG('B','M','A','P'), ptr);
 	assert(bmap_ptr);
 
 	byte code = *bmap_ptr++;
@@ -2041,7 +2088,7 @@ void Gdi::drawBMAPBg(const byte *ptr, VirtScreen *vs) {
 		drawStripHE(dst, vs->pitch, bmap_ptr, vs->w, vs->h, true);
 		break;
 	case 150:
-		fill(dst, vs->pitch, *bmap_ptr, vs->w, vs->h, vs->bytesPerPixel);
+		fill(dst, vs->pitch, *bmap_ptr, vs->w, vs->h, vs->format.bytesPerPixel);
 		break;
 	default:
 		// Alternative russian freddi3 uses badly formatted bitmaps
@@ -2093,7 +2140,7 @@ void Gdi::drawBMAPBg(const byte *ptr, VirtScreen *vs) {
 }
 
 void Gdi::drawBMAPObject(const byte *ptr, VirtScreen *vs, int obj, int x, int y, int w, int h) {
-	const byte *bmap_ptr = _vm->findResourceData(MKID_BE('BMAP'), ptr);
+	const byte *bmap_ptr = _vm->findResourceData(MKTAG('B','M','A','P'), ptr);
 	assert(bmap_ptr);
 
 	byte code = *bmap_ptr++;
@@ -2152,7 +2199,7 @@ void ScummEngine_v70he::restoreBackgroundHE(Common::Rect rect, int dirtybit) {
 
 	assert(rw <= _screenWidth && rw > 0);
 	assert(rh <= _screenHeight && rh > 0);
-	blit(dst, _virtscr[kMainVirtScreen].pitch, src, _virtscr[kMainVirtScreen].pitch, rw, rh, vs->bytesPerPixel);
+	blit(dst, _virtscr[kMainVirtScreen].pitch, src, _virtscr[kMainVirtScreen].pitch, rw, rh, vs->format.bytesPerPixel);
 	markRectAsDirty(kMainVirtScreen, rect, dirtybit);
 }
 #endif
@@ -2182,15 +2229,15 @@ void Gdi::resetBackground(int top, int bottom, int strip) {
 	if (bottom > vs->bdirty[strip])
 		vs->bdirty[strip] = bottom;
 
-	bgbak_ptr = (byte *)vs->backBuf + top * vs->pitch + (strip + vs->xstart/8) * 8 * vs->bytesPerPixel;
-	backbuff_ptr = (byte *)vs->pixels + top * vs->pitch + (strip + vs->xstart/8) * 8 * vs->bytesPerPixel;
+	bgbak_ptr = (byte *)vs->backBuf + top * vs->pitch + (strip + vs->xstart/8) * 8 * vs->format.bytesPerPixel;
+	backbuff_ptr = (byte *)vs->pixels + top * vs->pitch + (strip + vs->xstart/8) * 8 * vs->format.bytesPerPixel;
 
 	numLinesToProcess = bottom - top;
 	if (numLinesToProcess) {
 		if (_vm->isLightOn()) {
-			copy8Col(backbuff_ptr, vs->pitch, bgbak_ptr, numLinesToProcess, vs->bytesPerPixel);
+			copy8Col(backbuff_ptr, vs->pitch, bgbak_ptr, numLinesToProcess, vs->format.bytesPerPixel);
 		} else {
-			clear8Col(backbuff_ptr, vs->pitch, numLinesToProcess, vs->bytesPerPixel);
+			clear8Col(backbuff_ptr, vs->pitch, numLinesToProcess, vs->format.bytesPerPixel);
 		}
 	}
 }
@@ -2364,7 +2411,7 @@ void Gdi::decompressMaskImg(byte *dst, const byte *src, int height) const {
 	}
 }
 
-void Gdi::decompressTMSK(byte *dst, const byte *tmsk, const byte *src, int height) const {
+void GdiHE::decompressTMSK(byte *dst, const byte *tmsk, const byte *src, int height) const {
 	byte srcbits = 0;
 	byte srcFlag = 0;
 	byte maskFlag = 0;
@@ -2830,10 +2877,10 @@ void GdiPCEngine::decodeStrip(const byte *ptr, uint16 *tiles, byte *colors, uint
 void GdiPCEngine::decodePCEngineGfx(const byte *room) {
 	uint16* stripOffsets;
 
-	decodePCEngineTileData(_vm->findResourceData(MKID_BE('TILE'), room));
-	decodePCEngineMaskData(_vm->findResourceData(MKID_BE('ZP00'), room));
+	decodePCEngineTileData(_vm->findResourceData(MKTAG('T','I','L','E'), room));
+	decodePCEngineMaskData(_vm->findResourceData(MKTAG('Z','P','0','0'), room));
 
-	const byte* smap_ptr = _vm->findResourceData(MKID_BE('IM00'), room);
+	const byte* smap_ptr = _vm->findResourceData(MKTAG('I','M','0','0'), room);
 	smap_ptr++; // roomID
 	int numStrips = *smap_ptr++;
 	int numRows = *smap_ptr++;
@@ -3627,7 +3674,7 @@ void Gdi::unkDecode11(byte *dst, int dstPitch, const byte *src, int height) cons
 #undef READ_BIT_256
 
 #ifdef USE_RGB_COLOR
-void Gdi16Bit::writeRoomColor(byte *dst, byte color) const {
+void GdiHE16bit::writeRoomColor(byte *dst, byte color) const {
 	WRITE_UINT16(dst, READ_LE_UINT16(_vm->_hePalettes + 2048 + color * 2));
 }
 #endif
@@ -3963,7 +4010,7 @@ void ScummEngine::scrollEffect(int dir) {
 		y = 1 + step;
 		while (y < vs->h) {
 			moveScreen(0, -step, vs->h);
-#ifndef DISABLE_TOWNS_DUAL_LAYER_MODE	
+#ifndef DISABLE_TOWNS_DUAL_LAYER_MODE
 			if (_townsScreen) {
 				towns_drawStripToScreen(vs, 0, vs->topline + vs->h - step, 0, y - step, vs->w, step);
 			} else
@@ -3976,7 +4023,7 @@ void ScummEngine::scrollEffect(int dir) {
 					vs->w * m, step * m);
 				_system->updateScreen();
 			}
-			
+
 			waitForTimer(delay);
 			y += step;
 		}
@@ -3999,7 +4046,7 @@ void ScummEngine::scrollEffect(int dir) {
 					vs->w * m, step * m);
 				_system->updateScreen();
 			}
-			
+
 			waitForTimer(delay);
 			y += step;
 		}
@@ -4046,7 +4093,7 @@ void ScummEngine::scrollEffect(int dir) {
 					0, 0,
 					step, vs->h);
 				_system->updateScreen();
-			}	
+			}
 
 			waitForTimer(delay);
 			x += step;

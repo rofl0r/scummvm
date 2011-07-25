@@ -18,9 +18,6 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
- * $URL$
- * $Id$
- *
  */
 
 #include "common/system.h"
@@ -57,6 +54,17 @@
 #endif
 
 namespace Sci {
+
+static int16 adjustGraphColor(int16 color) {
+	// WORKAROUND: SCI1 EGA and Amiga games can set invalid colors (above 0 - 15).
+	// Colors above 15 are all white in SCI1 EGA games, which is why this was never
+	// observed. We clip them all to (0, 15) instead, as colors above 15 are used
+	// for the undithering algorithm in EGA games - bug #3048908.
+	if (getSciVersion() >= SCI_VERSION_1_EARLY && g_sci->getResMan()->getViewType() == kViewEga)
+		return color & 0x0F;	// 0 - 15
+	else
+		return color;
+}
 
 void showScummVMDialog(const Common::String &message) {
 	GUI::MessageDialog dialog(message, "OK");
@@ -143,7 +151,7 @@ static reg_t kSetCursorSci11(EngineState *s, int argc, reg_t *argv) {
 	case 2:
 		pos.y = argv[1].toSint16();
 		pos.x = argv[0].toSint16();
-		
+
 		g_sci->_gfxCursor->kernelSetPos(pos);
 		break;
 	case 4: {
@@ -184,7 +192,7 @@ static reg_t kSetCursorSci11(EngineState *s, int argc, reg_t *argv) {
 		break;
 	case 10:
 		// Freddy pharkas, when using the whiskey glass to read the prescription (bug #3034973)
-		g_sci->_gfxCursor->kernelSetZoomZone(argv[0].toUint16(), 
+		g_sci->_gfxCursor->kernelSetZoomZone(argv[0].toUint16(),
 			Common::Rect(argv[1].toUint16(), argv[2].toUint16(), argv[3].toUint16(), argv[4].toUint16()),
 			argv[5].toUint16(), argv[6].toUint16(), argv[7].toUint16(),
 			argv[8].toUint16(), argv[9].toUint16());
@@ -242,22 +250,13 @@ reg_t kGraph(EngineState *s, int argc, reg_t *argv) {
 }
 
 reg_t kGraphGetColorCount(EngineState *s, int argc, reg_t *argv) {
-	if (g_sci->getResMan()->isAmiga32color())
-		return make_reg(0, 32);
-	return make_reg(0, !g_sci->getResMan()->isVGA() ? 16 : 256);
+	return make_reg(0, g_sci->_gfxPalette->getTotalColorCount());
 }
 
 reg_t kGraphDrawLine(EngineState *s, int argc, reg_t *argv) {
-	int16 color = argv[4].toSint16();
+	int16 color = adjustGraphColor(argv[4].toSint16());
 	int16 priority = (argc > 5) ? argv[5].toSint16() : -1;
 	int16 control = (argc > 6) ? argv[6].toSint16() : -1;
-
-	// WORKAROUND: SCI1 EGA games can set invalid colors (above 0 - 15).
-	// Colors above 15 are all white in SCI1 EGA games, which is why this was never
-	// observed. We clip them all to (0, 15) instead, as colors above 15 are used
-	// for the undithering algorithm in EGA games - bug #3048908.
-	if (g_sci->getResMan()->getViewType() == kViewEga && getSciVersion() >= SCI_VERSION_1_EARLY)
-		color &= 0x0F;
 
 	g_sci->_gfxPaint16->kernelGraphDrawLine(getGraphPoint(argv), getGraphPoint(argv + 2), color, priority, control);
 	return s->r_acc;
@@ -290,16 +289,9 @@ reg_t kGraphFillBoxForeground(EngineState *s, int argc, reg_t *argv) {
 reg_t kGraphFillBoxAny(EngineState *s, int argc, reg_t *argv) {
 	Common::Rect rect = getGraphRect(argv);
 	int16 colorMask = argv[4].toUint16();
-	int16 color = argv[5].toSint16();
+	int16 color = adjustGraphColor(argv[5].toSint16());
 	int16 priority = argv[6].toSint16(); // yes, we may read from stack sometimes here
 	int16 control = argv[7].toSint16(); // sierra did the same
-
-	// WORKAROUND: SCI1 EGA games can set invalid colors (above 0 - 15).
-	// Colors above 15 are all white in SCI1 EGA games, which is why this was never
-	// observed. We clip them all to (0, 15) instead, as colors above 15 are used
-	// for the undithering algorithm in EGA games - bug #3048908.
-	if (g_sci->getResMan()->getViewType() == kViewEga && getSciVersion() >= SCI_VERSION_1_EARLY)
-		color &= 0x0F;
 
 	g_sci->_gfxPaint16->kernelGraphFillBox(rect, colorMask, color, priority, control);
 	return s->r_acc;
@@ -368,10 +360,29 @@ reg_t kTextSize(EngineState *s, int argc, reg_t *argv) {
 	} else
 #endif
 		g_sci->_gfxText16->kernelTextSize(g_sci->strSplit(text.c_str(), sep).c_str(), font_nr, maxwidth, &textWidth, &textHeight);
-	
+
+	// One of the game texts in LB2 German contains loads of spaces in
+	// its end. We trim the text here, otherwise the graphics code will
+	// attempt to draw a very large window (larger than the screen) to
+	// show the text, and crash.
+	// Fixes bug #3306417.
+	if (textWidth >= g_sci->_gfxScreen->getDisplayWidth() ||
+		textHeight >= g_sci->_gfxScreen->getDisplayHeight()) {
+		// TODO: Is this needed for SCI32 as well?
+		if (g_sci->_gfxText16) {
+			warning("kTextSize: string would be too big to fit on screen. Trimming it");
+			text.trim();
+			// Copy over the trimmed string...
+			s->_segMan->strcpy(argv[1], text.c_str());
+			// ...and recalculate bounding box dimensions
+			g_sci->_gfxText16->kernelTextSize(g_sci->strSplit(text.c_str(), sep).c_str(), font_nr, maxwidth, &textWidth, &textHeight);
+		}
+	}
+
 	debugC(kDebugLevelStrings, "GetTextSize '%s' -> %dx%d", text.c_str(), textWidth, textHeight);
 	dest[2] = make_reg(0, textHeight);
 	dest[3] = make_reg(0, textWidth);
+
 	return s->r_acc;
 }
 
@@ -417,7 +428,7 @@ reg_t kCanBeHere(EngineState *s, int argc, reg_t *argv) {
 reg_t kCantBeHere(EngineState *s, int argc, reg_t *argv) {
 	reg_t curObject = argv[0];
 	reg_t listReference = (argc > 1) ? argv[1] : NULL_REG;
-	
+
 	reg_t canBeHere = g_sci->_gfxCompare->kernelCanBeHere(curObject, listReference);
 	return canBeHere;
 }
@@ -554,8 +565,6 @@ reg_t kSetNowSeen(EngineState *s, int argc, reg_t *argv) {
 	return s->r_acc;
 }
 
-// we are called on EGA/amiga games as well, this doesnt make sense.
-//  doing this would actually break the system EGA/amiga palette
 reg_t kPalette(EngineState *s, int argc, reg_t *argv) {
 	if (!s)
 		return make_reg(0, getSciVersion());
@@ -563,86 +572,85 @@ reg_t kPalette(EngineState *s, int argc, reg_t *argv) {
 }
 
 reg_t kPaletteSetFromResource(EngineState *s, int argc, reg_t *argv) {
-	if (g_sci->getResMan()->isVGA()) {
-		GuiResourceId resourceId = argv[0].toUint16();
-		bool force = false;
-		if (argc == 2)
-			force = argv[1].toUint16() == 2 ? true : false;
-		g_sci->_gfxPalette->kernelSetFromResource(resourceId, force);
-	}
+	GuiResourceId resourceId = argv[0].toUint16();
+	bool force = false;
+	if (argc == 2)
+		force = argv[1].toUint16() == 2 ? true : false;
+
+	// Non-VGA games don't use palette resources.
+	// This has been changed to 64 colors because Longbow Amiga does have
+	// one palette (palette 999).
+	if (g_sci->_gfxPalette->getTotalColorCount() < 64)
+		return s->r_acc;
+
+	g_sci->_gfxPalette->kernelSetFromResource(resourceId, force);
 	return s->r_acc;
 }
 
 reg_t kPaletteSetFlag(EngineState *s, int argc, reg_t *argv) {
-	if (g_sci->getResMan()->isVGA()) {
-		uint16 fromColor = CLIP<uint16>(argv[0].toUint16(), 1, 255);
-		uint16 toColor = CLIP<uint16>(argv[1].toUint16(), 1, 255);
-		uint16 flags = argv[2].toUint16();
-		g_sci->_gfxPalette->kernelSetFlag(fromColor, toColor, flags);
-	}
+	uint16 fromColor = CLIP<uint16>(argv[0].toUint16(), 1, 255);
+	uint16 toColor = CLIP<uint16>(argv[1].toUint16(), 1, 255);
+	uint16 flags = argv[2].toUint16();
+	g_sci->_gfxPalette->kernelSetFlag(fromColor, toColor, flags);
 	return s->r_acc;
 }
 
 reg_t kPaletteUnsetFlag(EngineState *s, int argc, reg_t *argv) {
-	if (g_sci->getResMan()->isVGA()) {
-		uint16 fromColor = CLIP<uint16>(argv[0].toUint16(), 1, 255);
-		uint16 toColor = CLIP<uint16>(argv[1].toUint16(), 1, 255);
-		uint16 flags = argv[2].toUint16();
-		g_sci->_gfxPalette->kernelUnsetFlag(fromColor, toColor, flags);
-	}
+	uint16 fromColor = CLIP<uint16>(argv[0].toUint16(), 1, 255);
+	uint16 toColor = CLIP<uint16>(argv[1].toUint16(), 1, 255);
+	uint16 flags = argv[2].toUint16();
+	g_sci->_gfxPalette->kernelUnsetFlag(fromColor, toColor, flags);
 	return s->r_acc;
 }
 
 reg_t kPaletteSetIntensity(EngineState *s, int argc, reg_t *argv) {
-	if (g_sci->getResMan()->isVGA()) {
-		uint16 fromColor = CLIP<uint16>(argv[0].toUint16(), 1, 255);
-		uint16 toColor = CLIP<uint16>(argv[1].toUint16(), 1, 255);
-		uint16 intensity = argv[2].toUint16();
-		bool setPalette = (argc < 4) ? true : (argv[3].isNull()) ? true : false;
+	uint16 fromColor = CLIP<uint16>(argv[0].toUint16(), 1, 255);
+	uint16 toColor = CLIP<uint16>(argv[1].toUint16(), 1, 255);
+	uint16 intensity = argv[2].toUint16();
+	bool setPalette = (argc < 4) ? true : (argv[3].isNull()) ? true : false;
 
-		g_sci->_gfxPalette->kernelSetIntensity(fromColor, toColor, intensity, setPalette);
-	}
+	// Palette intensity in non-VGA SCI1 games has been removed
+	if (g_sci->_gfxPalette->getTotalColorCount() < 256)
+		return s->r_acc;
+
+	g_sci->_gfxPalette->kernelSetIntensity(fromColor, toColor, intensity, setPalette);
 	return s->r_acc;
 }
 
 reg_t kPaletteFindColor(EngineState *s, int argc, reg_t *argv) {
-	if (g_sci->getResMan()->isVGA()) {
-		uint16 r = argv[0].toUint16();
-		uint16 g = argv[1].toUint16();
-		uint16 b = argv[2].toUint16();
-		return make_reg(0, g_sci->_gfxPalette->kernelFindColor(r, g, b));
-	}
-	return NULL_REG;
+	uint16 r = argv[0].toUint16();
+	uint16 g = argv[1].toUint16();
+	uint16 b = argv[2].toUint16();
+	return make_reg(0, g_sci->_gfxPalette->kernelFindColor(r, g, b));
 }
 
 reg_t kPaletteAnimate(EngineState *s, int argc, reg_t *argv) {
-	if (g_sci->getResMan()->isVGA()) {
-		int16 argNr;
-		bool paletteChanged = false;
-		for (argNr = 0; argNr < argc; argNr += 3) {
-			uint16 fromColor = argv[argNr].toUint16();
-			uint16 toColor = argv[argNr + 1].toUint16();
-			int16 speed = argv[argNr + 2].toSint16();
-			if (g_sci->_gfxPalette->kernelAnimate(fromColor, toColor, speed))
-				paletteChanged = true;
-		}
-		if (paletteChanged)
-			g_sci->_gfxPalette->kernelAnimateSet();
+	int16 argNr;
+	bool paletteChanged = false;
+
+	// Palette animation in non-VGA SCI1 games has been removed
+	if (g_sci->_gfxPalette->getTotalColorCount() < 256)
+		return s->r_acc;
+
+	for (argNr = 0; argNr < argc; argNr += 3) {
+		uint16 fromColor = argv[argNr].toUint16();
+		uint16 toColor = argv[argNr + 1].toUint16();
+		int16 speed = argv[argNr + 2].toSint16();
+		if (g_sci->_gfxPalette->kernelAnimate(fromColor, toColor, speed))
+			paletteChanged = true;
 	}
+	if (paletteChanged)
+		g_sci->_gfxPalette->kernelAnimateSet();
+
 	return s->r_acc;
 }
 
 reg_t kPaletteSave(EngineState *s, int argc, reg_t *argv) {
-	if (g_sci->getResMan()->isVGA()) {
-		return g_sci->_gfxPalette->kernelSave();
-	}
-	return NULL_REG;
+	return g_sci->_gfxPalette->kernelSave();
 }
 
 reg_t kPaletteRestore(EngineState *s, int argc, reg_t *argv) {
-	if (g_sci->getResMan()->isVGA()) {
-		g_sci->_gfxPalette->kernelRestore(argv[0]);
-	}
+	g_sci->_gfxPalette->kernelRestore(argv[0]);
 	return argv[0];
 }
 
@@ -1083,22 +1091,11 @@ reg_t kNewWindow(EngineState *s, int argc, reg_t *argv) {
 	int argextra = argc >= 13 ? 4 : 0; // Triggers in PQ3 and SCI1.1 games, argc 13 for DOS argc 15 for mac
 	int	style = argv[5 + argextra].toSint16();
 	int	priority = (argc > 6 + argextra) ? argv[6 + argextra].toSint16() : -1;
-	int colorPen = (argc > 7 + argextra) ? argv[7 + argextra].toSint16() : 0;
-	int colorBack = (argc > 8 + argextra) ? argv[8 + argextra].toSint16() : 255;
+	int colorPen = adjustGraphColor((argc > 7 + argextra) ? argv[7 + argextra].toSint16() : 0);
+	int colorBack = adjustGraphColor((argc > 8 + argextra) ? argv[8 + argextra].toSint16() : 255);
 
-	// WORKAROUND: SCI1 EGA games can set invalid colors (above 0 - 15).
-	// Colors above 15 are all white in SCI1 EGA games, which is why this was never
-	// observed. We clip them all to (0, 15) instead, as colors above 15 are used
-	// for the undithering algorithm in EGA games - bug #3048908.
-	if (g_sci->getResMan()->getViewType() == kViewEga && getSciVersion() >= SCI_VERSION_1_EARLY) {
-		colorPen &= 0x0F;
-		colorBack &= 0x0F;
-	}
-
-	//	const char *title = argv[4 + argextra].segment ? kernel_dereference_char_pointer(s, argv[4 + argextra], 0) : NULL;
-	if (argc>=13) {
+	if (argc >= 13)
 		rect2 = Common::Rect (argv[5].toSint16(), argv[4].toSint16(), argv[7].toSint16(), argv[6].toSint16());
-	}
 
 	Common::String title;
 	if (argv[4 + argextra].segment) {
@@ -1282,7 +1279,7 @@ reg_t kCantBeHere32(EngineState *s, int argc, reg_t *argv) {
 	// TODO
 //	reg_t curObject = argv[0];
 //	reg_t listReference = (argc > 1) ? argv[1] : NULL_REG;
-	
+
 	return NULL_REG;
 }
 
@@ -1645,8 +1642,8 @@ reg_t kScrollWindow(EngineState *s, int argc, reg_t *argv) {
 reg_t kSetFontRes(EngineState *s, int argc, reg_t *argv) {
 	// TODO: This defines the resolution that the fonts are supposed to be displayed
 	// in. Currently, this is only used for showing high-res fonts in GK1 Mac, but
-	// should be extended to handle other font resolutions such as those 
-	
+	// should be extended to handle other font resolutions such as those
+
 	int xResolution = argv[0].toUint16();
 	//int yResolution = argv[1].toUint16();
 

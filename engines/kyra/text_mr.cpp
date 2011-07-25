@@ -18,14 +18,12 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
- * $URL$
- * $Id$
- *
  */
 
 #include "kyra/text_mr.h"
-#include "kyra/screen_mr.h"
 #include "kyra/resource.h"
+
+#include "common/system.h"
 
 namespace Kyra {
 
@@ -340,10 +338,8 @@ void KyraEngine_MR::objectChatWaitToFinish() {
 			_emc->start(&_chatScriptState, 1);
 
 		_animNeedUpdate = false;
-		while (!_animNeedUpdate && _emc->isValid(&_chatScriptState) && !shouldQuit()) {
-			musicUpdate(0);
+		while (!_animNeedUpdate && _emc->isValid(&_chatScriptState) && !shouldQuit())
 			_emc->run(&_chatScriptState);
-		}
 
 		int curFrame = _animNewFrame;
 		uint32 delayTime = _animDelayTime;
@@ -629,24 +625,20 @@ void KyraEngine_MR::malcolmSceneStartupChat() {
 }
 
 void KyraEngine_MR::updateDlgBuffer() {
-	char dlgFile[16];
-	char cnvFile[16];
-
 	if (_cnvFile)
 		_cnvFile->seek(0, SEEK_SET);
 
 	if (_curDlgIndex == _mainCharacter.dlgIndex && _curDlgChapter == _currentChapter && _curDlgLang == _lang)
 		return;
 
-	snprintf(dlgFile, 16, "CH%.02d-S%.02d.", _currentChapter, _mainCharacter.dlgIndex);
-	appendLanguage(dlgFile, _lang, 16);
-	snprintf(cnvFile, 16, "CH%.02d-S%.02d.CNV", _currentChapter, _mainCharacter.dlgIndex);
+	Common::String dlgFile = Common::String::format("CH%.02d-S%.02d.%s", _currentChapter, _mainCharacter.dlgIndex, _languageExtension[_lang]);
+	Common::String cnvFile = Common::String::format("CH%.02d-S%.02d.CNV", _currentChapter, _mainCharacter.dlgIndex);
 
 	delete _cnvFile;
 	delete _dlgBuffer;
 
-	_res->exists(cnvFile, true);
-	_res->exists(dlgFile, true);
+	_res->exists(cnvFile.c_str(), true);
+	_res->exists(dlgFile.c_str(), true);
 	_cnvFile = _res->createReadStream(cnvFile);
 	_dlgBuffer = _res->createReadStream(dlgFile);
 	assert(_cnvFile);

@@ -20,9 +20,6 @@
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * $URL$
- * $Id$
  */
 
 #include "base/plugins.h"
@@ -31,9 +28,9 @@
 #include "common/file.h"
 #include "common/fs.h"
 #include "common/events.h"
-#include "common/EventRecorder.h"
 #include "common/savefile.h"
 #include "common/system.h"
+#include "common/textconsole.h"
 
 #include "engines/metaengine.h"
 #include "engines/util.h"
@@ -79,7 +76,7 @@ static const GameSettings sword2_settings[] = {
 class Sword2MetaEngine : public MetaEngine {
 public:
 	virtual const char *getName() const {
-		return "Broken Sword II";
+		return "Sword2";
 	}
 	virtual const char *getOriginalCopyright() const {
 		return "Broken Sword Games (C) Revolution";
@@ -213,11 +210,8 @@ SaveStateList Sword2MetaEngine::listSaves(const char *target) const {
 int Sword2MetaEngine::getMaximumSaveSlot() const { return 999; }
 
 void Sword2MetaEngine::removeSaveState(const char *target, int slot) const {
-	char extension[6];
-	snprintf(extension, sizeof(extension), ".%03d", slot);
-
 	Common::String filename = target;
-	filename += extension;
+	filename += Common::String::format(".%03d", slot);
 
 	g_system->getSavefileManager()->removeSavefile(filename);
 }
@@ -254,7 +248,7 @@ Common::Error Sword2MetaEngine::createInstance(OSystem *syst, Engine **engine) c
 
 namespace Sword2 {
 
-Sword2Engine::Sword2Engine(OSystem *syst) : Engine(syst) {
+Sword2Engine::Sword2Engine(OSystem *syst) : Engine(syst), _rnd("sword2") {
 	// Add default file directories
 	const Common::FSNode gameDataDir(ConfMan.get("path"));
 	SearchMan.addSubDirectoryMatching(gameDataDir, "clusters");
@@ -294,8 +288,6 @@ Sword2Engine::Sword2Engine(OSystem *syst) : Engine(syst) {
 	_gameSpeed = 1;
 
 	_gmmLoadSlot = -1; // Used to manage GMM Loading
-
-	g_eventRec.registerRandomSource(_rnd, "sword2");
 }
 
 Sword2Engine::~Sword2Engine() {
@@ -319,11 +311,10 @@ void Sword2Engine::registerDefaultSettings() {
 }
 
 void Sword2Engine::syncSoundSettings() {
+	Engine::syncSoundSettings();
+
 	bool mute = ConfMan.getBool("mute");
 
-	_mixer->setVolumeForSoundType(Audio::Mixer::kMusicSoundType, mute ? 0 : ConfMan.getInt("music_volume"));
-	_mixer->setVolumeForSoundType(Audio::Mixer::kSpeechSoundType, mute ? 0 : ConfMan.getInt("speech_volume"));
-	_mixer->setVolumeForSoundType(Audio::Mixer::kSFXSoundType, mute ? 0 : ConfMan.getInt("sfx_volume"));
 	setSubtitles(ConfMan.getBool("subtitles"));
 
 	// Our own settings dialog can mute the music, speech and sound effects
@@ -431,7 +422,7 @@ Common::Error Sword2Engine::run() {
 	setInputEventFilter(RD_LEFTBUTTONUP | RD_RIGHTBUTTONUP | RD_WHEELUP | RD_WHEELDOWN);
 
 	setupPersistentResources();
-	initialiseFontResourceFlags();
+	initializeFontResourceFlags();
 
 	if (_features & GF_DEMO)
 		_logic->writeVar(DEMO, 1);
@@ -469,7 +460,7 @@ Common::Error Sword2Engine::run() {
 	} else
 		startGame();
 
-	_screen->initialiseRenderCycle();
+	_screen->initializeRenderCycle();
 
 	while (1) {
 		_debugger->onFrame();
@@ -782,8 +773,8 @@ uint32 Sword2Engine::getMillis() {
 	return _system->getMillis();
 }
 
-Common::Error Sword2Engine::saveGameState(int slot, const char *desc) {
-	uint32 saveVal = saveGame(slot, (const byte *)desc);
+Common::Error Sword2Engine::saveGameState(int slot, const Common::String &desc) {
+	uint32 saveVal = saveGame(slot, (const byte *)desc.c_str());
 
 	if (saveVal == SR_OK)
 		return Common::kNoError;

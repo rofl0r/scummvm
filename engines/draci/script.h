@@ -18,9 +18,6 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
- * $URL$
- * $Id$
- *
  */
 
 #ifndef DRACI_SCRIPT_H
@@ -30,7 +27,7 @@
 #include "common/stream.h"
 
 namespace Common {
-	class ReadStream;
+class ReadStream;
 }
 
 namespace Draci {
@@ -109,7 +106,7 @@ private:
 	int _jump;
 	bool _endProgram;
 
-	/** List of all GPL commands. Initialised in the constructor. */
+	/** List of all GPL commands. Initialized in the constructor. */
 	const GPL2Command *_commandList;
 	const GPL2Operator *_operatorList;
 	const GPL2Function *_functionList;

@@ -18,9 +18,6 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
- * $URL$
- * $Id$
- *
  */
 
 #include "backends/platform/sdl/sdl-sys.h"
@@ -32,7 +29,7 @@ SDL_ImageResource::SDL_ImageResource() :
 	_surface(0) {
 }
 
-SDL_Surface* SDL_ImageResource::load(WORD resourceID) {
+SDL_Surface *SDL_ImageResource::load(WORD resourceID) {
 	HRSRC resource;
 	HGLOBAL resourceGlobal;
 	LPVOID resourcePointer;
@@ -62,7 +59,7 @@ SDL_Surface* SDL_ImageResource::load(WORD resourceID) {
 	return _surface;
 }
 
-SDL_Surface* SDL_ImageResource::get() {
+SDL_Surface *SDL_ImageResource::get() {
 	return _surface;
 }
 

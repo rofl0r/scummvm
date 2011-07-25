@@ -18,25 +18,37 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
- * $URL$
- * $Id$
- *
  */
 
 #include "mohawk/console.h"
-#include "mohawk/myst.h"
-#include "mohawk/myst_areas.h"
-#include "mohawk/myst_scripts.h"
 #include "mohawk/graphics.h"
-#include "mohawk/riven.h"
-#include "mohawk/riven_external.h"
 #include "mohawk/livingbooks.h"
-#include "mohawk/cstime.h"
-#include "mohawk/zoombini.h"
 #include "mohawk/sound.h"
 #include "mohawk/video.h"
 
+#include "common/system.h"
+#include "common/textconsole.h"
+
+#ifdef ENABLE_CSTIME
+#include "mohawk/cstime.h"
+#endif
+
+#ifdef ENABLE_MYST
+#include "mohawk/myst.h"
+#include "mohawk/myst_areas.h"
+#include "mohawk/myst_scripts.h"
+#endif
+
+#ifdef ENABLE_RIVEN
+#include "mohawk/riven.h"
+#include "mohawk/riven_external.h"
+#endif
+
+#include "mohawk/zoombini.h"
+
 namespace Mohawk {
+
+#ifdef ENABLE_MYST
 
 MystConsole::MystConsole(MohawkEngine_Myst *vm) : GUI::Debugger(), _vm(vm) {
 	DCmd_Register("changeCard",			WRAP_METHOD(MystConsole, Cmd_ChangeCard));
@@ -308,6 +320,10 @@ bool MystConsole::Cmd_Resources(int argc, const char **argv) {
 	return true;
 }
 
+#endif // ENABLE_MYST
+
+#ifdef ENABLE_RIVEN
+
 RivenConsole::RivenConsole(MohawkEngine_Riven *vm) : GUI::Debugger(), _vm(vm) {
 	DCmd_Register("changeCard",		WRAP_METHOD(RivenConsole, Cmd_ChangeCard));
 	DCmd_Register("curCard",		WRAP_METHOD(RivenConsole, Cmd_CurCard));
@@ -317,7 +333,6 @@ RivenConsole::RivenConsole(MohawkEngine_Riven *vm) : GUI::Debugger(), _vm(vm) {
 	DCmd_Register("stopSound",		WRAP_METHOD(RivenConsole, Cmd_StopSound));
 	DCmd_Register("curStack",		WRAP_METHOD(RivenConsole, Cmd_CurStack));
 	DCmd_Register("changeStack",	WRAP_METHOD(RivenConsole, Cmd_ChangeStack));
-	DCmd_Register("restart",		WRAP_METHOD(RivenConsole, Cmd_Restart));
 	DCmd_Register("hotspots",		WRAP_METHOD(RivenConsole, Cmd_Hotspots));
 	DCmd_Register("zipMode",		WRAP_METHOD(RivenConsole, Cmd_ZipMode));
 	DCmd_Register("dumpScript",     WRAP_METHOD(RivenConsole, Cmd_DumpScript));
@@ -356,18 +371,17 @@ bool RivenConsole::Cmd_Var(int argc, const char **argv) {
 		return true;
 	}
 
-	uint32 *globalVar = _vm->getVar(argv[1]);
-
-	if (!globalVar) {
-		DebugPrintf("Unknown variable \'%s\'\n", argv[1]);
+	if (!_vm->_vars.contains(argv[1])) {
+		DebugPrintf("Unknown variable '%s'\n", argv[1]);
 		return true;
 	}
 
+	uint32 &var = _vm->_vars[argv[1]];
+
 	if (argc > 2)
-		*globalVar = (uint32)atoi(argv[2]);
+		var = (uint32)atoi(argv[2]);
 
-	DebugPrintf("%s = %d\n", argv[1], *globalVar);
-
+	DebugPrintf("%s = %d\n", argv[1], var);
 	return true;
 }
 
@@ -447,14 +461,6 @@ bool RivenConsole::Cmd_ChangeStack(int argc, const char **argv) {
 	return false;
 }
 
-bool RivenConsole::Cmd_Restart(int argc, const char **argv) {
-	_vm->initVars();
-	_vm->changeToStack(aspit);
-	_vm->changeToCard(1);
-
-	return false;
-}
-
 bool RivenConsole::Cmd_Hotspots(int argc, const char **argv) {
 	DebugPrintf("Current card (%d) has %d hotspots:\n", _vm->getCurCard(), _vm->getHotspotCount());
 
@@ -474,11 +480,11 @@ bool RivenConsole::Cmd_Hotspots(int argc, const char **argv) {
 }
 
 bool RivenConsole::Cmd_ZipMode(int argc, const char **argv) {
-	uint32 *zipModeActive = _vm->getVar("azip");
-	*zipModeActive = !(*zipModeActive);
+	uint32 &zipModeActive = _vm->_vars["azip"];
+	zipModeActive = !zipModeActive;
 
 	DebugPrintf("Zip Mode is ");
-	DebugPrintf((*zipModeActive) ? "Enabled" : "Disabled");
+	DebugPrintf(zipModeActive ? "Enabled" : "Disabled");
 	DebugPrintf("\n");
 	return true;
 }
@@ -559,7 +565,7 @@ bool RivenConsole::Cmd_DumpScript(int argc, const char **argv) {
 		// deriven.
 		debugN("\n\nDumping scripts for %s\'s card %d!\n", argv[1], (uint16)atoi(argv[3]));
 		debugN("==================================\n\n");
-		Common::SeekableReadStream *cardStream = _vm->getResource(MKID_BE('CARD'), (uint16)atoi(argv[3]));
+		Common::SeekableReadStream *cardStream = _vm->getResource(MKTAG('C','A','R','D'), (uint16)atoi(argv[3]));
 		cardStream->seek(4);
 		RivenScriptList scriptList = _vm->_scriptMan->readScripts(cardStream, false);
 		for (uint32 i = 0; i < scriptList.size(); i++) {
@@ -572,7 +578,7 @@ bool RivenConsole::Cmd_DumpScript(int argc, const char **argv) {
 		debugN("\n\nDumping scripts for %s\'s card %d hotspots!\n", argv[1], (uint16)atoi(argv[3]));
 		debugN("===========================================\n\n");
 
-		Common::SeekableReadStream *hsptStream = _vm->getResource(MKID_BE('HSPT'), (uint16)atoi(argv[3]));
+		Common::SeekableReadStream *hsptStream = _vm->getResource(MKTAG('H','S','P','T'), (uint16)atoi(argv[3]));
 
 		uint16 hotspotCount = hsptStream->readUint16BE();
 
@@ -625,10 +631,10 @@ bool RivenConsole::Cmd_Combos(int argc, const char **argv) {
 	// You'll need to look up the Rebel Tunnel puzzle on your own; the
 	// solution is constant.
 
-	uint32 teleCombo = *_vm->getVar("tcorrectorder");
-	uint32 prisonCombo = *_vm->getVar("pcorrectorder");
-	uint32 domeCombo = *_vm->getVar("adomecombo");
-	
+	uint32 teleCombo = _vm->_vars["tcorrectorder"];
+	uint32 prisonCombo = _vm->_vars["pcorrectorder"];
+	uint32 domeCombo = _vm->_vars["adomecombo"];
+
 	DebugPrintf("Telescope Combo:\n  ");
 	for (int i = 0; i < 5; i++)
 		DebugPrintf("%d ", _vm->_externalScriptHandler->getComboDigit(teleCombo, i));
@@ -653,6 +659,8 @@ bool RivenConsole::Cmd_SliderState(int argc, const char **argv) {
 	DebugPrintf("Dome Slider State = %08x\n", _vm->_externalScriptHandler->getDomeSliderState());
 	return true;
 }
+
+#endif // ENABLE_RIVEN
 
 LivingBooksConsole::LivingBooksConsole(MohawkEngine_LivingBooks *vm) : GUI::Debugger(), _vm(vm) {
 	DCmd_Register("playSound",			WRAP_METHOD(LivingBooksConsole, Cmd_PlaySound));
@@ -694,16 +702,29 @@ bool LivingBooksConsole::Cmd_DrawImage(int argc, const char **argv) {
 }
 
 bool LivingBooksConsole::Cmd_ChangePage(int argc, const char **argv) {
-	if (argc == 1) {
-		DebugPrintf("Usage: changePage <page> [<mode>]\n");
+	if (argc < 2 || argc > 3) {
+		DebugPrintf("Usage: changePage <page>[.<subpage>] [<mode>]\n");
 		return true;
 	}
 
-	if (_vm->tryLoadPageStart(argc == 2 ? _vm->getCurMode() : (LBMode)atoi(argv[2]), atoi(argv[1])))
-		return false;
-	DebugPrintf("no such page %d\n", atoi(argv[1]));
+	int page, subpage = 0;
+	if (sscanf(argv[1], "%d.%d", &page, &subpage) == 0) {
+		DebugPrintf("Usage: changePage <page>[.<subpage>] [<mode>]\n");
+		return true;
+	}
+	LBMode mode = argc == 2 ? _vm->getCurMode() : (LBMode)atoi(argv[2]);
+	if (subpage == 0) {
+		if (_vm->tryLoadPageStart(mode, page))
+			return false;
+	} else {
+		if (_vm->loadPage(mode, page, subpage))
+			return false;
+	}
+	DebugPrintf("no such page %d.%d\n", page, subpage);
 	return true;
 }
+
+#ifdef ENABLE_CSTIME
 
 CSTimeConsole::CSTimeConsole(MohawkEngine_CSTime *vm) : GUI::Debugger(), _vm(vm) {
 	DCmd_Register("playSound",			WRAP_METHOD(CSTimeConsole, Cmd_PlaySound));
@@ -806,6 +827,8 @@ bool CSTimeConsole::Cmd_InvItem(int argc, const char **argv) {
 	}
 	return false;
 }
+
+#endif // ENABLE_CSTIME
 
 ZoombiniConsole::ZoombiniConsole(MohawkEngine_Zoombini *vm) : GUI::Debugger(), _vm(vm) {
 	DCmd_Register("playSound",			WRAP_METHOD(ZoombiniConsole, Cmd_PlaySound));

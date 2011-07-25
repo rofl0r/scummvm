@@ -18,9 +18,6 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
- * $URL$
- * $Id$
- *
  */
 #ifndef M4_ASSETS_H
 #define M4_ASSETS_H
@@ -33,16 +30,16 @@
 namespace M4 {
 
 // Sequence chunks
-#define CHUNK_SCEN MKID_BE('SCEN')
-#define CHUNK_MACH MKID_BE('MACH')
-#define CHUNK_SEQU MKID_BE('SEQU')
-#define CHUNK_DATA MKID_BE('DATA')
-#define CHUNK_CELS MKID_BE('CELS')
+#define CHUNK_SCEN MKTAG('S','C','E','N')
+#define CHUNK_MACH MKTAG('M','A','C','H')
+#define CHUNK_SEQU MKTAG('S','E','Q','U')
+#define CHUNK_DATA MKTAG('D','A','T','A')
+#define CHUNK_CELS MKTAG('C','E','L','S')
 
 // Sprite chunks
-#define HEAD_M4SS MKID_BE('M4SS')	//'M4SS'
-#define CELS__PAL MKID_BE(' PAL')	//' PAL'
-#define CELS___SS MKID_BE('  SS')	//'  SS'
+#define HEAD_M4SS MKTAG('M','4','S','S')	//'M4SS'
+#define CELS__PAL MKTAG(' ','P','A','L')	//' PAL'
+#define CELS___SS MKTAG(' ',' ','S','S')	//'  SS'
 
 #define SPRITE_SET_CHAR_INFO 4
 
@@ -118,7 +115,7 @@ public:
 
 class SpriteAsset : public BaseAsset {
 public:
-	SpriteAsset(MadsM4Engine *vm, Common::SeekableReadStream* stream, int size, const char *name, 
+	SpriteAsset(MadsM4Engine *vm, Common::SeekableReadStream* stream, int size, const char *name,
 		bool asStream = false, int flags = 0);
 	SpriteAsset(MadsM4Engine *vm, const char *name);
 	~SpriteAsset();
@@ -154,7 +151,7 @@ protected:
 	Common::Array<uint32> _frameOffsets;
 	Common::Array<SpriteAssetFrame> _frames;
 	uint32 _frameStartOffset;
-	
+
 	// MADS sprite set fields
 	uint8 _mode;
 	bool _isBackground;

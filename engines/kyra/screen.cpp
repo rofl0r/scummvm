@@ -18,11 +18,11 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
- * $URL$
- * $Id$
- *
  */
 
+#include "kyra/screen.h"
+#include "kyra/kyra_v1.h"
+#include "kyra/resource.h"
 
 #include "common/endian.h"
 #include "common/memstream.h"
@@ -31,11 +31,8 @@
 #include "engines/util.h"
 
 #include "graphics/cursorman.h"
+#include "graphics/palette.h"
 #include "graphics/sjis.h"
-
-#include "kyra/screen.h"
-#include "kyra/kyra_v1.h"
-#include "kyra/resource.h"
 
 namespace Kyra {
 
@@ -2375,7 +2372,7 @@ uint8 *Screen::encodeShape(int x, int y, int w, int h, int flags) {
 	if (flags & 1)
 		shapeSize += 16;
 
-	static uint8 table[274];
+	uint8 table[274];
 	int tableIndex = 0;
 
 	uint8 *newShape = 0;
@@ -2397,7 +2394,7 @@ uint8 *Screen::encodeShape(int x, int y, int w, int h, int flags) {
 	byte *src = srcPtr;
 	if (flags & 1) {
 		dst += 16;
-		memset(table, 0, sizeof(uint8)*274);
+		memset(table, 0, sizeof(table));
 		tableIndex = 1;
 	}
 
@@ -3362,7 +3359,7 @@ void SJISFont::drawChar(uint16 c, byte *dst, int pitch) const {
 		color2 = _colorMap[0];
 	}
 
-	_font->drawChar(dst, c, 640, 1, color1, color2);
+	_font->drawChar(dst, c, 640, 1, color1, color2, 640, 400);
 }
 
 #pragma mark -

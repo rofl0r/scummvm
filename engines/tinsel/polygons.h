@@ -18,9 +18,6 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
- * $URL$
- * $Id$
- *
  * Definition of POLYGON structure and functions in POLYGONS.C
  */
 
@@ -127,8 +124,8 @@ void RestorePolygonStuff(POLY_VOLATILE *sps);
 
 PTYPE PolyType(HPOLYGON hp);		// ->type
 int PolySubtype(HPOLYGON hp);		// ->subtype
-int PolyCentreX(HPOLYGON hp);		// ->pcentrex
-int PolyCentreY(HPOLYGON hp);		// ->pcentrey
+int PolyCenterX(HPOLYGON hp);		// ->pcenterx
+int PolyCenterY(HPOLYGON hp);		// ->pcentery
 int PolyCornerX(HPOLYGON hp, int n);	// ->cx[n]
 int PolyCornerY(HPOLYGON hp, int n);	// ->cy[n]
 PSTATE PolyPointState(HPOLYGON hp);	// ->pointState

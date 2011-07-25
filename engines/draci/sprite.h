@@ -18,9 +18,6 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
- * $URL$
- * $Id$
- *
  */
 
 #ifndef DRACI_SPRITE_H
@@ -139,12 +136,12 @@ private:
 class Text : public Drawable {
 
 public:
-	Text(const Common::String &str, const Font *font, byte fontColour,
+	Text(const Common::String &str, const Font *font, byte fontColor,
 	    int x, int y, uint spacing);
 	~Text() {}
 
 	void setText(const Common::String &str);
-	void setColour(byte fontColour) { _colour = fontColour; }
+	void setColor(byte fontColor) { _color = fontColor; }
 	void setSpacing(uint spacing) { _spacing = spacing; }
 	void setFont(const Font *font);
 
@@ -165,7 +162,7 @@ private:
 
 	Common::String _text;
 	uint _length;
-	uint8 _colour;
+	uint8 _color;
 	uint _spacing;
 	const Font *_font;
 };

@@ -17,19 +17,16 @@
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * $URL$
- * $Id$
  */
 
 #ifndef GRAPHICS_WINFONT_H
 #define GRAPHICS_WINFONT_H
 
+#include "common/str.h"
 #include "graphics/font.h"
 
 namespace Common {
-	class SeekableReadStream;
-	class String;
+class SeekableReadStream;
 }
 
 namespace Graphics {
@@ -69,6 +66,10 @@ public:
 	void drawChar(Surface *dst, byte chr, int x, int y, uint32 color) const;
 
 private:
+	bool loadFromPE(const Common::String &fileName, const WinFontDirEntry &dirEntry);
+	bool loadFromNE(const Common::String &fileName, const WinFontDirEntry &dirEntry);
+
+	uint32 getFontIndex(Common::SeekableReadStream &stream, const WinFontDirEntry &dirEntry);
 	bool loadFromFNT(Common::SeekableReadStream &stream);
 	char indexToCharacter(uint16 index) const;
 	uint16 characterToIndex(byte character) const;
@@ -87,7 +88,7 @@ private:
 		uint16 charWidth;
 		uint32 offset;
 		byte *bitmap;
-	} *_glyphs;	
+	} *_glyphs;
 };
 
 } // End of namespace Graphics

@@ -18,9 +18,6 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
- * $URL$
- * $Id$
- *
  */
 
 /*
@@ -30,7 +27,9 @@
  *
  */
 
+#include "common/debug.h"
 #include "common/system.h"
+#include "common/textconsole.h"
 
 #include "hugo/hugo.h"
 #include "hugo/file.h"
@@ -63,7 +62,7 @@ void FileManager_v1d::readOverlay(const int screenNum, image_pt image, const ovl
 	Common::String buf = Common::String(_vm->_text->getScreenNames(screenNum)) + Common::String(ovl_ext[overlayType]);
 
 	if (!Common::File::exists(buf)) {
-		memset(image, 0, sizeof(image));
+		memset(image, 0, kOvlSize);
 		warning("File not found: %s", buf.c_str());
 		return;
 	}
@@ -121,7 +120,7 @@ void FileManager_v1d::instructions() const {
 			f.read(wrkLine, 1);
 		} while (*wrkLine++ != '#');                // '#' is EOP
 		wrkLine[-2] = '\0';                         // Remove EOP and previous CR
-		Utils::Box(kBoxAny, "%s", line);
+		Utils::notifyBox(line);
 		wrkLine = line;
 		f.read(readBuf, 2);                         // Remove CRLF after EOP
 	}

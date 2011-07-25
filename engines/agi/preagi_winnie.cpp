@@ -18,9 +18,6 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
- * $URL$
- * $Id$
- *
  */
 
 #include "agi/preagi.h"
@@ -32,6 +29,7 @@
 #include "common/events.h"
 #include "common/memstream.h"
 #include "common/savefile.h"
+#include "common/textconsole.h"
 
 namespace Agi {
 
@@ -88,27 +86,30 @@ void Winnie::parseObjHeader(WTP_OBJ_HDR *objHdr, byte *buffer, int len) {
 }
 
 uint32 Winnie::readRoom(int iRoom, uint8 *buffer, WTP_ROOM_HDR &roomHdr) {
-	char szFile[256] = {0};
+	Common::String fileName;
 
 	if (_vm->getPlatform() == Common::kPlatformPC)
-		sprintf(szFile, IDS_WTP_ROOM_DOS, iRoom);
+		fileName = Common::String::format(IDS_WTP_ROOM_DOS, iRoom);
 	else if (_vm->getPlatform() == Common::kPlatformAmiga)
-		sprintf(szFile, IDS_WTP_ROOM_AMIGA, iRoom);
+		fileName = Common::String::format(IDS_WTP_ROOM_AMIGA, iRoom);
 	else if (_vm->getPlatform() == Common::kPlatformC64)
-		sprintf(szFile, IDS_WTP_ROOM_C64, iRoom);
+		fileName = Common::String::format(IDS_WTP_ROOM_C64, iRoom);
 	else if (_vm->getPlatform() == Common::kPlatformApple2GS)
-		sprintf(szFile, IDS_WTP_ROOM_APPLE, iRoom);
+		fileName = Common::String::format(IDS_WTP_ROOM_APPLE, iRoom);
+
 	Common::File file;
-	if (!file.open(szFile)) {
-		warning ("Could not open file \'%s\'", szFile);
+	if (!file.open(fileName)) {
+		warning("Could not open file \'%s\'", fileName.c_str());
 		return 0;
 	}
+
 	uint32 filelen = file.size();
-	if (_vm->getPlatform() == Common::kPlatformC64) { //Skip the loading address
+	if (_vm->getPlatform() == Common::kPlatformC64) { // Skip the loading address
 		filelen -= 2;
 		file.seek(2, SEEK_CUR);
 	}
-	memset(buffer, 0, sizeof(buffer));
+
+	memset(buffer, 0, 4096);
 	file.read(buffer, filelen);
 	file.close();
 
@@ -118,26 +119,30 @@ uint32 Winnie::readRoom(int iRoom, uint8 *buffer, WTP_ROOM_HDR &roomHdr) {
 }
 
 uint32 Winnie::readObj(int iObj, uint8 *buffer) {
-	char szFile[256] = {0};
+	Common::String fileName;
+
 	if (_vm->getPlatform() == Common::kPlatformPC)
-		sprintf(szFile, IDS_WTP_OBJ_DOS, iObj);
+		fileName = Common::String::format(IDS_WTP_OBJ_DOS, iObj);
 	else if (_vm->getPlatform() == Common::kPlatformAmiga)
-		sprintf(szFile, IDS_WTP_OBJ_AMIGA, iObj);
+		fileName = Common::String::format(IDS_WTP_OBJ_AMIGA, iObj);
 	else if (_vm->getPlatform() == Common::kPlatformC64)
-		sprintf(szFile, IDS_WTP_OBJ_C64, iObj);
+		fileName = Common::String::format(IDS_WTP_OBJ_C64, iObj);
 	else if (_vm->getPlatform() == Common::kPlatformApple2GS)
-		sprintf(szFile, IDS_WTP_OBJ_APPLE, iObj);
+		fileName = Common::String::format(IDS_WTP_OBJ_APPLE, iObj);
+
 	Common::File file;
-	if (!file.open(szFile)) {
-		warning ("Could not open file \'%s\'", szFile);
+	if (!file.open(fileName)) {
+		warning ("Could not open file \'%s\'", fileName.c_str());
 		return 0;
 	}
+
 	uint32 filelen = file.size();
-	if (_vm->getPlatform() == Common::kPlatformC64) { //Skip the loading address
+	if (_vm->getPlatform() == Common::kPlatformC64) { // Skip the loading address
 		filelen -= 2;
 		file.seek(2, SEEK_CUR);
 	}
-	memset(buffer, 0, sizeof(buffer));
+
+	memset(buffer, 0, 2048);
 	file.read(buffer, filelen);
 	file.close();
 	return filelen;
@@ -216,15 +221,9 @@ int Winnie::getObjInRoom(int iRoom) {
 	return 0;
 }
 
-#define setTakeDrop() {\
-	if (getObjInRoom(_room))\
-		fCanSel[IDI_WTP_SEL_TAKE] = true;\
-	else\
-		fCanSel[IDI_WTP_SEL_TAKE] = false;\
-	if (_game.iObjHave)\
-		fCanSel[IDI_WTP_SEL_DROP] = true;\
-	else\
-		fCanSel[IDI_WTP_SEL_DROP] = false;\
+void Winnie::setTakeDrop(int fCanSel[]) {
+	fCanSel[IDI_WTP_SEL_TAKE] = getObjInRoom(_room);
+	fCanSel[IDI_WTP_SEL_DROP] = _game.iObjHave;
 }
 
 void Winnie::setFlag(int iFlag) {
@@ -280,7 +279,7 @@ int Winnie::parser(int pc, int index, uint8 *buffer) {
 				fCanSel[IDI_WTP_SEL_EAST] = fCanSel[IDI_WTP_SEL_WEST] = true;
 
 			// check if object in room or player carrying one
-			setTakeDrop();
+			setTakeDrop(fCanSel);
 
 			// check which rows have a menu option
 			for (iSel = 0; iSel < IDI_WTP_MAX_OPTION; iSel++) {
@@ -366,11 +365,11 @@ int Winnie::parser(int pc, int index, uint8 *buffer) {
 				break;
 			case IDI_WTP_SEL_TAKE:
 				takeObj(_room);
-				setTakeDrop();
+				setTakeDrop(fCanSel);
 				break;
 			case IDI_WTP_SEL_DROP:
 				dropObj(_room);
-				setTakeDrop();
+				setTakeDrop(fCanSel);
 				break;
 			}
 		}
@@ -469,8 +468,6 @@ void Winnie::keyHelp() {
 }
 
 void Winnie::inventory() {
-	char szMissing[41] = {0};
-
 	if (_game.iObjHave)
 		printObjStr(_game.iObjHave, IDI_WTP_OBJ_TAKE);
 	else {
@@ -478,8 +475,9 @@ void Winnie::inventory() {
 		_vm->drawStr(IDI_WTP_ROW_MENU, IDI_WTP_COL_MENU, IDA_DEFAULT, IDS_WTP_INVENTORY_0);
 	}
 
-	sprintf(szMissing, IDS_WTP_INVENTORY_1, _game.nObjMiss);
-	_vm->drawStr(IDI_WTP_ROW_OPTION_4, IDI_WTP_COL_MENU, IDA_DEFAULT, szMissing);
+	Common::String missing = Common::String::format(IDS_WTP_INVENTORY_1, _game.nObjMiss);
+
+	_vm->drawStr(IDI_WTP_ROW_OPTION_4, IDI_WTP_COL_MENU, IDA_DEFAULT, missing.c_str());
 	_vm->_gfx->doUpdate();
 	_vm->_system->updateScreen(); //TODO: Move to game's main loop
 	_vm->getSelection(kSelAnyKey);
@@ -795,13 +793,12 @@ void Winnie::getMenuMouseSel(int *iSel, int fCanSel[], int x, int y) {
 	}
 }
 
-#define makeSel() {\
-	if (fCanSel[*iSel]) {\
-		return;\
-	} else {\
-		keyHelp();\
-		clrMenuSel(iSel, fCanSel);\
-	}\
+void Winnie::makeSel(int *iSel, int fCanSel[]) {
+	if (fCanSel[*iSel])
+		return;
+
+	keyHelp();
+	clrMenuSel(iSel, fCanSel);
 }
 
 void Winnie::getMenuSel(char *szMenu, int *iSel, int fCanSel[]) {
@@ -843,22 +840,22 @@ void Winnie::getMenuSel(char *szMenu, int *iSel, int fCanSel[]) {
 				// Click to move
 				if (fCanSel[IDI_WTP_SEL_NORTH] && hotspotNorth.contains(event.mouse.x, event.mouse.y)) {
 					*iSel = IDI_WTP_SEL_NORTH;
-					makeSel();
+					makeSel(iSel, fCanSel);
 					_vm->_gfx->setCursorPalette(false);
 					return;
 				} else if (fCanSel[IDI_WTP_SEL_SOUTH] && hotspotSouth.contains(event.mouse.x, event.mouse.y)) {
 					*iSel = IDI_WTP_SEL_SOUTH;
-					makeSel();
+					makeSel(iSel, fCanSel);
 					_vm->_gfx->setCursorPalette(false);
 					return;
 				} else if (fCanSel[IDI_WTP_SEL_WEST] && hotspotWest.contains(event.mouse.x, event.mouse.y)) {
 					*iSel = IDI_WTP_SEL_WEST;
-					makeSel();
+					makeSel(iSel, fCanSel);
 					_vm->_gfx->setCursorPalette(false);
 					return;
 				} else if (fCanSel[IDI_WTP_SEL_EAST] && hotspotEast.contains(event.mouse.x, event.mouse.y)) {
 					*iSel = IDI_WTP_SEL_EAST;
-					makeSel();
+					makeSel(iSel, fCanSel);
 					_vm->_gfx->setCursorPalette(false);
 					return;
 				} else {
@@ -943,31 +940,31 @@ void Winnie::getMenuSel(char *szMenu, int *iSel, int fCanSel[]) {
 					break;
 				case Common::KEYCODE_n:
 					*iSel = IDI_WTP_SEL_NORTH;
-					makeSel();
+					makeSel(iSel, fCanSel);
 					break;
 				case Common::KEYCODE_s:
 					if (event.kbd.flags & Common::KBD_CTRL) {
 						_vm->flipflag(fSoundOn);
 					} else {
 						*iSel = IDI_WTP_SEL_SOUTH;
-						makeSel();
+						makeSel(iSel, fCanSel);
 					}
 					break;
 				case Common::KEYCODE_e:
 					*iSel = IDI_WTP_SEL_EAST;
-					makeSel();
+					makeSel(iSel, fCanSel);
 					break;
 				case Common::KEYCODE_w:
 					*iSel = IDI_WTP_SEL_WEST;
-					makeSel();
+					makeSel(iSel, fCanSel);
 					break;
 				case Common::KEYCODE_t:
 					*iSel = IDI_WTP_SEL_TAKE;
-					makeSel();
+					makeSel(iSel, fCanSel);
 					break;
 				case Common::KEYCODE_d:
 					*iSel = IDI_WTP_SEL_DROP;
-					makeSel();
+					makeSel(iSel, fCanSel);
 					break;
 				case Common::KEYCODE_RETURN:
 					switch (*iSel) {
@@ -1051,16 +1048,15 @@ phase2:
 }
 
 void Winnie::drawPic(const char *szName) {
-	char szFile[256] = {0};
+	Common::String fileName = szName;
+
+	if (_vm->getPlatform() != Common::kPlatformAmiga)
+		fileName += ".pic";
+
 	Common::File file;
 
-	// construct filename
-	if (_vm->getPlatform() != Common::kPlatformAmiga)
-		sprintf(szFile, "%s.pic", szName);
-	else
-		strcpy(szFile, szName);
-	if (!file.open(szFile)) {
-		warning ("Could not open file \'%s\'", szFile);
+	if (!file.open(fileName)) {
+		warning ("Could not open file \'%s\'", fileName.c_str());
 		return;
 	}
 
@@ -1151,15 +1147,14 @@ void Winnie::gameOver() {
 }
 
 void Winnie::saveGame() {
-	Common::OutSaveFile* outfile;
-	char szFile[256] = {0};
 	int i = 0;
 
-	sprintf(szFile, IDS_WTP_FILE_SAVEGAME);
-	if (!(outfile = _vm->getSaveFileMan()->openForSaving(szFile)))
+	Common::OutSaveFile *outfile = _vm->getSaveFileMan()->openForSaving(IDS_WTP_FILE_SAVEGAME);
+
+	if (!outfile)
 		return;
 
-	outfile->writeUint32BE(MKID_BE('WINN'));	// header
+	outfile->writeUint32BE(MKTAG('W','I','N','N'));	// header
 	outfile->writeByte(WTP_SAVEGAME_VERSION);
 
 	outfile->writeByte(_game.fSound);
@@ -1180,22 +1175,21 @@ void Winnie::saveGame() {
 	outfile->finalize();
 
 	if (outfile->err())
-		warning("Can't write file '%s'. (Disk full?)", szFile);
+		warning("Can't write file '%s'. (Disk full?)", IDS_WTP_FILE_SAVEGAME);
 
 	delete outfile;
 }
 
 void Winnie::loadGame() {
-	Common::InSaveFile* infile;
-	char szFile[256] = {0};
 	int saveVersion = 0;
 	int i = 0;
 
-	sprintf(szFile, IDS_WTP_FILE_SAVEGAME);
-	if (!(infile = _vm->getSaveFileMan()->openForLoading(szFile)))
+	Common::InSaveFile *infile = _vm->getSaveFileMan()->openForLoading(IDS_WTP_FILE_SAVEGAME);
+
+	if (!infile)
 		return;
 
-	if (infile->readUint32BE() == MKID_BE('WINN')) {
+	if (infile->readUint32BE() == MKTAG('W','I','N','N')) {
 		saveVersion = infile->readByte();
 		if (saveVersion != WTP_SAVEGAME_VERSION)
 			warning("Old save game version (%d, current version is %d). Will try and read anyway, but don't be surprised if bad things happen", saveVersion, WTP_SAVEGAME_VERSION);

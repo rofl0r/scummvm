@@ -18,14 +18,9 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
- * $URL$
- * $Id$
- *
  */
 
 
-#include "common/events.h"
-#include "common/system.h"
 #include "queen/command.h"
 
 #include "queen/display.h"
@@ -1086,10 +1081,10 @@ void Command::setAreas(uint16 command) {
 			Area *area = _vm->grid()->area(cmdArea->room, areaNum);
 			if (cmdArea->area > 0) {
 				// turn on area
-				area->mapNeighbours = ABS(area->mapNeighbours);
+				area->mapNeighbors = ABS(area->mapNeighbors);
 			} else {
 				// turn off area
-				area->mapNeighbours = -ABS(area->mapNeighbours);
+				area->mapNeighbors = -ABS(area->mapNeighbors);
 			}
 		}
 	}

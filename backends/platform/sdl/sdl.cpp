@@ -18,10 +18,9 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
- * $URL$
- * $Id$
- *
  */
+
+#define FORBIDDEN_SYMBOL_ALLOW_ALL
 
 #ifdef WIN32
 #define WIN32_LEAN_AND_MEAN
@@ -32,13 +31,22 @@
 #include "backends/platform/sdl/sdl.h"
 #include "common/config-manager.h"
 #include "common/EventRecorder.h"
+#include "common/taskbar.h"
+#include "common/textconsole.h"
 
 #include "backends/saves/default/default-saves.h"
+
+// Audio CD support was removed with SDL 1.3
+#if SDL_VERSION_ATLEAST(1, 3, 0)
+#include "backends/audiocd/default/default-audiocd.h"
+#else
 #include "backends/audiocd/sdl/sdl-audiocd.h"
+#endif
+
 #include "backends/events/sdl/sdl-events.h"
 #include "backends/mutex/sdl/sdl-mutex.h"
 #include "backends/timer/sdl/sdl-timer.h"
-#include "backends/graphics/sdl/sdl-graphics.h"
+#include "backends/graphics/surfacesdl/surfacesdl-graphics.h"
 #ifdef USE_OPENGL
 #include "backends/graphics/openglsdl/openglsdl-graphics.h"
 #endif
@@ -125,6 +133,11 @@ void OSystem_SDL::init() {
 	if (_timerManager == 0)
 		_timerManager = new SdlTimerManager();
 
+#if defined(USE_TASKBAR)
+	if (_taskbarManager == 0)
+		_taskbarManager = new Common::TaskbarManager();
+#endif
+
 #ifdef USE_OPENGL
 	// Setup a list with both SDL and OpenGL graphics modes
 	setupGraphicsModes();
@@ -167,26 +180,10 @@ void OSystem_SDL::initBackend() {
 		}
 #endif
 		if (_graphicsManager == 0) {
-			_graphicsManager = new SdlGraphicsManager(_eventSource);
+			_graphicsManager = new SurfaceSdlGraphicsManager(_eventSource);
 			graphicsManagerType = 0;
 		}
 	}
-
-	// Creates the backend managers, if they don't exist yet (we check
-	// for this to allow subclasses to provide their own).
-	if (_eventManager == 0)
-		_eventManager = new DefaultEventManager(_eventSource);
-
-	// We have to initialize the graphics manager before the event manager
-	// so the virtual keyboard can be initialized, but we have to add the
-	// graphics manager as an event observer after initializing the event
-	// manager.
-	if (graphicsManagerType == 0)
-		((SdlGraphicsManager *)_graphicsManager)->initEventObserver();
-#ifdef USE_OPENGL
-	else if (graphicsManagerType == 1)
-		((OpenGLSdlGraphicsManager *)_graphicsManager)->initEventObserver();
-#endif
 
 	if (_savefileManager == 0)
 		_savefileManager = new DefaultSaveFileManager();
@@ -198,14 +195,50 @@ void OSystem_SDL::initBackend() {
 		_mixerManager->init();
 	}
 
-	if (_audiocdManager == 0)
+	if (_audiocdManager == 0) {
+		// Audio CD support was removed with SDL 1.3
+#if SDL_VERSION_ATLEAST(1, 3, 0)
+		_audiocdManager = new DefaultAudioCDManager();
+#else
 		_audiocdManager = new SdlAudioCDManager();
+#endif
+
+	}
 
 	// Setup a custom program icon.
 	setupIcon();
 
 	_inited = true;
+
+	ModularBackend::initBackend();
+
+	// We have to initialize the graphics manager before the event manager
+	// so the virtual keyboard can be initialized, but we have to add the
+	// graphics manager as an event observer after initializing the event
+	// manager.
+	if (graphicsManagerType == 0)
+		((SurfaceSdlGraphicsManager *)_graphicsManager)->initEventObserver();
+#ifdef USE_OPENGL
+	else if (graphicsManagerType == 1)
+		((OpenGLSdlGraphicsManager *)_graphicsManager)->initEventObserver();
+#endif
+
 }
+
+#if defined(USE_TASKBAR)
+void OSystem_SDL::engineInit() {
+	// Add the started engine to the list of recent tasks
+	_taskbarManager->addRecent(ConfMan.getActiveDomainName(), ConfMan.get("description"));
+
+	// Set the overlay icon the current running engine
+	_taskbarManager->setOverlayIcon(ConfMan.getActiveDomainName(), ConfMan.get("description"));
+}
+
+void OSystem_SDL::engineDone() {
+	// Remove overlay icon
+	_taskbarManager->setOverlayIcon("", "");
+}
+#endif
 
 void OSystem_SDL::initSDL() {
 	// Check if SDL has not been initialized
@@ -213,6 +246,11 @@ void OSystem_SDL::initSDL() {
 		uint32 sdlFlags = 0;
 		if (ConfMan.hasKey("disable_sdl_parachute"))
 			sdlFlags |= SDL_INIT_NOPARACHUTE;
+
+#ifdef WEBOS
+		// WebOS needs this flag or otherwise the application won't start
+		sdlFlags |= SDL_INIT_VIDEO;
+#endif
 
 		// Initialize SDL (SDL Subsystems are initiliazed in the corresponding sdl managers)
 		if (SDL_Init(sdlFlags) == -1)
@@ -236,20 +274,6 @@ void OSystem_SDL::addSysArchivesToSearchSet(Common::SearchSet &s, int priority) 
 	}
 #endif
 
-}
-
-Common::String OSystem_SDL::getDefaultConfigFileName() {
-	return "scummvm.ini";
-}
-
-Common::SeekableReadStream *OSystem_SDL::createConfigReadStream() {
-	Common::FSNode file(getDefaultConfigFileName());
-	return file.createReadStream();
-}
-
-Common::WriteStream *OSystem_SDL::createConfigWriteStream() {
-	Common::FSNode file(getDefaultConfigFileName());
-	return file.createWriteStream();
 }
 
 void OSystem_SDL::setWindowCaption(const char *caption) {
@@ -282,10 +306,22 @@ void OSystem_SDL::fatalError() {
 
 
 void OSystem_SDL::logMessage(LogMessageType::Type type, const char *message) {
-	ModularBackend::logMessage(type, message);
+	// First log to stdout/stderr
+	FILE *output = 0;
+
+	if (type == LogMessageType::kInfo || type == LogMessageType::kDebug)
+		output = stdout;
+	else
+		output = stderr;
+
+	fputs(message, output);
+	fflush(output);
+
+	// Then log into file (via the logger)
 	if (_logger)
 		_logger->print(message);
 
+	// Finally, some Windows / WinCE specific logging code.
 #if defined( USE_WINDBG )
 #if defined( _WIN32_WCE )
 	TCHAR buf_unicode[1024];
@@ -308,7 +344,7 @@ void OSystem_SDL::logMessage(LogMessageType::Type type, const char *message) {
 }
 
 Common::String OSystem_SDL::getSystemLanguage() const {
-#ifdef USE_DETECTLANG
+#if defined(USE_DETECTLANG) && !defined(_WIN32_WCE)
 #ifdef WIN32
 	// We can not use "setlocale" (at least not for MSVC builds), since it
 	// will return locales like: "English_USA.1252", thus we need a special
@@ -373,7 +409,11 @@ void OSystem_SDL::setupIcon() {
 	unsigned int rgba[256];
 	unsigned int *icon;
 
-	sscanf(scummvm_icon[0], "%d %d %d %d", &w, &h, &ncols, &nbytes);
+	if (sscanf(scummvm_icon[0], "%d %d %d %d", &w, &h, &ncols, &nbytes) != 4) {
+		warning("Wrong format of scummvm_icon[0] (%s)", scummvm_icon[0]);
+
+		return;
+	}
 	if ((w > 512) || (h > 512) || (ncols > 255) || (nbytes > 1)) {
 		warning("Could not load the built-in icon (%d %d %d %d)", w, h, ncols, nbytes);
 		return;
@@ -387,14 +427,19 @@ void OSystem_SDL::setupIcon() {
 	for (i = 0; i < ncols; i++) {
 		unsigned char code;
 		char color[32];
+		memset(color, 0, sizeof(color));
 		unsigned int col;
-		sscanf(scummvm_icon[1 + i], "%c c %s", &code, color);
+		if (sscanf(scummvm_icon[1 + i], "%c c %s", &code, color) != 2) {
+			warning("Wrong format of scummvm_icon[%d] (%s)", 1 + i, scummvm_icon[1 + i]);
+		}
 		if (!strcmp(color, "None"))
 			col = 0x00000000;
 		else if (!strcmp(color, "black"))
 			col = 0xFF000000;
 		else if (color[0] == '#') {
-			sscanf(color + 1, "%06x", &col);
+			if (sscanf(color + 1, "%06x", &col) != 1) {
+				warning("Wrong format of color (%s)", color + 1);
+			}
 			col |= 0xFF000000;
 		} else {
 			warning("Could not load the built-in icon (%d %s - %s) ", code, color, scummvm_icon[1 + i]);
@@ -471,7 +516,7 @@ bool OSystem_SDL::setGraphicsMode(int mode) {
 
 	// Check if mode is from SDL or OpenGL
 	if (mode < _sdlModesCount) {
-		srcMode = SdlGraphicsManager::supportedGraphicsModes();
+		srcMode = SurfaceSdlGraphicsManager::supportedGraphicsModes();
 		i = 0;
 	} else {
 		srcMode = OpenGLSdlGraphicsManager::supportedGraphicsModes();
@@ -486,8 +531,8 @@ bool OSystem_SDL::setGraphicsMode(int mode) {
 			if (_graphicsMode >= _sdlModesCount && mode < _sdlModesCount) {
 				debug(1, "switching to plain SDL graphics");
 				delete _graphicsManager;
-				_graphicsManager = new SdlGraphicsManager(_eventSource);
-				((SdlGraphicsManager *)_graphicsManager)->initEventObserver();
+				_graphicsManager = new SurfaceSdlGraphicsManager(_eventSource);
+				((SurfaceSdlGraphicsManager *)_graphicsManager)->initEventObserver();
 				_graphicsManager->beginGFXTransaction();
 			} else if (_graphicsMode < _sdlModesCount && mode >= _sdlModesCount) {
 				debug(1, "switching to OpenGL graphics");
@@ -513,7 +558,7 @@ int OSystem_SDL::getGraphicsMode() const {
 }
 
 void OSystem_SDL::setupGraphicsModes() {
-	const OSystem::GraphicsMode *sdlGraphicsModes = SdlGraphicsManager::supportedGraphicsModes();
+	const OSystem::GraphicsMode *sdlGraphicsModes = SurfaceSdlGraphicsManager::supportedGraphicsModes();
 	const OSystem::GraphicsMode *openglGraphicsModes = OpenGLSdlGraphicsManager::supportedGraphicsModes();
 	_sdlModesCount = 0;
 	_glModesCount = 0;

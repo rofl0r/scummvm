@@ -18,9 +18,6 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
- * $URL$
- * $Id$
- *
  */
 
 /*! \mainpage %ScummVM Source Reference
@@ -30,6 +27,9 @@
  * Currently not much is actually properly documented, but at least you can get an overview
  * of almost all the classes, methods and variables, and how they interact.
  */
+
+// FIXME: Avoid using printf
+#define FORBIDDEN_SYMBOL_EXCEPTION_printf
 
 #include "engines/engine.h"
 #include "engines/metaengine.h"
@@ -43,14 +43,13 @@
 #include "common/debug-channels.h" /* for debug manager */
 #include "common/events.h"
 #include "common/EventRecorder.h"
-#include "common/file.h"
 #include "common/fs.h"
 #include "common/system.h"
+#include "common/textconsole.h"
 #include "common/tokenizer.h"
 #include "common/translation.h"
 
 #include "gui/gui-manager.h"
-#include "gui/message.h"
 #include "gui/error.h"
 
 #include "audio/mididrv.h"
@@ -111,13 +110,12 @@ static const EnginePlugin *detectPlugin() {
 	if (plugin == 0) {
 		printf("failed\n");
 		warning("%s is an invalid gameid. Use the --list-games option to list supported gameid", gameid.c_str());
-		return 0;
 	} else {
 		printf("%s\n", plugin->getName());
-	}
 
-	// FIXME: Do we really need this one?
-	printf("  Starting '%s'\n", game.description().c_str());
+		// FIXME: Do we really need this one?
+		printf("  Starting '%s'\n", game.description().c_str());
+	}
 
 	return plugin;
 }
@@ -131,24 +129,20 @@ static Common::Error runGame(const EnginePlugin *plugin, OSystem &system, const 
 
 	// Verify that the game path refers to an actual directory
 	if (!(dir.exists() && dir.isDirectory()))
-		err = Common::kInvalidPathError;
+		err = Common::kPathNotDirectory;
 
 	// Create the game engine
-	if (err == Common::kNoError)
+	if (err.getCode() == Common::kNoError)
 		err = (*plugin)->createInstance(&system, &engine);
 
 	// Check for errors
-	if (!engine || err != Common::kNoError) {
+	if (!engine || err.getCode() != Common::kNoError) {
 
-		// TODO: An errorDialog for this and engine related errors is displayed already in the scummvm_main function
-		// Is a separate dialog here still required?
-
-		//GUI::displayErrorDialog("ScummVM could not find any game in the specified directory!");
-		const char *errMsg = _(Common::errorToString(err));
-
+		// Print a warning; note that scummvm_main will also
+		// display an error dialog, so we don't have to do this here.
 		warning("%s failed to instantiate engine: %s (target '%s', path '%s')",
 			plugin->getName(),
-			errMsg,
+			err.getDesc().c_str(),
 			ConfMan.getActiveDomainName().c_str(),
 			dir.getPath().c_str()
 			);
@@ -339,7 +333,7 @@ extern "C" int scummvm_main(int argc, const char * const argv[]) {
 
 	PluginManager::instance().init();
  	PluginManager::instance().loadAllPlugins(); // load plugins for cached plugin manager
-	
+
 	// If we received an invalid music parameter via command line we check this here.
 	// We can't check this before loading the music plugins.
 	// On the other hand we cannot load the plugins before we know the file paths (in case of external plugins).
@@ -355,8 +349,11 @@ extern "C" int scummvm_main(int argc, const char * const argv[]) {
 	Common::Error res;
 
 	// TODO: deal with settings that require plugins to be loaded
-	if ((res = Base::processSettings(command, settings)) != Common::kArgumentNotProcessed)
-		return res;
+	if (Base::processSettings(command, settings, res)) {
+		if (res.getCode() != Common::kNoError)
+			warning("%s", res.getDesc().c_str());
+		return res.getCode();
+	}
 
 	// Init the backend. Must take place after all config data (including
 	// the command line params) was read.
@@ -388,7 +385,7 @@ extern "C" int scummvm_main(int argc, const char * const argv[]) {
 	system.getAudioCDManager();
 	MusicManager::instance();
 	Common::DebugManager::instance();
-	
+
 	// Init the event manager. As the virtual keyboard is loaded here, it must
 	// take place after the backend is initiated and the screen has been setup
 	system.getEventManager()->init();
@@ -427,17 +424,17 @@ extern "C" int scummvm_main(int argc, const char * const argv[]) {
 			PluginManager::instance().unloadPluginsExcept(PLUGIN_TYPE_ENGINE, NULL, false);
 			// reallocate the config manager to get rid of any fragmentation
 			ConfMan.defragment();
-		#endif	
-			
+		#endif
+
 			// Did an error occur ?
-			if (result != Common::kNoError) {
+			if (result.getCode() != Common::kNoError && result.getCode() != Common::kUserCanceled) {
 				// Shows an informative error dialog if starting the selected game failed.
 				GUI::displayErrorDialog(result, _("Error running game:"));
 			}
 
 			// Quit unless an error occurred, or Return to launcher was requested
 			#ifndef FORCE_RTL
-			if (result == 0 && !g_system->getEventManager()->shouldRTL())
+			if (result.getCode() == Common::kNoError && !g_system->getEventManager()->shouldRTL())
 				break;
 			#endif
 			// Reset RTL flag in case we want to load another engine

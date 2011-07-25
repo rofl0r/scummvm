@@ -17,9 +17,6 @@
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * $URL$
- * $Id$
  */
 
 #ifndef SOUND_NULL_H
@@ -33,6 +30,7 @@
 class MidiDriver_NULL : public MidiDriver_MPU401 {
 public:
 	int open() { return 0; }
+ 	bool isOpen() const { return true; }
 	void send(uint32 b) { }
 };
 

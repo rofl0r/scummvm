@@ -18,9 +18,6 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
- * $URL$
- * $Id$
- *
  */
 
 #include "made/pmvplayer.h"
@@ -50,14 +47,14 @@ bool PmvPlayer::play(const char *filename) {
 	uint32 chunkType, chunkSize, prevChunkSize = 0;
 
 	readChunk(chunkType, chunkSize);	// "MOVE"
-	if (chunkType != MKID_BE('MOVE')) {
+	if (chunkType != MKTAG('M','O','V','E')) {
 		warning("Unexpected PMV video header, expected 'MOVE'");
 		delete _fd;
 		return false;
 	}
 
 	readChunk(chunkType, chunkSize);	// "MHED"
-	if (chunkType != MKID_BE('MHED')) {
+	if (chunkType != MKTAG('M','H','E','D')) {
 		warning("Unexpected PMV video header, expected 'MHED'");
 		delete _fd;
 		return false;
@@ -98,7 +95,7 @@ bool PmvPlayer::play(const char *filename) {
 
 	uint32 soundStartTime = 0, skipFrames = 0;
 
-	uint32 frameNum, bytesRead;
+	uint32 bytesRead;
 	uint16 width, height, cmdOffs, pixelOffs, maskOffs, lineSize;
 
 	// TODO: Sound can still be a little choppy. A bug in the decoder or -
@@ -111,7 +108,7 @@ bool PmvPlayer::play(const char *filename) {
 		int32 frameTime = _vm->_system->getMillis();
 
 		readChunk(chunkType, chunkSize);
-		if (chunkType != MKID_BE('MFRM')) {
+		if (chunkType != MKTAG('M','F','R','M')) {
 			warning("Unknown chunk type");
 		}
 
@@ -156,7 +153,7 @@ bool PmvPlayer::play(const char *filename) {
 		// Handle video
 		imageData = frameData + READ_LE_UINT32(frameData + 12) - 8;
 
-		frameNum = READ_LE_UINT32(frameData);
+		// frameNum @0
 		width = READ_LE_UINT16(imageData + 8);
 		height = READ_LE_UINT16(imageData + 10);
 		cmdOffs = READ_LE_UINT16(imageData + 12);
@@ -169,7 +166,7 @@ bool PmvPlayer::play(const char *filename) {
 
 		if (!_surface) {
 			_surface = new Graphics::Surface();
-			_surface->create(width, height, 1);
+			_surface->create(width, height, Graphics::PixelFormat::createFormatCLUT8());
 		}
 
 		decompressMovieImage(imageData, *_surface, cmdOffs, pixelOffs, maskOffs, lineSize);

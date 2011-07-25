@@ -18,15 +18,13 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
- * $URL$
- * $Id$
- *
  */
 
 #ifndef SCI_EVENT_H
 #define SCI_EVENT_H
 
 #include "common/list.h"
+#include "common/rect.h"
 
 namespace Sci {
 
@@ -46,6 +44,13 @@ struct SciEvent {
 	 * PC keyboard scancodes.
 	 */
 	short character;
+
+	/**
+	 * The mouse position at the time the event was created.
+	 *
+	 * These are display coordinates!
+	 */
+	Common::Point mousePos;
 };
 
 /*Values for type*/
@@ -56,11 +61,8 @@ struct SciEvent {
 #define SCI_EVENT_DIRECTION       (1<<6)
 #define SCI_EVENT_SAID            (1<<7)
 /*Fake values for other events*/
-#define SCI_EVENT_ERROR           (1<<10)
 #define SCI_EVENT_QUIT            (1<<11)
 #define SCI_EVENT_PEEK            (1<<15)
-/* The QUIT event may be used to signal an external 'quit' command being
-** issued to the gfx driver.  */
 #define SCI_EVENT_ANY             0x7fff
 
 /* Keycodes of special keys: */
@@ -121,7 +123,6 @@ private:
 	SciEvent getScummVMEvent();
 
 	const bool _fontIsExtended;
-	int _modifierStates;
 	Common::List<SciEvent> _events;
 };
 

@@ -18,10 +18,9 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
- * $URL$
- * $Id$
- *
  */
+
+#include "common/debug.h"
 
 #include "toon/drew.h"
 
@@ -111,11 +110,10 @@ void CharacterDrew::update(int32 timeIncrement) {
 			_scale = _currentScale;
 	} else if (_currentScale < _scale) {
 		_scale -= timeIncrement * 2;
-		if (_scale < _currentScale) 
+		if (_scale < _currentScale)
 			_scale = _currentScale;
 	}
 	setPosition(_x, _y);
-
 }
 
 int32 CharacterDrew::getRandomIdleAnim() {

@@ -18,9 +18,6 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
- * $URL$
- * $Id$
- *
  */
 
 /*
@@ -32,8 +29,7 @@
 
 // parser.c - handles all keyboard/command input
 
-#include "common/system.h"
-#include "common/events.h"
+#include "common/debug.h"
 
 #include "hugo/hugo.h"
 #include "hugo/parser.h"
@@ -119,7 +115,7 @@ void Parser_v1w::lineHandler() {
 	// Special meta commands
 	// EXIT/QUIT
 	if (!strcmp("exit", _vm->_line) || strstr(_vm->_line, "quit")) {
-		if (Utils::Box(kBoxYesNo, "%s", _vm->_text->getTextParser(kTBExit_1d)) != 0)
+		if (Utils::yesNoBox(_vm->_text->getTextParser(kTBExit_1d)))
 			_vm->endGame();
 		return;
 	}
@@ -132,8 +128,6 @@ void Parser_v1w::lineHandler() {
 
 	if (!strcmp("restore", _vm->_line) && (gameStatus.viewState == kViewPlay || gameStatus.viewState == kViewIdle)) {
 		_vm->_file->restoreGame(-1);
-		_vm->_scheduler->restoreScreen(*_vm->_screen_p);
-		gameStatus.viewState = kViewPlay;
 		return;
 	}
 
@@ -184,7 +178,7 @@ void Parser_v1w::lineHandler() {
 
 	// If a not-near comment was generated, print it
 	if (*farComment != '\0') {
-		Utils::Box(kBoxAny, "%s", farComment);
+		Utils::notifyBox(farComment);
 		return;
 	}
 
@@ -192,16 +186,16 @@ void Parser_v1w::lineHandler() {
 	const char *verb = findVerb();
 	const char *noun = findNoun();
 	if (verb == _vm->_text->getVerb(_vm->_look, 0) && _vm->_maze.enabledFl) {
-		Utils::Box(kBoxAny, "%s", _vm->_text->getTextParser(kTBMaze));
+		Utils::notifyBox(_vm->_text->getTextParser(kTBMaze));
 		_vm->_object->showTakeables();
 	} else if (verb && noun) {                      // A combination I didn't think of
-		Utils::Box(kBoxAny, "%s", _vm->_text->getTextParser(kTBNoPoint));
+		Utils::notifyBox(_vm->_text->getTextParser(kTBNoPoint));
 	} else if (noun) {
-		Utils::Box(kBoxAny, "%s", _vm->_text->getTextParser(kTBNoun));
+		Utils::notifyBox(_vm->_text->getTextParser(kTBNoun));
 	} else if (verb) {
-		Utils::Box(kBoxAny, "%s", _vm->_text->getTextParser(kTBVerb));
+		Utils::notifyBox(_vm->_text->getTextParser(kTBVerb));
 	} else {
-		Utils::Box(kBoxAny, "%s", _vm->_text->getTextParser(kTBEh));
+		Utils::notifyBox(_vm->_text->getTextParser(kTBEh));
 	}
 }
 

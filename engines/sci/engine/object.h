@@ -18,9 +18,6 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
- * $URL$
- * $Id$
- *
  */
 
 #ifndef SCI_ENGINE_OBJECT_H
@@ -28,6 +25,7 @@
 
 #include "common/array.h"
 #include "common/serializer.h"
+#include "common/textconsole.h"
 
 #include "sci/sci.h"			// for the SCI versions
 #include "sci/engine/vm_types.h"	// for reg_t
@@ -81,7 +79,7 @@ public:
 	}
 
 	reg_t getSpeciesSelector() const {
-		if (getSciVersion() <= SCI_VERSION_2_1) 
+		if (getSciVersion() <= SCI_VERSION_2_1)
 			return _variables[_offset];
 		else	// SCI3
 			return _speciesSelectorSci3;
@@ -95,7 +93,7 @@ public:
 	}
 
 	reg_t getSuperClassSelector() const {
-		if (getSciVersion() <= SCI_VERSION_2_1) 
+		if (getSciVersion() <= SCI_VERSION_2_1)
 			return _variables[_offset + 1];
 		else	// SCI3
 			return _superClassPosSci3;
@@ -238,7 +236,7 @@ private:
 	void initSelectorsSci3(const byte *buf);
 
 	const byte *_baseObj; /**< base + object offset within base */
-	uint16 *_baseVars; /**< Pointer to the varselector area for this object */
+	const uint16 *_baseVars; /**< Pointer to the varselector area for this object */
 	Common::Array<uint16> _baseMethod; /**< Pointer to the method selector area for this object */
 	uint16 *_propertyOffsetsSci3; /**< This is used to enable relocation of property valuesa in SCI3 */
 

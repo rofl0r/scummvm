@@ -18,16 +18,11 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
- * $URL$
- * $Id$
- *
  */
 
 #include "common/system.h"
 #include "common/config-manager.h"
 #include "common/debug-channels.h"
-#include "common/EventRecorder.h"
-#include "common/file.h"	// for Common::File::exists()
 
 #include "engines/advancedDetector.h"
 #include "engines/util.h"
@@ -78,7 +73,7 @@ SciEngine *g_sci = 0;
 class GfxDriver;
 
 SciEngine::SciEngine(OSystem *syst, const ADGameDescription *desc, SciGameId gameId)
-		: Engine(syst), _gameDescription(desc), _gameId(gameId) {
+		: Engine(syst), _gameDescription(desc), _gameId(gameId), _rng("sci") {
 
 	assert(g_sci == 0);
 	g_sci = this;
@@ -186,8 +181,6 @@ SciEngine::~SciEngine() {
 extern void showScummVMDialog(const Common::String &message);
 
 Common::Error SciEngine::run() {
-	g_eventRec.registerRandomSource(_rng, "sci");
-
 	// Assign default values to the config manager, in case settings are missing
 	ConfMan.registerDefault("sci_originalsaveload", "false");
 	ConfMan.registerDefault("native_fb01", "false");
@@ -213,27 +206,27 @@ Common::Error SciEngine::run() {
 	// Add the after market GM patches for the specified game, if they exist
 	_resMan->addNewGMPatch(_gameId);
 	_gameObjectAddress = _resMan->findGameObject();
-	_gameSuperClassAddress = NULL_REG;
 
 	SegManager *segMan = new SegManager(_resMan);
 
 	// Initialize the game screen
 	_gfxScreen = new GfxScreen(_resMan);
-	_gfxScreen->debugUnditherSetState(ConfMan.getBool("disable_dithering"));
+	_gfxScreen->enableUndithering(ConfMan.getBool("disable_dithering"));
 
-	// Create debugger console. It requires GFX to be initialized
-	_console = new Console(this);
 	_kernel = new Kernel(_resMan, segMan);
 
 	_features = new GameFeatures(segMan, _kernel);
 	// Only SCI0, SCI01 and SCI1 EGA games used a parser
-	_vocabulary = (getSciVersion() <= SCI_VERSION_1_EGA) ? new Vocabulary(_resMan, false) : NULL;
+	_vocabulary = (getSciVersion() <= SCI_VERSION_1_EGA_ONLY) ? new Vocabulary(_resMan, false) : NULL;
 	// Also, XMAS1990 apparently had a parser too. Refer to http://forums.scummvm.org/viewtopic.php?t=9135
 	if (getGameId() == GID_CHRISTMAS1990)
 		_vocabulary = new Vocabulary(_resMan, false);
 	_audio = new AudioPlayer(_resMan);
 	_gamestate = new EngineState(segMan);
 	_eventMan = new EventManager(_resMan->detectFontExtended());
+
+	// Create debugger console. It requires GFX and _gamestate to be initialized
+	_console = new Console(this);
 
 	// The game needs to be initialized before the graphics system is initialized, as
 	// the graphics code checks parts of the seg manager upon initialization (e.g. for
@@ -250,7 +243,6 @@ Common::Error SciEngine::run() {
 		warning("Could not get game object, aborting...");
 		return Common::kUnknownError;
 	}
-	_gameSuperClassAddress = gameObject->getSuperClassSelector();
 
 	script_adjust_opcode_formats();
 
@@ -266,8 +258,6 @@ Common::Error SciEngine::run() {
 
 	// Initialize all graphics related subsystems
 	initGraphics();
-
-	debug("Emulating SCI version %s\n", getSciVersionDesc(getSciVersion()));
 
 	// Patch in our save/restore code, so that dialogs are replaced
 	patchGameSaveRestore();
@@ -292,7 +282,7 @@ Common::Error SciEngine::run() {
 		//  without this games would be pretty badly broken
 	}
 
-	// Show any special warnings for buggy scripts with severe game bugs, 
+	// Show any special warnings for buggy scripts with severe game bugs,
 	// which have been patched by Sierra
 	if (getGameId() == GID_LONGBOW) {
 		// Longbow 1.0 has a buggy script which prevents the game
@@ -427,7 +417,7 @@ static byte patchGameRestoreSave[] = {
 	0x76,              // push0
 	0x38, 0xff, 0xff,  // pushi -1
 	0x76,              // push0
-	0x43, 0xff, 0x06,  // callk kRestoreGame/kSaveGame (will get fixed directly)
+	0x43, 0xff, 0x06,  // callk kRestoreGame/kSaveGame (will get changed afterwards)
 	0x48,              // ret
 };
 
@@ -437,34 +427,56 @@ static byte patchGameRestoreSaveSci2[] = {
 	0x76,              // push0
 	0x38, 0xff, 0xff,  // pushi -1
 	0x76,              // push0
-	0x43, 0xff, 0x06, 0x00, // callk kRestoreGame/kSaveGame (will get fixed directly)
+	0x43, 0xff, 0x06, 0x00, // callk kRestoreGame/kSaveGame (will get changed afterwards)
 	0x48,              // ret
 };
+
+// SCI21 version: Same as above, but the second parameter to callk is a word
+static byte patchGameRestoreSaveSci21[] = {
+	0x39, 0x04,        // pushi 04
+	0x76,              // push0	// 0: save, 1: restore (will get changed afterwards)
+	0x76,              // push0
+	0x38, 0xff, 0xff,  // pushi -1
+	0x76,              // push0
+	0x43, 0xff, 0x08, 0x00, // callk kSave (will get changed afterwards)
+	0x48,              // ret
+};
+
+static void patchGameSaveRestoreCode(SegManager *segMan, reg_t methodAddress, byte id) {
+	Script *script = segMan->getScript(methodAddress.segment);
+	byte *patchPtr = const_cast<byte *>(script->getBuf(methodAddress.offset));
+	if (getSciVersion() <= SCI_VERSION_1_1)
+		memcpy(patchPtr, patchGameRestoreSave, sizeof(patchGameRestoreSave));
+	else	// SCI2+
+		memcpy(patchPtr, patchGameRestoreSaveSci2, sizeof(patchGameRestoreSaveSci2));
+	patchPtr[8] = id;
+}
+
+static void patchGameSaveRestoreCodeSci21(SegManager *segMan, reg_t methodAddress, byte id, bool doRestore) {
+	Script *script = segMan->getScript(methodAddress.segment);
+	byte *patchPtr = const_cast<byte *>(script->getBuf(methodAddress.offset));
+	memcpy(patchPtr, patchGameRestoreSaveSci21, sizeof(patchGameRestoreSaveSci21));
+	if (doRestore)
+		patchPtr[2] = 0x78;	// push1
+	patchPtr[9] = id;
+}
 
 void SciEngine::patchGameSaveRestore() {
 	SegManager *segMan = _gamestate->_segMan;
 	const Object *gameObject = segMan->getObject(_gameObjectAddress);
-	const uint16 gameMethodCount = gameObject->getMethodCount();
-	const Object *gameSuperObject = segMan->getObject(_gameSuperClassAddress);
+	const Object *gameSuperObject = segMan->getObject(gameObject->getSuperClassSelector());
 	if (!gameSuperObject)
 		gameSuperObject = gameObject;	// happens in KQ5CD, when loading saved games before r54510
-	const uint16 gameSuperMethodCount = gameSuperObject->getMethodCount();
-	reg_t methodAddress;
-	const uint16 kernelCount = _kernel->getKernelNamesSize();
-	const byte *scriptRestorePtr = NULL;
 	byte kernelIdRestore = 0;
-	const byte *scriptSavePtr = NULL;
 	byte kernelIdSave = 0;
 
-	// This feature is currently not supported in SCI21 or SCI3
-	if (getSciVersion() >= SCI_VERSION_2_1)
-		return;
-
 	switch (_gameId) {
-	case GID_MOTHERGOOSE256: // mother goose saves/restores directly and has no save/restore dialogs
-	case GID_JONES: // gets confused, when we patch us in, the game is only able to save to 1 slot, so hooking is not required
 	case GID_HOYLE1: // gets confused, although the game doesnt support saving/restoring at all
 	case GID_HOYLE2: // gets confused, see hoyle1
+	case GID_JONES: // gets confused, when we patch us in, the game is only able to save to 1 slot, so hooking is not required
+	case GID_MOTHERGOOSE256: // mother goose saves/restores directly and has no save/restore dialogs
+	case GID_PHANTASMAGORIA: // has custom save/load code
+	case GID_SHIVERS: // has custom save/load code
 		return;
 	default:
 		break;
@@ -473,68 +485,52 @@ void SciEngine::patchGameSaveRestore() {
 	if (ConfMan.getBool("sci_originalsaveload"))
 		return;
 
-	for (uint16 kernelNr = 0; kernelNr < kernelCount; kernelNr++) {
+	uint16 kernelNamesSize = _kernel->getKernelNamesSize();
+	for (uint16 kernelNr = 0; kernelNr < kernelNamesSize; kernelNr++) {
 		Common::String kernelName = _kernel->getKernelName(kernelNr);
 		if (kernelName == "RestoreGame")
 			kernelIdRestore = kernelNr;
 		if (kernelName == "SaveGame")
 			kernelIdSave = kernelNr;
+		if (kernelName == "Save")
+			kernelIdSave = kernelIdRestore = kernelNr;
 	}
 
-	// Search for gameobject-superclass ::restore
-	for (uint16 methodNr = 0; methodNr < gameSuperMethodCount; methodNr++) {
+	// Search for gameobject superclass ::restore
+	uint16 gameSuperObjectMethodCount = gameSuperObject->getMethodCount();
+	for (uint16 methodNr = 0; methodNr < gameSuperObjectMethodCount; methodNr++) {
 		uint16 selectorId = gameSuperObject->getFuncSelector(methodNr);
 		Common::String methodName = _kernel->getSelectorName(selectorId);
 		if (methodName == "restore") {
-			methodAddress = gameSuperObject->getFunction(methodNr);
-			Script *script = segMan->getScript(methodAddress.segment);
-			scriptRestorePtr = script->getBuf(methodAddress.offset);
+			if (kernelIdSave != kernelIdRestore)
+				patchGameSaveRestoreCode(segMan, gameSuperObject->getFunction(methodNr), kernelIdRestore);
+			else
+				patchGameSaveRestoreCodeSci21(segMan, gameSuperObject->getFunction(methodNr), kernelIdRestore, true);
 		}
-		if (methodName == "save") {
-			methodAddress = gameSuperObject->getFunction(methodNr);
-			Script *script = segMan->getScript(methodAddress.segment);
-			scriptSavePtr = script->getBuf(methodAddress.offset);
+		else if (methodName == "save") {
+			if (_gameId != GID_FAIRYTALES) {	// Fairy Tales saves automatically without a dialog
+				if (kernelIdSave != kernelIdRestore)
+					patchGameSaveRestoreCode(segMan, gameSuperObject->getFunction(methodNr), kernelIdSave);
+				else
+					patchGameSaveRestoreCodeSci21(segMan, gameSuperObject->getFunction(methodNr), kernelIdSave, false);
+			}
 		}
 	}
 
-	// Search for gameobject ::save, if there is one patch that one instead
-	for (uint16 methodNr = 0; methodNr < gameMethodCount; methodNr++) {
+	// Search for gameobject ::save, if there is one patch that one too
+	uint16 gameObjectMethodCount = gameObject->getMethodCount();
+	for (uint16 methodNr = 0; methodNr < gameObjectMethodCount; methodNr++) {
 		uint16 selectorId = gameObject->getFuncSelector(methodNr);
 		Common::String methodName = _kernel->getSelectorName(selectorId);
 		if (methodName == "save") {
-			methodAddress = gameObject->getFunction(methodNr);
-			Script *script = segMan->getScript(methodAddress.segment);
-			scriptSavePtr = script->getBuf(methodAddress.offset);
+			if (_gameId != GID_FAIRYTALES) {	// Fairy Tales saves automatically without a dialog
+				if (kernelIdSave != kernelIdRestore)
+					patchGameSaveRestoreCode(segMan, gameObject->getFunction(methodNr), kernelIdSave);
+				else
+					patchGameSaveRestoreCodeSci21(segMan, gameObject->getFunction(methodNr), kernelIdSave, false);
+			}
 			break;
 		}
-	}
-
-	switch (_gameId) {
-	case GID_FAIRYTALES: // fairy tales automatically saves w/o dialog
-		scriptSavePtr = NULL;
-	default:
-		break;
-	}
-
-	if (scriptRestorePtr) {
-		// Now patch in our code
-		byte *patchPtr = const_cast<byte *>(scriptRestorePtr);
-		if (getSciVersion() <= SCI_VERSION_1_1)
-			memcpy(patchPtr, patchGameRestoreSave, sizeof(patchGameRestoreSave));
-		else if (getSciVersion() == SCI_VERSION_2)
-			memcpy(patchPtr, patchGameRestoreSaveSci2, sizeof(patchGameRestoreSaveSci2));
-		// TODO: SCI21/SCI3
-		patchPtr[8] = kernelIdRestore;
-	}
-	if (scriptSavePtr) {
-		// Now patch in our code
-		byte *patchPtr = const_cast<byte *>(scriptSavePtr);
-		if (getSciVersion() <= SCI_VERSION_1_1)
-			memcpy(patchPtr, patchGameRestoreSave, sizeof(patchGameRestoreSave));
-		else if (getSciVersion() == SCI_VERSION_2)
-			memcpy(patchPtr, patchGameRestoreSaveSci2, sizeof(patchGameRestoreSaveSci2));
-		// TODO: SCI21/SCI3
-		patchPtr[8] = kernelIdSave;
 	}
 }
 
@@ -573,9 +569,8 @@ bool SciEngine::initGame() {
 	}
 
 	// Reset parser
-	if (_vocabulary) {
+	if (_vocabulary)
 		_vocabulary->reset();
-	}
 
 	_gamestate->lastWaitTime = _gamestate->_screenUpdateTime = g_system->getMillis();
 
@@ -641,7 +636,7 @@ void SciEngine::initGraphics() {
 		_gfxCoordAdjuster = new GfxCoordAdjuster16(_gfxPorts);
 		_gfxCursor->init(_gfxCoordAdjuster, _eventMan);
 		_gfxCompare = new GfxCompare(_gamestate->_segMan, _kernel, _gfxCache, _gfxScreen, _gfxCoordAdjuster);
-		_gfxTransitions = new GfxTransitions(_gfxScreen, _gfxPalette, _resMan->isVGA());
+		_gfxTransitions = new GfxTransitions(_gfxScreen, _gfxPalette);
 		_gfxPaint16 = new GfxPaint16(_resMan, _gamestate->_segMan, _kernel, _gfxCache, _gfxPorts, _gfxCoordAdjuster, _gfxScreen, _gfxPalette, _gfxTransitions, _audio);
 		_gfxPaint = _gfxPaint16;
 		_gfxAnimate = new GfxAnimate(_gamestate, _gfxCache, _gfxPorts, _gfxPaint16, _gfxScreen, _gfxPalette, _gfxCursor, _gfxTransitions);
@@ -776,6 +771,16 @@ bool SciEngine::isCD() const {
 	return _gameDescription->flags & ADGF_CD;
 }
 
+bool SciEngine::isBE() const{
+	switch(_gameDescription->platform) {
+	case Common::kPlatformAmiga:
+	case Common::kPlatformMacintosh:
+		return true;
+	default:
+		return false;
+	}
+}
+
 bool SciEngine::hasMacIconBar() const {
 	return _resMan->isSci11Mac() && getSciVersion() == SCI_VERSION_1_1 &&
 			(getGameId() == GID_KQ6 || getGameId() == GID_FREDDYPHARKAS);
@@ -863,8 +868,9 @@ void SciEngine::syncIngameAudioOptions() {
 			_gamestate->variables[VAR_GLOBAL][90] = make_reg(0, 2);	// speech
 		} else if (subtitlesOn && speechOn) {
 			// Is it a game that supports simultaneous speech and subtitles?
-			if (getGameId() == GID_SQ4 
+			if (getGameId() == GID_SQ4
 				|| getGameId() == GID_FREDDYPHARKAS
+				|| getGameId() == GID_ECOQUEST
 				// TODO: The following need script patches for simultaneous speech and subtitles
 				//|| getGameId() == GID_KQ6
 				//|| getGameId() == GID_LAURABOW2
@@ -902,7 +908,7 @@ void SciEngine::loadMacExecutable() {
 		// KQ6/Freddy require the executable to load their icon bar palettes
 		if (hasMacIconBar())
 			error("Could not load Mac resource fork '%s'", filename.c_str());
-		
+
 		// TODO: Show some sort of warning dialog saying they can't get any
 		// high-res Mac fonts, when we get to that point ;)
 	}

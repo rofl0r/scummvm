@@ -18,13 +18,11 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
- * $URL$
- * $Id$
- *
  */
 
 #include "common/events.h"
 #include "common/savefile.h"
+#include "common/textconsole.h"
 
 #include "graphics/cursorman.h"
 
@@ -1003,7 +1001,7 @@ bool Mickey::loadGame() {
 			if (_vm->getSelection(kSelAnyKey) == 0)
 				return false;
 		} else {
-			if (infile->readUint32BE() != MKID_BE('MICK')) {
+			if (infile->readUint32BE() != MKTAG('M','I','C','K')) {
 				warning("Mickey::loadGame wrong save game format");
 				return false;
 			}
@@ -1120,7 +1118,7 @@ void Mickey::saveGame() {
 			if (_vm->getSelection(kSelAnyKey) == 0)
 				return;
 		} else {
-			outfile->writeUint32BE(MKID_BE('MICK'));	// header
+			outfile->writeUint32BE(MKTAG('M','I','C','K'));	// header
 			outfile->writeByte(MSA_SAVEGAME_VERSION);
 
 			outfile->writeByte(_game.iRoom);

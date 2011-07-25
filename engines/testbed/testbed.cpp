@@ -17,14 +17,16 @@
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * $URL$
- * $Id$
  */
 
 #include "common/debug-channels.h"
 #include "common/scummsys.h"
-#include "common/system.h"
+#include "common/archive.h"
+#include "common/config-manager.h"
+#include "common/error.h"
+#include "common/fs.h"
+#include "common/rect.h"
+#include "common/str.h"
 
 #include "engines/util.h"
 
@@ -74,12 +76,16 @@ void TestbedExitDialog::init() {
 
 void TestbedExitDialog::handleCommand(GUI::CommandSender *sender, uint32 cmd, uint32 data) {
 	switch (cmd) {
+	default:
+		break;
+
 	case kCmdRerunTestbed :
 		ConfParams.setRerunFlag(true);
 		cmd = GUI::kCloseCmd;
-	default:
-		GUI::Dialog::handleCommand(sender, cmd, data);
+		break;
 	}
+
+	GUI::Dialog::handleCommand(sender, cmd, data);
 }
 
 bool TestbedEngine::hasFeature(EngineFeature f) const {

@@ -18,9 +18,6 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
- * $URL$
- * $Id$
- *
  */
 
 #ifndef MOHAWK_DIALOGS_H
@@ -38,8 +35,6 @@
 namespace Mohawk {
 
 class MohawkEngine;
-class MohawkEngine_Myst;
-class MohawkEngine_Riven;
 
 class InfoDialog : public GUI::Dialog {
 protected:
@@ -71,6 +66,10 @@ public:
 	virtual void handleKeyDown(Common::KeyState state);
 };
 
+#ifdef ENABLE_MYST
+
+class MohawkEngine_Myst;
+
 class MystOptionsDialog : public GUI::OptionsDialog {
 public:
 	MystOptionsDialog(MohawkEngine_Myst *vm);
@@ -82,7 +81,15 @@ private:
 	MohawkEngine_Myst *_vm;
 	GUI::CheckboxWidget *_zipModeCheckbox;
 	GUI::CheckboxWidget *_transitionsCheckbox;
+	GUI::ButtonWidget *_dropPageButton;
+	GUI::ButtonWidget *_showMapButton;
 };
+
+#endif
+
+#ifdef ENABLE_RIVEN
+
+class MohawkEngine_Riven;
 
 class RivenOptionsDialog : public GUI::OptionsDialog {
 public:
@@ -96,6 +103,8 @@ private:
 	GUI::CheckboxWidget *_zipModeCheckbox;
 	GUI::CheckboxWidget *_waterEffectCheckbox;
 };
+
+#endif
 
 } // End of namespace Mohawk
 

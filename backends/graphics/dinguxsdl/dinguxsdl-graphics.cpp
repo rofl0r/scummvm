@@ -18,9 +18,6 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
- * $URL$
- * $Id$
- *
  */
 
 #include "common/scummsys.h"
@@ -31,6 +28,7 @@
 #include "backends/events/dinguxsdl/dinguxsdl-events.h"
 #include "graphics/scaler/aspect.h"
 #include "common/mutex.h"
+#include "common/textconsole.h"
 
 static const OSystem::GraphicsMode s_supportedGraphicsModes[] = {
 	{"1x", "Standard", GFX_NORMAL},
@@ -38,7 +36,7 @@ static const OSystem::GraphicsMode s_supportedGraphicsModes[] = {
 };
 
 DINGUXSdlGraphicsManager::DINGUXSdlGraphicsManager(SdlEventSource *boss)
-	: SdlGraphicsManager(boss) {
+	: SurfaceSdlGraphicsManager(boss) {
 }
 
 const OSystem::GraphicsMode *DINGUXSdlGraphicsManager::getSupportedGraphicsModes() const {
@@ -417,7 +415,7 @@ void DINGUXSdlGraphicsManager::showOverlay() {
 		_mouseCurState.x = _mouseCurState.x / 2;
 		_mouseCurState.y = _mouseCurState.y / 2;
 	}
-	SdlGraphicsManager::showOverlay();
+	SurfaceSdlGraphicsManager::showOverlay();
 }
 
 void DINGUXSdlGraphicsManager::hideOverlay() {
@@ -425,7 +423,7 @@ void DINGUXSdlGraphicsManager::hideOverlay() {
 		_mouseCurState.x = _mouseCurState.x * 2;
 		_mouseCurState.y = _mouseCurState.y * 2;
 	}
-	SdlGraphicsManager::hideOverlay();
+	SurfaceSdlGraphicsManager::hideOverlay();
 }
 
 bool DINGUXSdlGraphicsManager::loadGFXMode() {
@@ -437,14 +435,14 @@ bool DINGUXSdlGraphicsManager::loadGFXMode() {
 		_videoMode.aspectRatioCorrection = false;
 	}
 
-	fprintf(stdout, "Game ScreenMode = %d*%d\n", _videoMode.screenWidth, _videoMode.screenHeight);
+	debug("Game ScreenMode = %d*%d", _videoMode.screenWidth, _videoMode.screenHeight);
 	if (_videoMode.screenWidth > 320 || _videoMode.screenHeight > 240) {
 		_videoMode.aspectRatioCorrection = false;
 		setGraphicsMode(GFX_HALF);
-		fprintf(stdout, "GraphicsMode set to HALF\n");
+		debug("GraphicsMode set to HALF");
 	} else {
 		setGraphicsMode(GFX_NORMAL);
-		fprintf(stdout, "GraphicsMode set to NORMAL\n");
+		debug("GraphicsMode set to NORMAL");
 	}
 
 	if ((_videoMode.mode == GFX_HALF) && !_overlayVisible) {
@@ -464,13 +462,13 @@ bool DINGUXSdlGraphicsManager::loadGFXMode() {
 	}
 
 
-	return SdlGraphicsManager::loadGFXMode();
+	return SurfaceSdlGraphicsManager::loadGFXMode();
 }
 
 bool DINGUXSdlGraphicsManager::hasFeature(OSystem::Feature f) {
 	return
 	    (f == OSystem::kFeatureAspectRatioCorrection) ||
-	    (f == OSystem::kFeatureCursorHasPalette);
+	    (f == OSystem::kFeatureCursorPalette);
 }
 
 void DINGUXSdlGraphicsManager::setFeatureState(OSystem::Feature f, bool enable) {
@@ -494,11 +492,11 @@ bool DINGUXSdlGraphicsManager::getFeatureState(OSystem::Feature f) {
 	}
 }
 
-SdlGraphicsManager::MousePos* DINGUXSdlGraphicsManager::getMouseCurState() {
+SurfaceSdlGraphicsManager::MousePos *DINGUXSdlGraphicsManager::getMouseCurState() {
 	return &_mouseCurState;
 }
 
-SdlGraphicsManager::VideoState* DINGUXSdlGraphicsManager::getVideoMode() {
+SurfaceSdlGraphicsManager::VideoState *DINGUXSdlGraphicsManager::getVideoMode() {
 	return &_videoMode;
 }
 
@@ -509,7 +507,7 @@ void DINGUXSdlGraphicsManager::warpMouse(int x, int y) {
 			y = y / 2;
 		}
 	}
-	SdlGraphicsManager::warpMouse(x, y);
+	SurfaceSdlGraphicsManager::warpMouse(x, y);
 }
 
 void DINGUXSdlGraphicsManager::adjustMouseEvent(const Common::Event &event) {

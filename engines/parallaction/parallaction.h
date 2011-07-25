@@ -18,9 +18,6 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
- * $URL$
- * $Id$
- *
  */
 
 #ifndef PARALLACTION_H
@@ -32,6 +29,7 @@
 #include "common/func.h"
 #include "common/random.h"
 #include "common/savefile.h"
+#include "common/textconsole.h"
 
 #include "engines/engine.h"
 
@@ -268,7 +266,7 @@ public:
 	virtual Common::Error run() {
 		Common::Error err;
 		err = init();
-		if (err != Common::kNoError)
+		if (err.getCode() != Common::kNoError)
 			return err;
 		return go();
 	}

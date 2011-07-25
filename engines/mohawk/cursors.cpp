@@ -18,29 +18,27 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
- * $URL$
- * $Id$
- *
  */
 
-#include "mohawk/bitmap.h"
 #include "mohawk/cursors.h"
+#include "mohawk/mohawk.h"
 #include "mohawk/resource.h"
-#include "mohawk/graphics.h"
-#include "mohawk/myst.h"
-#include "mohawk/riven_cursors.h"
 
 #include "common/macresman.h"
-#include "common/ne_exe.h"
 #include "common/system.h"
+#include "common/textconsole.h"
+#include "common/winexe_ne.h"
+#include "common/winexe_pe.h"
 #include "graphics/cursorman.h"
+#include "graphics/maccursor.h"
+#include "graphics/wincursor.h"
+
+#ifdef ENABLE_MYST
+#include "mohawk/bitmap.h"
+#include "mohawk/myst.h"
+#endif
 
 namespace Mohawk {
-
-static const byte s_bwPalette[] = {
-	0x00, 0x00, 0x00,	// Black
-	0xFF, 0xFF, 0xFF	// White
-};
 
 void CursorManager::showCursor() {
 	CursorMan.showMouse(true);
@@ -74,8 +72,13 @@ void CursorManager::setDefaultCursor() {
 		0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0
 	};
 
+	static const byte bwPalette[] = {
+		0x00, 0x00, 0x00,	// Black
+		0xFF, 0xFF, 0xFF	// White
+	};
+
 	CursorMan.replaceCursor(defaultCursor, 12, 20, 0, 0, 0);
-	CursorMan.replaceCursorPalette(s_bwPalette, 1, 2);
+	CursorMan.replaceCursorPalette(bwPalette, 1, 2);
 }
 
 void CursorManager::setCursor(uint16 id) {
@@ -83,45 +86,27 @@ void CursorManager::setCursor(uint16 id) {
 	setDefaultCursor();
 }
 
-void CursorManager::decodeMacXorCursor(Common::SeekableReadStream *stream, byte *cursor) {
-	assert(stream);
-	assert(cursor);
-
-	// Get black and white data
-	for (int i = 0; i < 32; i++) {
-		byte imageByte = stream->readByte();
-		for (int b = 0; b < 8; b++)
-			cursor[i * 8 + b] = (imageByte & (0x80 >> b)) ? 1 : 2;
-	}
-
-	// Apply mask data
-	for (int i = 0; i < 32; i++) {
-		byte imageByte = stream->readByte();
-		for (int b = 0; b < 8; b++)
-			if ((imageByte & (0x80 >> b)) == 0)
-				cursor[i * 8 + b] = 0;
-	}
-}
-
-void CursorManager::setStandardCursor(Common::SeekableReadStream *stream) {
-	// The Broderbund devs decided to rip off the Mac format, it seems.
-	// However, they reversed the x/y hotspot. That makes it totally different!!!!
+void CursorManager::setMacCursor(Common::SeekableReadStream *stream) {
 	assert(stream);
 
-	byte cursorBitmap[16 * 16];
-	decodeMacXorCursor(stream, cursorBitmap);
-	uint16 hotspotY = stream->readUint16BE();
-	uint16 hotspotX = stream->readUint16BE();
+	Graphics::MacCursor *macCursor = new Graphics::MacCursor();
 
-	CursorMan.replaceCursor(cursorBitmap, 16, 16, hotspotX, hotspotY, 0);
-	CursorMan.replaceCursorPalette(s_bwPalette, 1, 2);
+	if (!macCursor->readFromStream(*stream))
+		error("Could not parse Mac cursor");
 
+	CursorMan.replaceCursor(macCursor->getSurface(), macCursor->getWidth(), macCursor->getHeight(),
+			macCursor->getHotspotX(), macCursor->getHotspotY(), macCursor->getKeyColor());
+	CursorMan.replaceCursorPalette(macCursor->getPalette(), 0, 256);
+
+	delete macCursor;
 	delete stream;
 }
 
 void DefaultCursorManager::setCursor(uint16 id) {
-	setStandardCursor(_vm->getResource(_tag, id));
+	setMacCursor(_vm->getResource(_tag, id));
 }
+
+#ifdef ENABLE_MYST
 
 MystCursorManager::MystCursorManager(MohawkEngine_Myst *vm) : _vm(vm) {
 	_bmpDecoder = new MystBitmap();
@@ -142,6 +127,13 @@ void MystCursorManager::hideCursor() {
 }
 
 void MystCursorManager::setCursor(uint16 id) {
+	// Zero means empty cursor
+	if (id == 0) {
+		static const byte emptyCursor = 0;
+		CursorMan.replaceCursor(&emptyCursor, 1, 1, 0, 0, 0);
+		return;
+	}
+
 	// Both Myst and Myst ME use the "MystBitmap" format for cursor images.
 	MohawkSurface *mhkSurface = _bmpDecoder->decodeImage(_vm->getResource(ID_WDIB, id));
 	Graphics::Surface *surface = mhkSurface->getSurface();
@@ -151,7 +143,7 @@ void MystCursorManager::setCursor(uint16 id) {
 	delete clrcStream;
 
 	// Myst ME stores some cursors as 24bpp images instead of 8bpp
-	if (surface->bytesPerPixel == 1) {
+	if (surface->format.bytesPerPixel == 1) {
 		CursorMan.replaceCursor((byte *)surface->pixels, surface->w, surface->h, hotspotX, hotspotY, 0);
 		CursorMan.replaceCursorPalette(mhkSurface->getPalette(), 0, 256);
 	} else {
@@ -167,118 +159,7 @@ void MystCursorManager::setDefaultCursor() {
 	setCursor(kDefaultMystCursor);
 }
 
-void RivenCursorManager::setCursor(uint16 id) {
-	// All of Riven's cursors are hardcoded. See riven_cursors.h for these definitions.
-
-	switch (id) {
-	case 1002:
-		// Zip Mode
-		CursorMan.replaceCursor(s_zipModeCursor, 16, 16, 8, 8, 0);
-		CursorMan.replaceCursorPalette(s_zipModeCursorPalette, 1, ARRAYSIZE(s_zipModeCursorPalette) / 3);
-		break;
-	case 2003:
-		// Hand Over Object
-		CursorMan.replaceCursor(s_objectHandCursor, 16, 16, 8, 8, 0);
-		CursorMan.replaceCursorPalette(s_handCursorPalette, 1, ARRAYSIZE(s_handCursorPalette) / 3);
-		break;
-	case 2004:
-		// Grabbing/Using Object
-		CursorMan.replaceCursor(s_grabbingHandCursor, 13, 13, 6, 6, 0);
-		CursorMan.replaceCursorPalette(s_handCursorPalette, 1, ARRAYSIZE(s_handCursorPalette) / 3);
-		break;
-	case 3000:
-		// Standard Hand
-		CursorMan.replaceCursor(s_standardHandCursor, 15, 16, 6, 0, 0);
-		CursorMan.replaceCursorPalette(s_handCursorPalette, 1, ARRAYSIZE(s_handCursorPalette) / 3);
-		break;
-	case 3001:
-		// Pointing Left
-		CursorMan.replaceCursor(s_pointingLeftCursor, 15, 13, 0, 3, 0);
-		CursorMan.replaceCursorPalette(s_handCursorPalette, 1, ARRAYSIZE(s_handCursorPalette) / 3);
-		break;
-	case 3002:
-		// Pointing Right
-		CursorMan.replaceCursor(s_pointingRightCursor, 15, 13, 14, 3, 0);
-		CursorMan.replaceCursorPalette(s_handCursorPalette, 1, ARRAYSIZE(s_handCursorPalette) / 3);
-		break;
-	case 3003:
-		// Pointing Down (Palm Up)
-		CursorMan.replaceCursor(s_pointingDownCursorPalmUp, 13, 16, 3, 15, 0);
-		CursorMan.replaceCursorPalette(s_handCursorPalette, 1, ARRAYSIZE(s_handCursorPalette) / 3);
-		break;
-	case 3004:
-		// Pointing Up (Palm Up)
-		CursorMan.replaceCursor(s_pointingUpCursorPalmUp, 13, 16, 3, 0, 0);
-		CursorMan.replaceCursorPalette(s_handCursorPalette, 1, ARRAYSIZE(s_handCursorPalette) / 3);
-		break;
-	case 3005:
-		// Pointing Left (Curved)
-		CursorMan.replaceCursor(s_pointingLeftCursorBent, 15, 13, 0, 5, 0);
-		CursorMan.replaceCursorPalette(s_handCursorPalette, 1, ARRAYSIZE(s_handCursorPalette) / 3);
-		break;
-	case 3006:
-		// Pointing Right (Curved)
-		CursorMan.replaceCursor(s_pointingRightCursorBent, 15, 13, 14, 5, 0);
-		CursorMan.replaceCursorPalette(s_handCursorPalette, 1, ARRAYSIZE(s_handCursorPalette) / 3);
-		break;
-	case 3007:
-		// Pointing Down (Palm Down)
-		CursorMan.replaceCursor(s_pointingDownCursorPalmDown, 15, 16, 7, 15, 0);
-		CursorMan.replaceCursorPalette(s_handCursorPalette, 1, ARRAYSIZE(s_handCursorPalette) / 3);
-		break;
-	case 4001:
-		// Red Marble
-		CursorMan.replaceCursor(s_redMarbleCursor, 12, 12, 5, 5, 0);
-		CursorMan.replaceCursorPalette(s_redMarbleCursorPalette, 1, ARRAYSIZE(s_redMarbleCursorPalette) / 3);
-		break;
-	case 4002:
-		// Orange Marble
-		CursorMan.replaceCursor(s_orangeMarbleCursor, 12, 12, 5, 5, 0);
-		CursorMan.replaceCursorPalette(s_orangeMarbleCursorPalette, 1, ARRAYSIZE(s_orangeMarbleCursorPalette) / 3);
-		break;
-	case 4003:
-		// Yellow Marble
-		CursorMan.replaceCursor(s_yellowMarbleCursor, 12, 12, 5, 5, 0);
-		CursorMan.replaceCursorPalette(s_yellowMarbleCursorPalette, 1, ARRAYSIZE(s_yellowMarbleCursorPalette) / 3);
-		break;
-	case 4004:
-		// Green Marble
-		CursorMan.replaceCursor(s_greenMarbleCursor, 12, 12, 5, 5, 0);
-		CursorMan.replaceCursorPalette(s_greenMarbleCursorPalette, 1, ARRAYSIZE(s_greenMarbleCursorPalette) / 3);
-		break;
-	case 4005:
-		// Blue Marble
-		CursorMan.replaceCursor(s_blueMarbleCursor, 12, 12, 5, 5, 0);
-		CursorMan.replaceCursorPalette(s_blueMarbleCursorPalette, 1, ARRAYSIZE(s_blueMarbleCursorPalette) / 3);
-		break;
-	case 4006:
-		// Violet Marble
-		CursorMan.replaceCursor(s_violetMarbleCursor, 12, 12, 5, 5, 0);
-		CursorMan.replaceCursorPalette(s_violetMarbleCursorPalette, 1, ARRAYSIZE(s_violetMarbleCursorPalette) / 3);
-		break;
-	case 5000:
-		// Pellet
-		CursorMan.replaceCursor(s_pelletCursor, 8, 8, 4, 4, 0);
-		CursorMan.replaceCursorPalette(s_pelletCursorPalette, 1, ARRAYSIZE(s_pelletCursorPalette) / 3);
-		break;
-	case 9000:
-		// Hide Cursor
-		CursorMan.showMouse(false);
-		break;
-	default:
-		error("Cursor %d does not exist!", id);
-	}
-
-	if (id != 9000) // Show Cursor
-		CursorMan.showMouse(true);
-
-	// Should help in cases where we need to hide the cursor immediately.
-	g_system->updateScreen();
-}
-
-void RivenCursorManager::setDefaultCursor() {
-	setCursor(kRivenMainCursor);
-}
+#endif
 
 NECursorManager::NECursorManager(const Common::String &appName) {
 	_exe = new Common::NEResources();
@@ -295,16 +176,14 @@ NECursorManager::~NECursorManager() {
 }
 
 void NECursorManager::setCursor(uint16 id) {
-	if (!_exe) {
-		Common::Array<Common::NECursorGroup> cursors = _exe->getCursors();
+	if (_exe) {
+		Graphics::WinCursorGroup *cursorGroup = Graphics::WinCursorGroup::createCursorGroup(*_exe, id);
 
-		for (uint32 i = 0; i < cursors.size(); i++) {
-			if (cursors[i].id == id) {
-				Common::NECursor *cursor = cursors[i].cursors[0];
-				CursorMan.replaceCursor(cursor->getSurface(), cursor->getWidth(), cursor->getHeight(), cursor->getHotspotX(), cursor->getHotspotY(), 0);
-				CursorMan.replaceCursorPalette(cursor->getPalette(), 0, 256);
-				return;
-			}
+		if (cursorGroup) {
+			Graphics::WinCursor *cursor = cursorGroup->cursors[0].cursor;
+			CursorMan.replaceCursor(cursor->getSurface(), cursor->getWidth(), cursor->getHeight(), cursor->getHotspotX(), cursor->getHotspotY(), cursor->getKeyColor());
+			CursorMan.replaceCursorPalette(cursor->getPalette(), 0, 256);
+			return;
 		}
 	}
 
@@ -321,6 +200,8 @@ MacCursorManager::MacCursorManager(const Common::String &appName) {
 			delete _resFork;
 			_resFork = 0;
 		}
+	} else {
+		_resFork = 0;
 	}
 }
 
@@ -334,29 +215,26 @@ void MacCursorManager::setCursor(uint16 id) {
 		return;
 	}
 
-	Common::SeekableReadStream *stream = _resFork->getResource(MKID_BE('CURS'), id);
+	// Try a color cursor first
+	Common::SeekableReadStream *stream = _resFork->getResource(MKTAG('c','r','s','r'), id);
 
-	if (!stream) {
+	// Fall back to monochrome cursors
+	if (!stream)
+		stream = _resFork->getResource(MKTAG('C','U','R','S'), id);
+
+	if (stream) {
+		setMacCursor(stream);
+		delete stream;
+	} else {
 		setDefaultCursor();
-		return;
 	}
-
-	byte cursorBitmap[16 * 16];
-	decodeMacXorCursor(stream, cursorBitmap);
-	uint16 hotspotX = stream->readUint16BE();
-	uint16 hotspotY = stream->readUint16BE();
-
-	CursorMan.replaceCursor(cursorBitmap, 16, 16, hotspotX, hotspotY, 0);
-	CursorMan.replaceCursorPalette(s_bwPalette, 1, 2);
-
-	delete stream;
 }
 
 LivingBooksCursorManager_v2::LivingBooksCursorManager_v2() {
 	// Try to open the system archive if we have it
 	_sysArchive = new MohawkArchive();
 
-	if (!_sysArchive->open("system.mhk")) {
+	if (!_sysArchive->openFile("system.mhk")) {
 		delete _sysArchive;
 		_sysArchive = 0;
 	}
@@ -368,10 +246,52 @@ LivingBooksCursorManager_v2::~LivingBooksCursorManager_v2() {
 
 void LivingBooksCursorManager_v2::setCursor(uint16 id) {
 	if (_sysArchive && _sysArchive->hasResource(ID_TCUR, id)) {
-		setStandardCursor(_sysArchive->getResource(ID_TCUR, id));
+		setMacCursor(_sysArchive->getResource(ID_TCUR, id));
 	} else {
 		// TODO: Handle generated cursors
 	}
+}
+
+void LivingBooksCursorManager_v2::setCursor(const Common::String &name) {
+	if (!_sysArchive)
+		return;
+
+	uint16 id = _sysArchive->findResourceID(ID_TCUR, name);
+	if (id == 0xffff)
+		error("Could not find cursor '%s'", name.c_str());
+	else
+		setCursor(id);
+}
+
+PECursorManager::PECursorManager(const Common::String &appName) {
+	_exe = new Common::PEResources();
+
+	if (!_exe->loadFromEXE(appName)) {
+		// Not all have cursors anyway, so this is not a problem
+		delete _exe;
+		_exe = 0;
+	}
+}
+
+PECursorManager::~PECursorManager() {
+	delete _exe;
+}
+
+void PECursorManager::setCursor(uint16 id) {
+	if (_exe) {
+		Graphics::WinCursorGroup *cursorGroup = Graphics::WinCursorGroup::createCursorGroup(*_exe, id);
+
+		if (cursorGroup) {
+			Graphics::WinCursor *cursor = cursorGroup->cursors[0].cursor;
+			CursorMan.replaceCursor(cursor->getSurface(), cursor->getWidth(), cursor->getHeight(), cursor->getHotspotX(), cursor->getHotspotY(), cursor->getKeyColor());
+			CursorMan.replaceCursorPalette(cursor->getPalette(), 0, 256);
+			delete cursorGroup;
+			return;
+		}
+	}
+
+	// Last resort (not all have cursors)
+	setDefaultCursor();
 }
 
 } // End of namespace Mohawk

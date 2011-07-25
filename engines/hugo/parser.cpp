@@ -18,9 +18,6 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
- * $URL$
- * $Id$
- *
  */
 
 /*
@@ -30,12 +27,8 @@
  *
  */
 
-#include "common/system.h"
 #include "common/events.h"
-
-#include "common/random.h"
-#include "common/EventRecorder.h"
-#include "common/debug-channels.h"
+#include "common/textconsole.h"
 
 #include "hugo/hugo.h"
 #include "hugo/display.h"
@@ -67,7 +60,7 @@ Parser::~Parser() {
 uint16 Parser::getCmdDefaultVerbIdx(const uint16 index) const {
 	return _cmdList[index][0].verbIndex;
 }
-	
+
 /**
  * Read a cmd structure from Hugo.dat
  */
@@ -87,6 +80,7 @@ void Parser::readCmd(Common::ReadStream &in, cmd &curCmd) {
  */
 void Parser::loadCmdList(Common::ReadStream &in) {
 	cmd tmpCmd;
+	memset(&tmpCmd, 0, sizeof(tmpCmd));
 	for (int varnt = 0; varnt < _vm->_numVariant; varnt++) {
 		uint16 numElem = in.readUint16BE();
 		if (varnt == _vm->_gameVariant) {
@@ -119,6 +113,7 @@ void Parser::readBG(Common::ReadStream &in, background_t &curBG) {
  */
 void Parser::loadBackgroundObjects(Common::ReadStream &in) {
 	background_t tmpBG;
+	memset(&tmpBG, 0, sizeof(tmpBG));
 
 	for (int varnt = 0; varnt < _vm->_numVariant; varnt++) {
 		uint16 numElem = in.readUint16BE();
@@ -145,6 +140,7 @@ void Parser::loadBackgroundObjects(Common::ReadStream &in) {
 void Parser::loadCatchallList(Common::ReadStream &in) {
 	background_t *wrkCatchallList = 0;
 	background_t tmpBG;
+	memset(&tmpBG, 0, sizeof(tmpBG));
 
 	for (int varnt = 0; varnt < _vm->_numVariant; varnt++) {
 		uint16 numElem = in.readUint16BE();
@@ -239,7 +235,7 @@ void Parser::charHandler() {
 			if (_cmdLineIndex >= kMaxLineSize) {
 				//MessageBeep(MB_ICONASTERISK);
 				warning("STUB: MessageBeep() - Command line too long");
-			} else if (isprint(c)) {
+			} else if (isprint(static_cast<unsigned char>(c))) {
 				_cmdLine[_cmdLineIndex++] = c;
 				_cmdLine[_cmdLineIndex] = '\0';
 			}
@@ -286,11 +282,10 @@ void Parser::keyHandler(Common::Event event) {
 			break;
 		case Common::KEYCODE_l:
 			_vm->_file->restoreGame(-1);
-			_vm->_scheduler->restoreScreen(*_vm->_screen_p);
-			gameStatus.viewState = kViewPlay;
 			break;
 		case Common::KEYCODE_n:
-			warning("STUB: CTRL-N (WIN) - New Game");
+			if (Utils::yesNoBox("Are you sure you want to start a new game?"))
+				_vm->_file->restoreGame(0);
 			break;
 		case Common::KEYCODE_s:
 			if (gameStatus.viewState == kViewPlay) {
@@ -338,7 +333,7 @@ void Parser::keyHandler(Common::Event event) {
 		break;
 	case Common::KEYCODE_F1:                        // User Help (DOS)
 		if (_checkDoubleF1Fl)
-			_vm->_file->instructions();
+			gameStatus.helpFl = true;
 		else
 			_vm->_screen->userHelp();
 		_checkDoubleF1Fl = !_checkDoubleF1Fl;
@@ -360,8 +355,6 @@ void Parser::keyHandler(Common::Event event) {
 		break;
 	case Common::KEYCODE_F5:                        // Restore game
 		_vm->_file->restoreGame(-1);
-		_vm->_scheduler->restoreScreen(*_vm->_screen_p);
-		gameStatus.viewState = kViewPlay;
 		break;
 	case Common::KEYCODE_F6:                        // Inventory
 		showInventory();
@@ -398,6 +391,8 @@ void Parser::command(const char *format, ...) {
 
 	va_list marker;
 	va_start(marker, format);
+//	TODO:
+//	_vm->_line = Common::String::vformat(format, marker);
 	vsprintf(_vm->_line, format, marker);
 	va_end(marker);
 
@@ -488,7 +483,7 @@ void Parser::showDosInventory() const {
 	if (index & 1)
 		buffer += "\n";
 	buffer += Common::String(_vm->_text->getTextParser(kTBOutro));
-	Utils::Box(kBoxAny, "%s", buffer.c_str());
+	Utils::notifyBox(buffer.c_str());
 }
 
 } // End of namespace Hugo

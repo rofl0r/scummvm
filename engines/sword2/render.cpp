@@ -20,9 +20,6 @@
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * $URL$
- * $Id$
  */
 
 
@@ -234,24 +231,24 @@ void Screen::scaleImageGood(byte *dst, uint16 dstPitch, uint16 dstWidth, uint16 
  * used for debugging.
  * @param x x-coordinate of the point
  * @param y y-coordinate of the point
- * @param colour colour of the point
+ * @param color color of the point
  */
 
-void Screen::plotPoint(int x, int y, uint8 colour) {
+void Screen::plotPoint(int x, int y, uint8 color) {
 	byte *buf = _buffer + MENUDEEP * RENDERWIDE;
 
 	x -= _scrollX;
 	y -= _scrollY;
 
 	if (x >= 0 && x < RENDERWIDE && y >= 0 && y < RENDERDEEP) {
-		buf[y * RENDERWIDE + x] = colour;
+		buf[y * RENDERWIDE + x] = color;
 		markAsDirty(x, y + MENUDEEP, x, y + MENUDEEP);
 	}
 }
 
-static void plot(int x, int y, int colour, void *data) {
+static void plot(int x, int y, int color, void *data) {
 	Screen *screen = (Screen *)data;
-	screen->plotPoint(x, y, (uint8) colour);
+	screen->plotPoint(x, y, (uint8) color);
 }
 
 /**
@@ -260,11 +257,11 @@ static void plot(int x, int y, int colour, void *data) {
  * @param y0 y-coordinate of the start point
  * @param x1 x-coordinate of the end point
  * @param y1 y-coordinate of the end point
- * @param colour colour of the line
+ * @param color color of the line
  */
 
-void Screen::drawLine(int x0, int y0, int x1, int y1, uint8 colour) {
-	Graphics::drawLine(x0, y0, x1, y1, colour, &plot, this);
+void Screen::drawLine(int x0, int y0, int x1, int y1, uint8 color) {
+	Graphics::drawLine(x0, y0, x1, y1, color, &plot, this);
 }
 
 /**
@@ -345,10 +342,10 @@ void Screen::renderParallax(byte *ptr, int16 l) {
 #define LIMIT_FRAME_RATE
 
 /**
- * Initialises the timers before the render loop is entered.
+ * Initializes the timers before the render loop is entered.
  */
 
-void Screen::initialiseRenderCycle() {
+void Screen::initializeRenderCycle() {
 	_initialTime = _vm->_system->getMillis();
 	_totalTime = _initialTime + (1000 / _vm->getFramesPerSecond());
 }
@@ -402,7 +399,7 @@ bool Screen::endRenderCycle() {
 		renderCountIndex = 0;
 
 	if (_renderTooSlow) {
-		initialiseRenderCycle();
+		initializeRenderCycle();
 		return true;
 	}
 
@@ -464,13 +461,13 @@ void Screen::resetRenderEngine() {
  * or a NULL pointer in order of background parallax to foreground parallax.
  */
 
-int32 Screen::initialiseBackgroundLayer(byte *parallax) {
+int32 Screen::initializeBackgroundLayer(byte *parallax) {
 	Parallax p;
 	uint16 i, j, k;
 	byte *data;
 	byte *dst;
 
-	debug(2, "initialiseBackgroundLayer");
+	debug(2, "initializeBackgroundLayer");
 
 	assert(_layer < MAXLAYERS);
 
@@ -591,14 +588,14 @@ int32 Screen::initialiseBackgroundLayer(byte *parallax) {
  * ratio correction), while PC backgrounds are in tiles of 64x64.
  */
 
-int32 Screen::initialisePsxBackgroundLayer(byte *parallax) {
+int32 Screen::initializePsxBackgroundLayer(byte *parallax) {
 	uint16 bgXres, bgYres;
 	uint16 trueXres, stripeNumber, totStripes;
 	uint32 baseAddress, stripePos;
 	uint16 i, j;
 	byte *dst;
 
-	debug(2, "initialisePsxBackgroundLayer");
+	debug(2, "initializePsxBackgroundLayer");
 
 	assert(_layer < MAXLAYERS);
 
@@ -701,14 +698,12 @@ int32 Screen::initialisePsxBackgroundLayer(byte *parallax) {
  * can be understood by renderParallax functions.
  */
 
-int32 Screen::initialisePsxParallaxLayer(byte *parallax) {
-	uint16 plxXres, plxYres;
-	uint16 xTiles, yTiles;
+int32 Screen::initializePsxParallaxLayer(byte *parallax) {
 	uint16 i, j, k;
 	byte *data;
 	byte *dst;
 
-	debug(2, "initialisePsxParallaxLayer");
+	debug(2, "initializePsxParallaxLayer");
 
 	assert(_layer < MAXLAYERS);
 
@@ -717,10 +712,10 @@ int32 Screen::initialisePsxParallaxLayer(byte *parallax) {
 		return RD_OK;
 	}
 
-	plxXres = READ_LE_UINT16(parallax);
-	plxYres = READ_LE_UINT16(parallax + 2);
-	xTiles = READ_LE_UINT16(parallax + 4);
-	yTiles = READ_LE_UINT16(parallax + 6);
+	// uint16 plxXres = READ_LE_UINT16(parallax);
+	// uint16 plxYres = READ_LE_UINT16(parallax + 2);
+	uint16 xTiles = READ_LE_UINT16(parallax + 4);
+	uint16 yTiles = READ_LE_UINT16(parallax + 6);
 
 	// Beginning of parallax table composed by uint32,
 	// if word is 0, corresponding tile contains no data and must be skipped,

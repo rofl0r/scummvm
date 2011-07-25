@@ -18,9 +18,6 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
- * $URL$
- * $Id$
- *
  */
 
 /*
@@ -33,7 +30,7 @@
  */
 
 #include "sword25/package/packagemanager.h"
-#include "sword25/gfx/image/pngloader.h"
+#include "sword25/gfx/image/imgloader.h"
 #include "sword25/gfx/image/swimage.h"
 
 namespace Sword25 {
@@ -47,7 +44,7 @@ SWImage::SWImage(const Common::String &filename, bool &result) :
 	PackageManager *pPackage = Kernel::getInstance()->getPackage();
 	assert(pPackage);
 
-	// Datei laden
+	// Load file
 	byte *pFileData;
 	uint fileSize;
 	pFileData = pPackage->getFile(filename, &fileSize);
@@ -56,21 +53,15 @@ SWImage::SWImage(const Common::String &filename, bool &result) :
 		return;
 	}
 
-	// Bildeigenschaften bestimmen
+	// Uncompress the image
 	int pitch;
-	if (!PNGLoader::imageProperties(pFileData, fileSize, _width, _height)) {
-		error("Could not read image properties.");
-		return;
-	}
-
-	// Das Bild dekomprimieren
 	byte *pUncompressedData;
-	if (!PNGLoader::decodeImage(pFileData, fileSize, pUncompressedData, _width, _height, pitch)) {
+	if (!ImgLoader::decodePNGImage(pFileData, fileSize, pUncompressedData, _width, _height, pitch)) {
 		error("Could not decode image.");
 		return;
 	}
 
-	// Dateidaten freigeben
+	// Cleanup FileData
 	delete[] pFileData;
 
 	_imageDataPtr = (uint *)pUncompressedData;

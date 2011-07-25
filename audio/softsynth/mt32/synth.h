@@ -29,7 +29,6 @@ class revmodel;
 namespace MT32Emu {
 
 class File;
-class TableInitialiser;
 class Partial;
 class PartialManager;
 class Part;
@@ -264,7 +263,7 @@ public:
 	Synth();
 	~Synth();
 
-	// Used to initialise the MT-32. Must be called before any other function.
+	// Used to initialize the MT-32. Must be called before any other function.
 	// Returns true if initialization was sucessful, otherwise returns false.
 	bool open(SynthProperties &useProp);
 

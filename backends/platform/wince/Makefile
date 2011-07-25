@@ -1,7 +1,5 @@
 # ScummVM Makefile for Windows CE port
 # Uses the cegcc toolchain. For build info check out the wiki: http://wiki.scummvm.org
-# $URL$
-# $Id$
 
 ########################################################################
 ## Do you want a debug build or not?
@@ -49,7 +47,6 @@ ENABLE_MADE = STATIC_PLUGIN
 ## Pick which libraries you want to use here
 
 USE_MAD           = 1
-#USE_MPEG2         = 1
 #USE_TREMOR        = 1
 USE_TREMOLO       = 1
 #USE_FLAC          = 1
@@ -113,7 +110,7 @@ INCLUDES := -I$(srcdir) -I. -I$(srcdir)/engines -Imissing/gcc -Ilibs/include -Il
 
 CFLAGS :=
 ifndef UNOPTIMIZED_BUILD
-CFLAGS += -O3 -march=armv4 -mtune=xscale
+CFLAGS += -O3 -fno-inline-functions -march=armv4 -mtune=xscale
 endif
 
 LDFLAGS := -Wl,-Map,scummvm.exe.map -Wl,--stack,65536
@@ -133,11 +130,6 @@ endif
 ifdef USE_MAD
 DEFINES += -DUSE_MAD
 LIBS += -lmad
-endif
-
-ifdef USE_MPEG2
-DEFINES += -DUSE_MPEG2
-LIBS += -lmpeg2
 endif
 
 ifdef USE_TREMOR

@@ -18,15 +18,13 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
- * $URL$
- * $Id$
- *
  */
 
 #include "common/util.h"
 #include "common/stack.h"
 #include "graphics/primitives.h"
 
+#include "sci/console.h"
 #include "sci/sci.h"
 #include "sci/event.h"
 #include "sci/engine/kernel.h"
@@ -203,7 +201,7 @@ void GfxAnimate::fill(byte &old_picNotValid) {
 		adjustInvalidCels(view, it);
 		processViewScaling(view, it);
 		setNsRect(view, it);
-		
+
 		//warning("%s view %d, loop %d, cel %d, signal %x", _s->_segMan->getObjectName(curObject), it->viewId, it->loopNo, it->celNo, it->signal);
 
 		// Calculate current priority according to y-coordinate
@@ -232,7 +230,7 @@ void GfxAnimate::adjustInvalidCels(GfxView *view, AnimateList::iterator it) {
 	//  this seems to be completely crazy code
 	//  sierra sci checked signed int16 to be above or equal the counts and reseted to 0 in those cases
 	//  later during view processing those are compared unsigned again and then set to maximum count - 1
-	//  Games rely on this behaviour. For example laura bow 1 has a knight standing around in room 37
+	//  Games rely on this behavior. For example laura bow 1 has a knight standing around in room 37
 	//   which has cel set to 3. This cel does not exist and the actual knight is 0
 	//   In kq5 on the other hand during the intro, when the trunk is opened, cel is set to some real
 	//   high number, which is negative when considered signed. This actually requires to get fixed to
@@ -352,14 +350,7 @@ void GfxAnimate::update() {
 				it->signal &= ~(kSignalViewUpdated | kSignalNoUpdate);
 		} else if (it->signal & kSignalStopUpdate) {
 			it->signal &= ~kSignalStopUpdate;
-			if (g_sci->getGameId() == GID_HOYLE3 && g_sci->isDemo()) {
-				// WORKAROUND: The demo of Hoyle 3 doesn't seem to set this
-				// flag in this case. Not setting this fixes a large number
-				// of incorrect animate entries being drawn on top of dialog
-				// boxes (bug #3036763)
-			} else {
-				it->signal |= kSignalNoUpdate;
-			}
+			it->signal |= kSignalNoUpdate;
 		}
 	}
 
@@ -637,10 +628,10 @@ void GfxAnimate::kernelAnimate(reg_t listReference, bool cycle, int argc, reg_t 
 		// beginUpdate()/endUpdate() were introduced SCI1.
 		// Calling those for SCI0 will work most of the time but breaks minor
 		// stuff like percentage bar of qfg1ega at the character skill screen.
-		if (getSciVersion() >= SCI_VERSION_1_EGA)
+		if (getSciVersion() >= SCI_VERSION_1_EGA_ONLY)
 			_ports->beginUpdate(_ports->_picWind);
 		update();
-		if (getSciVersion() >= SCI_VERSION_1_EGA)
+		if (getSciVersion() >= SCI_VERSION_1_EGA_ONLY)
 			_ports->endUpdate(_ports->_picWind);
 	}
 
@@ -668,7 +659,7 @@ void GfxAnimate::throttleSpeed() {
 		// No entries drawn -> no speed throttler triggering
 		break;
 	case 1: {
-		
+
 		// One entry drawn -> check if that entry was a speed benchmark view, if not enable speed throttler
 		AnimateEntry *onlyCast = &_lastCastData[0];
 		if ((onlyCast->viewId == 0) && (onlyCast->loopNo == 13) && (onlyCast->celNo == 0)) {
@@ -733,6 +724,23 @@ void GfxAnimate::kernelAddToPicView(GuiResourceId viewId, int16 loopNo, int16 ce
 	_ports->setPort((Port *)_ports->_picWind);
 	addToPicDrawView(viewId, loopNo, celNo, x, y, priority, control);
 	addToPicSetPicNotValid();
+}
+
+void GfxAnimate::printAnimateList(Console *con) {
+	AnimateList::iterator it;
+	const AnimateList::iterator end = _list.end();
+
+	for (it = _list.begin(); it != end; ++it) {
+		Script *scr = _s->_segMan->getScriptIfLoaded(it->object.segment);
+		int16 scriptNo = scr ? scr->getScriptNumber() : -1;
+
+		con->DebugPrintf("%04x:%04x (%s), script %d, view %d (%d, %d), pal %d, "
+			"at %d, %d, scale %d, %d / %d (z: %d, prio: %d, shown: %d, signal: %d)\n",
+			PRINT_REG(it->object), _s->_segMan->getObjectName(it->object),
+			scriptNo, it->viewId, it->loopNo, it->celNo, it->paletteNo,
+			it->x, it->y, it->scaleX, it->scaleY, it->scaleSignal,
+			it->z, it->priority, it->showBitsFlag, it->signal);
+	}
 }
 
 } // End of namespace Sci

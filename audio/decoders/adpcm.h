@@ -18,9 +18,6 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
- * $URL$
- * $Id$
- *
  */
 
 /**
@@ -38,12 +35,15 @@
 #define SOUND_ADPCM_H
 
 #include "common/scummsys.h"
-#include "common/stream.h"
+#include "common/types.h"
+
+namespace Common {
+class SeekableReadStream;
+}
 
 
 namespace Audio {
 
-class AudioStream;
 class RewindableAudioStream;
 
 // There are several types of ADPCM encoding, only some are supported here
@@ -54,12 +54,8 @@ class RewindableAudioStream;
 enum typesADPCM {
 	kADPCMOki,                 // Dialogic/Oki ADPCM (aka VOX)
 	kADPCMMSIma,               // Microsoft IMA ADPCM
-	kADPCMMSImaLastExpress,    // Microsoft IMA ADPCM (with inverted samples)
 	kADPCMMS,                  // Microsoft ADPCM
-	kADPCMTinsel4,             // 4-bit ADPCM used by the Tinsel engine
-	kADPCMTinsel6,             // 6-bit ADPCM used by the Tinsel engine
-	kADPCMTinsel8,             // 8-bit ADPCM used by the Tinsel engine
-	kADPCMIma,                 // Standard IMA ADPCM
+	kADPCMDVI,                 // Intel DVI IMA ADPCM
 	kADPCMApple,               // Apple QuickTime IMA ADPCM
 	kADPCMDK3                  // Duck DK3 IMA ADPCM
 };

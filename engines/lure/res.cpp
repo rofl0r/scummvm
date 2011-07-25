@@ -18,9 +18,6 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
- * $URL$
- * $Id$
- *
  */
 
 #include "lure/res.h"
@@ -348,7 +345,7 @@ void Resources::reloadData() {
 	}
 	delete mb;
 
-	// Initialise delay list
+	// Initialize delay list
 	_delayList.clear(true);
 
 	// Load miscellaneous data
@@ -432,7 +429,7 @@ byte *Resources::getCursor(uint8 cursorNum) {
 		}
 	}
 
-	// Post-process the cells to adjust the colour
+	// Post-process the cells to adjust the color
 	for (int index = 0; index < CURSOR_SIZE; ++index) {
 		if (_cursor[index] == 3) _cursor[index] = 15;
 	}

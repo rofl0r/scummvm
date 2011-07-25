@@ -18,9 +18,6 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
- * $URL$
- * $Id$
- *
  */
 
 /*
@@ -64,9 +61,7 @@ void Rails::clearRails() {
 		delete tempNode;
 	}
 
-	for (i = 0; i < _edges.size(); i++) {
-		_edges.remove_at(i);
-	}
+	_edges.clear();
 
 	for (j = _noWalkRects.begin(); j != _noWalkRects.end(); ++j)
 		delete (*j);
@@ -194,9 +189,8 @@ long SqrtF16(long n) {
 void Rails::createEdge(int32 node1, int32 node2) {
 	uint32		index;
 	int32		x1, y1, x2, y2;
-	bool		valid, finished;
+	bool		valid;
 	long		deltaX, deltaY, distance;
-	uint8		*walkCodePtr;
 
 	if ((node1 < 0) || (node1 >= MAXRAILNODES) || (node2 < 0) || (node2 >= MAXRAILNODES))
 		return;
@@ -214,8 +208,6 @@ void Rails::createEdge(int32 node1, int32 node2) {
 		_edges.resize(index + 1);
 	_edges.insert_at(index, 0);
 	valid = true;
-	walkCodePtr = NULL;
-	finished = false;
 
 	if (_nodes.size() <= (uint32)node1 || _nodes.size() <= (uint32)node2)
 		return;
@@ -252,7 +244,7 @@ void Rails::createEdge(int32 node1, int32 node2) {
 		} else {
 			distance = SqrtF16(FixedMul(deltaX, deltaX) + FixedMul(deltaY, deltaY)) << 8;
 		}
-		_edges.insert_at(index, (int16*)(distance >> 16));
+		_edges.insert_at(index, distance >> 16);
 	}
 
 	debugCN(kDebugCore, "node1 = %d, node2 = %d, valid = %d\n", node1, node2, valid);
@@ -318,7 +310,7 @@ int16 Rails::getEdgeLength(int32 node1, int32 node2) {
 	// Find the table entry i.e. tableWidth * node1 + node2 and then subtract
 	// n(n+1)/2, since only the upper triangle of the table is stored
 	index = (MAXRAILNODES-1)*node1 + node2 - 1 - (node1*(node1+1)>>1);
-	return *_edges[index];
+	return _edges[index];
 }
 
 void Rails::disposePath(RailNode *pathStart) {

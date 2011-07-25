@@ -18,9 +18,6 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
- * $URL$
- * $Id$
- *
  */
 
 #ifndef PSP_PNG_IMAGE_H
@@ -64,7 +61,7 @@ public:
 		Buffer::HowToSize sizeBy = Buffer::kSizeByTextureSize) :
 			_file(file), _buffer(&buffer), _palette(&palette),
 			_width(0), _height(0), _paletteSize(0),
-			_bitDepth(0), _sizeBy(sizeBy), _pngPtr(0), 
+			_bitDepth(0), _sizeBy(sizeBy), _pngPtr(0),
 			_infoPtr(0), _colorType(0), _channels(0) {}
 
 	PngLoader::Status allocate();

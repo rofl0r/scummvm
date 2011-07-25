@@ -18,9 +18,6 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
- * $URL$
- * $Id$
- *
  */
 
 #if defined(__ANDROID__)
@@ -35,6 +32,7 @@
 #include "common/util.h"
 #include "common/archive.h"
 #include "common/debug.h"
+#include "common/textconsole.h"
 
 #include "backends/platform/android/jni.h"
 #include "backends/platform/android/asset-archive.h"
@@ -99,7 +97,7 @@ JavaInputStream::JavaInputStream(JNIEnv *env, jobject is) :
 {
 	_input_stream = env->NewGlobalRef(is);
 	_buflen = 8192;
-	_buf = static_cast<jbyteArray>(env->NewGlobalRef(env->NewByteArray(_buflen)));
+	_buf = (jbyteArray)env->NewGlobalRef(env->NewByteArray(_buflen));
 
 	jclass cls = env->GetObjectClass(_input_stream);
 	MID_mark = env->GetMethodID(cls, "mark", "(I)V");
@@ -142,7 +140,7 @@ uint32 JavaInputStream::read(void *dataPtr, uint32 dataSize) {
 
 	if (_buflen < jint(dataSize)) {
 		_buflen = dataSize;
-	
+
 		env->DeleteGlobalRef(_buf);
 		_buf = static_cast<jbyteArray>(env->NewGlobalRef(env->NewByteArray(_buflen)));
 	}
@@ -304,7 +302,8 @@ AssetFdReadStream::AssetFdReadStream(JNIEnv *env, jobject assetfd) :
 	_declared_len = env->CallLongMethod(_assetfd, MID_getDeclaredLength);
 
 	jmethodID MID_getFileDescriptor =
-		env->GetMethodID(cls, "getFileDescriptor", "()Ljava/io/FileDescriptor;");
+		env->GetMethodID(cls, "getFileDescriptor",
+							"()Ljava/io/FileDescriptor;");
 	assert(MID_getFileDescriptor);
 	jobject javafd = env->CallObjectMethod(_assetfd, MID_getFileDescriptor);
 	assert(javafd);
@@ -376,8 +375,8 @@ AndroidAssetArchive::AndroidAssetArchive(jobject am) {
 								"(Ljava/lang/String;I)Ljava/io/InputStream;");
 	assert(MID_open);
 
-	MID_openFd = env->GetMethodID(cls, "openFd",
-									"(Ljava/lang/String;)Landroid/content/res/AssetFileDescriptor;");
+	MID_openFd = env->GetMethodID(cls, "openFd", "(Ljava/lang/String;)"
+								"Landroid/content/res/AssetFileDescriptor;");
 	assert(MID_openFd);
 
 	MID_list = env->GetMethodID(cls, "list",
@@ -421,7 +420,8 @@ int AndroidAssetArchive::listMembers(Common::ArchiveMemberList &member_list) {
 		dirlist.pop_back();
 
 		jstring jpath = env->NewStringUTF(dir.c_str());
-		jobjectArray jpathlist = static_cast<jobjectArray>(env->CallObjectMethod(_am, MID_list, jpath));
+		jobjectArray jpathlist =
+			(jobjectArray)env->CallObjectMethod(_am, MID_list, jpath);
 
 		if (env->ExceptionCheck()) {
 			warning("Error while calling AssetManager->list(%s). Ignoring.",
@@ -438,19 +438,22 @@ int AndroidAssetArchive::listMembers(Common::ArchiveMemberList &member_list) {
 		for (jsize i = 0; i < env->GetArrayLength(jpathlist); ++i) {
 			jstring elem = (jstring)env->GetObjectArrayElement(jpathlist, i);
 			const char *p = env->GetStringUTFChars(elem, 0);
-			Common::String thispath = dir;
 
-			if (!thispath.empty())
-				thispath += "/";
+			if (strlen(p)) {
+				Common::String thispath = dir;
 
-			thispath += p;
+				if (!thispath.empty())
+					thispath += "/";
 
-			// Assume files have a . in them, and directories don't
-			if (strchr(p, '.')) {
-				member_list.push_back(getMember(thispath));
-				++count;
-			} else {
-				dirlist.push_back(thispath);
+				thispath += p;
+
+				// Assume files have a . in them, and directories don't
+				if (strchr(p, '.')) {
+					member_list.push_back(getMember(thispath));
+					++count;
+				} else {
+					dirlist.push_back(thispath);
+				}
 			}
 
 			env->ReleaseStringUTFChars(elem, p);

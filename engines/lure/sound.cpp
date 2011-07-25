@@ -18,9 +18,6 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
- * $URL$
- * $Id$
- *
  */
 
 #include "lure/sound.h"
@@ -34,7 +31,9 @@
 #include "common/endian.h"
 #include "audio/midiparser.h"
 
+namespace Common {
 DECLARE_SINGLETON(Lure::SoundManager);
+}
 
 namespace Lure {
 
@@ -97,8 +96,8 @@ SoundManager::~SoundManager() {
 	if (_driver) {
 		_driver->close();
 		delete _driver;
+		_driver = NULL;
 	}
-	_driver = NULL;
 
 	g_system->deleteMutex(_soundMutex);
 }
@@ -597,6 +596,7 @@ void SoundManager::doTimer() {
 MidiMusic::MidiMusic(MidiDriver *driver, ChannelEntry channels[NUM_CHANNELS],
 					 uint8 channelNum, uint8 soundNum, bool isMus, uint8 numChannels, void *soundData, uint32 size) {
 	_driver = driver;
+	assert(_driver);
 	_channels = channels;
 	_soundNumber = soundNum;
 	_channelNumber = channelNum;
@@ -614,15 +614,11 @@ MidiMusic::MidiMusic(MidiDriver *driver, ChannelEntry channels[NUM_CHANNELS],
 	else
 		setVolume(Sound.sfxVolume());
 
-	_passThrough = false;
-
 	_parser = MidiParser::createParser_SMF();
 	_parser->setMidiDriver(this);
 	_parser->setTimerRate(_driver->getBaseTempo());
 
-	this->open();
-
-	_soundData = (uint8 *) soundData;
+	_soundData = (uint8 *)soundData;
 	_soundSize = size;
 
 	// Check whether the music data is compressed - if so, decompress it for the duration
@@ -654,7 +650,6 @@ MidiMusic::MidiMusic(MidiDriver *driver, ChannelEntry channels[NUM_CHANNELS],
 MidiMusic::~MidiMusic() {
 	_parser->unloadMusic();
 	delete _parser;
-	this->close();
 	delete _decompressedSound;
 }
 
@@ -686,23 +681,7 @@ void MidiMusic::playMusic() {
 	_isPlaying = true;
 }
 
-int MidiMusic::open() {
-	// Don't ever call open without first setting the output driver!
-	if (!_driver)
-		return 255;
-
-	return 0;
-}
-
-void MidiMusic::close() {
-}
-
 void MidiMusic::send(uint32 b) {
-	if (_passThrough) {
-		_driver->send(b);
-		return;
-	}
-
 #ifdef SOUND_CROP_CHANNELS
 	if ((b & 0xF) >= _numChannels) return;
 	byte channel = _channelNumber + (byte)(b & 0x0F);
@@ -749,7 +728,6 @@ void MidiMusic::stopMusic() {
 	debugC(ERROR_DETAILED, kLureDebugSounds, "MidiMusic::stopMusic sound %d", _soundNumber);
 	_isPlaying = false;
 	_parser->unloadMusic();
-	close();
 }
 
 } // End of namespace Lure

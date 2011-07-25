@@ -18,9 +18,6 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
- * $URL$
- * $Id$
- *
  */
 
 #include "common/EventRecorder.h"
@@ -28,10 +25,11 @@
 #include "common/config-manager.h"
 #include "common/random.h"
 #include "common/savefile.h"
-
-DECLARE_SINGLETON(Common::EventRecorder);
+#include "common/textconsole.h"
 
 namespace Common {
+
+DECLARE_SINGLETON(EventRecorder);
 
 #define RECORD_SIGNATURE 0x54455354
 #define RECORD_VERSION 1
@@ -144,7 +142,6 @@ void EventRecorder::init() {
 	}
 
 	uint32 sign;
-	uint32 version;
 	uint32 randomSourceCount;
 	if (_recordMode == kRecorderPlayback) {
 		_playbackCount = 0;
@@ -168,7 +165,8 @@ void EventRecorder::init() {
 		if (sign != RECORD_SIGNATURE) {
 			error("Unknown record file signature");
 		}
-		version = _playbackFile->readUint32LE();
+
+		_playbackFile->readUint32LE(); // version
 
 		// conf vars
 		ConfMan.setBool("subtitles", _playbackFile->readByte() != 0);
@@ -253,7 +251,7 @@ void EventRecorder::deinit() {
 	g_system->deleteMutex(_recorderMutex);
 }
 
-void EventRecorder::registerRandomSource(RandomSource &rnd, const char *name) {
+void EventRecorder::registerRandomSource(RandomSource &rnd, const String &name) {
 	if (_recordMode == kRecorderRecord) {
 		RandomSourceRecord rec;
 		rec.name = name;

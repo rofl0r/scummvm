@@ -18,9 +18,6 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
- * $URL$
- * $Id$
- *
  */
 
 #ifndef GOB_SOUND_BGATMOSPHERE_H
@@ -46,8 +43,8 @@ public:
 	BackgroundAtmosphere(Audio::Mixer &mixer);
 	~BackgroundAtmosphere();
 
-	void play();
-	void stop();
+	void playBA();
+	void stopBA();
 
 	void setPlayMode(PlayMode mode);
 

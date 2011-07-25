@@ -18,9 +18,6 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
- * $URL$
- * $Id$
- *
  */
 
 #include "cruise/cruise.h"
@@ -167,7 +164,7 @@ void makeCtStruct(Common::Array<CtStruct> &lst, int16 table[][40], int num, int 
 	}
 
 	ct.num = num;
-	ct.colour = walkboxColor[num];
+	ct.color = walkboxColor[num];
 	ct.bounds.left = minX;
 	ct.bounds.right = maxX;
 	ct.bounds.top = minY;

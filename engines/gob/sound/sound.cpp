@@ -18,9 +18,6 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
- * $URL$
- * $Id$
- *
  */
 
 #include "gob/gob.h"
@@ -648,7 +645,7 @@ void Sound::bgPlay(const char *file, SoundType type) {
 
 	debugC(1, kDebugSound, "BackgroundAtmosphere: Playing \"%s\"", file);
 
-	_bgatmos->stop();
+	_bgatmos->stopBA();
 	_bgatmos->queueClear();
 
 	SoundDesc *sndDesc = new SoundDesc;
@@ -658,7 +655,7 @@ void Sound::bgPlay(const char *file, SoundType type) {
 	}
 
 	_bgatmos->queueSample(*sndDesc);
-	_bgatmos->play();
+	_bgatmos->playBA();
 }
 
 void Sound::bgPlay(const char *base, const char *ext, SoundType type, int count) {
@@ -667,24 +664,22 @@ void Sound::bgPlay(const char *base, const char *ext, SoundType type, int count)
 
 	debugC(1, kDebugSound, "BackgroundAtmosphere: Playing \"%s\" (%d)", base, count);
 
-	_bgatmos->stop();
+	_bgatmos->stopBA();
 	_bgatmos->queueClear();
 
-	int length = strlen(base) + 7;
-	char *fileName = new char[length];
 	SoundDesc *sndDesc;
 
 	for (int i = 1; i <= count; i++) {
-		snprintf(fileName, length, "%s%02d.%s", base, i, ext);
+		Common::String fileName = Common::String::format("%s%02d.%s", base, i, ext);
 
 		sndDesc = new SoundDesc;
-		if (sampleLoad(sndDesc, type, fileName))
+		if (sampleLoad(sndDesc, type, fileName.c_str()))
 			_bgatmos->queueSample(*sndDesc);
 		else
 			delete sndDesc;
 	}
 
-	_bgatmos->play();
+	_bgatmos->playBA();
 }
 
 void Sound::bgStop() {
@@ -693,7 +688,7 @@ void Sound::bgStop() {
 
 	debugC(1, kDebugSound, "BackgroundAtmosphere: Stopping playback");
 
-	_bgatmos->stop();
+	_bgatmos->stopBA();
 	_bgatmos->queueClear();
 }
 

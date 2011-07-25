@@ -18,12 +18,16 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
- * $URL$
- * $Id$
- *
  */
 
 #include "common/scummsys.h"
+#include "common/rect.h"
+#include "common/endian.h"
+#include "common/stream.h"
+#include "common/system.h"
+#include "common/textconsole.h"
+#include "common/types.h"
+#include "common/util.h"
 
 #include "video/coktel_decoder.h"
 
@@ -34,9 +38,10 @@
 
 #include "audio/audiostream.h"
 #include "audio/decoders/raw.h"
+#include "audio/decoders/adpcm_intern.h"
 #include "common/memstream.h"
 
-static const uint32 kVideoCodecIndeo3 = MKID_BE('iv32');
+static const uint32 kVideoCodecIndeo3 = MKTAG('i','v','3','2');
 
 namespace Video {
 
@@ -91,11 +96,12 @@ void CoktelDecoder::setSurfaceMemory(void *mem, uint16 width, uint16 height, uin
 	assert(bpp == getPixelFormat().bytesPerPixel);
 
 	// Create a surface over this memory
-	_surface.w             = width;
-	_surface.h             = height;
-	_surface.pitch         = width * bpp;
-	_surface.pixels        = mem;
-	_surface.bytesPerPixel = bpp;
+	_surface.w      = width;
+	_surface.h      = height;
+	_surface.pitch  = width * bpp;
+	_surface.pixels = mem;
+	// TODO: Check whether it is fine to assume we want the setup PixelFormat.
+	_surface.format = getPixelFormat();
 
 	_ownSurface = false;
 }
@@ -126,18 +132,18 @@ void CoktelDecoder::createSurface() {
 		return;
 
 	if ((_width > 0) && (_height > 0))
-		_surface.create(_width, _height, getPixelFormat().bytesPerPixel);
+		_surface.create(_width, _height, getPixelFormat());
 
 	_ownSurface = true;
 }
 
 void CoktelDecoder::freeSurface() {
 	if (!_ownSurface) {
-		_surface.w             = 0;
-		_surface.h             = 0;
-		_surface.pitch         = 0;
-		_surface.pixels        = 0;
-		_surface.bytesPerPixel = 0;
+		_surface.w      = 0;
+		_surface.h      = 0;
+		_surface.pitch  = 0;
+		_surface.pixels = 0;
+		_surface.format = Graphics::PixelFormat();
 	} else
 		_surface.free();
 
@@ -448,11 +454,11 @@ void CoktelDecoder::renderBlockWhole(Graphics::Surface &dstSurf, const byte *src
 
 	rect.clip(dstSurf.w, dstSurf.h);
 
-	byte *dst = (byte *)dstSurf.pixels + (rect.top * dstSurf.pitch) + rect.left * dstSurf.bytesPerPixel;
+	byte *dst = (byte *)dstSurf.pixels + (rect.top * dstSurf.pitch) + rect.left * dstSurf.format.bytesPerPixel;
 	for (int i = 0; i < rect.height(); i++) {
-		memcpy(dst, src, rect.width() * dstSurf.bytesPerPixel);
+		memcpy(dst, src, rect.width() * dstSurf.format.bytesPerPixel);
 
-		src += srcRect.width() * dstSurf.bytesPerPixel;
+		src += srcRect.width() * dstSurf.format.bytesPerPixel;
 		dst += dstSurf.pitch;
 	}
 }
@@ -556,10 +562,7 @@ void CoktelDecoder::renderBlockSparse2Y(Graphics::Surface &dstSurf, const byte *
 			int16 pixCount = *src++;
 
 			if (pixCount & 0x80) { // Data
-				int16 copyCount;
-
 				pixCount  = MIN((pixCount & 0x7F) + 1, srcRect.width() - pixWritten);
-				copyCount = CLIP<int16>(rect.width() - pixWritten, 0, pixCount);
 				memcpy(dstRow                 , src, pixCount);
 				memcpy(dstRow + dstSurf.pitch, src, pixCount);
 
@@ -1377,12 +1380,13 @@ bool IMDDecoder::renderFrame(Common::Rect &rect) {
 
 		if ((type == 2) && (rect.width() == _surface.w) && (_x == 0)) {
 			// Directly uncompress onto the video surface
-			int offsetX = rect.left * _surface.bytesPerPixel;
-			int offsetY = (_y + rect.top) * _surface.pitch;
+			const int offsetX = rect.left * _surface.format.bytesPerPixel;
+			const int offsetY = (_y + rect.top) * _surface.pitch;
+			const int offset  = offsetX + offsetY;
 
-			deLZ77((byte *)_surface.pixels + offsetX + offsetY, dataPtr, dataSize,
-					_surface.w * _surface.h * _surface.bytesPerPixel);
-			return true;
+			if (deLZ77((byte *)_surface.pixels + offset, dataPtr, dataSize,
+			           _surface.w * _surface.h * _surface.format.bytesPerPixel - offset))
+				return true;
 		}
 
 		_videoBufferLen[1] = deLZ77(_videoBuffer[1], dataPtr, dataSize, _videoBufferSize);
@@ -1518,26 +1522,6 @@ const uint16 VMDDecoder::_tableDPCM[128] = {
 	0x0F00, 0x1000, 0x1400, 0x1800, 0x1C00, 0x2000, 0x3000, 0x4000
 };
 
-const int32 VMDDecoder::_tableADPCM[] = {
-			7,     8,     9,    10,    11,    12,    13,    14,
-		 16,    17,    19,    21,    23,    25,    28,    31,
-		 34,    37,    41,    45,    50,    55,    60,    66,
-		 73,    80,    88,    97,   107,   118,   130,   143,
-		157,   173,   190,   209,   230,   253,   279,   307,
-		337,   371,   408,   449,   494,   544,   598,   658,
-		724,   796,   876,   963,  1060,  1166,  1282,  1411,
-	 1552,  1707,  1878,  2066,  2272,  2499,  2749,  3024,
-	 3327,  3660,  4026,  4428,  4871,  5358,  5894,  6484,
-	 7132,  7845,  8630,  9493, 10442, 11487, 12635, 13899,
-	15289, 16818, 18500, 20350, 22385, 24623, 27086, 29794,
-	32767,     0
-};
-
-const int32 VMDDecoder::_tableADPCMStep[] = {
-	-1, -1, -1, -1, 2,  4,  6,  8,
-	-1, -1, -1, -1, 2,  4,  6,  8
-};
-
 VMDDecoder::VMDDecoder(Audio::Mixer *mixer, Audio::Mixer::SoundType soundType) : CoktelDecoder(mixer, soundType),
 	_stream(0), _version(0), _flags(0), _frameInfoOffset(0), _partsPerFrame(0), _frames(0),
 	_soundFlags(0), _soundFreq(0), _soundSliceSize(0), _soundSlicesCount(0),
@@ -1640,11 +1624,7 @@ bool VMDDecoder::openExternalCodec() {
 		if (_videoCodec == kVideoCodecIndeo3) {
 			_isPaletted = false;
 
-#ifdef USE_INDEO3
 			_codec = new Indeo3Decoder(_width, _height);
-#else
-			warning("VMDDecoder::openExternalCodec(): Indeo3 decoder not compiled in");
-#endif
 
 		} else {
 			warning("VMDDecoder::openExternalCodec(): Unknown video codec FourCC \"%s\"",
@@ -1827,11 +1807,11 @@ bool VMDDecoder::assessVideoProperties() {
 			_videoBuffer[i] = new byte[_videoBufferSize];
 			memset(_videoBuffer[i], 0, _videoBufferSize);
 
-			_8bppSurface[i].w             = _width * _bytesPerPixel;
-			_8bppSurface[i].h             = _height;
-			_8bppSurface[i].pitch         = _width * _bytesPerPixel;
-			_8bppSurface[i].pixels        = _videoBuffer[i];
-			_8bppSurface[i].bytesPerPixel = 1;
+			_8bppSurface[i].w      = _width * _bytesPerPixel;
+			_8bppSurface[i].h      = _height;
+			_8bppSurface[i].pitch  = _width * _bytesPerPixel;
+			_8bppSurface[i].pixels = _videoBuffer[i];
+			_8bppSurface[i].format = Graphics::PixelFormat::createFormatCLUT8();
 		}
 	}
 
@@ -2244,12 +2224,13 @@ bool VMDDecoder::renderFrame(Common::Rect &rect) {
 
 		if ((type == 2) && (rect.width() == _surface.w) && (_x == 0) && (_blitMode == 0)) {
 			// Directly uncompress onto the video surface
-			int offsetX = rect.left * _surface.bytesPerPixel;
-			int offsetY = (_y + rect.top) * _surface.pitch;
+			const int offsetX = rect.left * _surface.format.bytesPerPixel;
+			const int offsetY = (_y + rect.top) * _surface.pitch;
+			const int offset  = offsetX - offsetY;
 
-			deLZ77((byte *)_surface.pixels + offsetX + offsetY, dataPtr, dataSize,
-					_surface.w * _surface.h * _surface.bytesPerPixel);
-			return true;
+			if (deLZ77((byte *)_surface.pixels + offset, dataPtr, dataSize,
+			           _surface.w * _surface.h * _surface.format.bytesPerPixel - offset))
+				return true;
 		}
 
 		srcBuffer = 1;
@@ -2358,13 +2339,13 @@ void VMDDecoder::blit16(const Graphics::Surface &srcSurf, Common::Rect &rect) {
 	const byte *src = (byte *)srcSurf.pixels +
 		(srcRect.top * srcSurf.pitch) + srcRect.left * _bytesPerPixel;
 	byte *dst = (byte *)_surface.pixels +
-		((_y + rect.top) * _surface.pitch) + (_x + rect.left) * _surface.bytesPerPixel;
+		((_y + rect.top) * _surface.pitch) + (_x + rect.left) * _surface.format.bytesPerPixel;
 
 	for (int i = 0; i < rect.height(); i++) {
 		const byte *srcRow = src;
 		      byte *dstRow = dst;
 
-		for (int j = 0; j < rect.width(); j++, srcRow += 2, dstRow += _surface.bytesPerPixel) {
+		for (int j = 0; j < rect.width(); j++, srcRow += 2, dstRow += _surface.format.bytesPerPixel) {
 			uint16 data = READ_LE_UINT16(srcRow);
 
 			byte r = ((data & 0x7C00) >> 10) << 3;
@@ -2375,7 +2356,7 @@ void VMDDecoder::blit16(const Graphics::Surface &srcSurf, Common::Rect &rect) {
 			if ((r == 0) && (g == 0) && (b == 0))
 				c = 0;
 
-			if (_surface.bytesPerPixel == 2)
+			if (_surface.format.bytesPerPixel == 2)
 				*((uint16 *)dstRow) = (uint16) c;
 		}
 
@@ -2396,13 +2377,13 @@ void VMDDecoder::blit24(const Graphics::Surface &srcSurf, Common::Rect &rect) {
 	const byte *src = (byte *)srcSurf.pixels +
 		(srcRect.top * srcSurf.pitch) + srcRect.left * _bytesPerPixel;
 	byte *dst = (byte *)_surface.pixels +
-		((_y + rect.top) * _surface.pitch) + (_x + rect.left) * _surface.bytesPerPixel;
+		((_y + rect.top) * _surface.pitch) + (_x + rect.left) * _surface.format.bytesPerPixel;
 
 	for (int i = 0; i < rect.height(); i++) {
 		const byte *srcRow = src;
 		      byte *dstRow = dst;
 
-		for (int j = 0; j < rect.width(); j++, srcRow += 3, dstRow += _surface.bytesPerPixel) {
+		for (int j = 0; j < rect.width(); j++, srcRow += 3, dstRow += _surface.format.bytesPerPixel) {
 			byte r = srcRow[2];
 			byte g = srcRow[1];
 			byte b = srcRow[0];
@@ -2411,7 +2392,7 @@ void VMDDecoder::blit24(const Graphics::Surface &srcSurf, Common::Rect &rect) {
 			if ((r == 0) && (g == 0) && (b == 0))
 				c = 0;
 
-			if (_surface.bytesPerPixel == 2)
+			if (_surface.format.bytesPerPixel == 2)
 				*((uint16 *)dstRow) = (uint16) c;
 		}
 
@@ -2618,7 +2599,7 @@ byte *VMDDecoder::deADPCM(const byte *data, uint32 &size, int32 init, int32 inde
 
 	index = CLIP<int32>(index, 0, 88);
 
-	int32 predictor = _tableADPCM[index];
+	int32 predictor = Audio::Ima_ADPCMStream::_imaTable[index];
 
 	uint32 dataByte = 0;
 	bool newByte = true;
@@ -2635,7 +2616,7 @@ byte *VMDDecoder::deADPCM(const byte *data, uint32 &size, int32 init, int32 inde
 
 		newByte = !newByte;
 
-		index += _tableADPCMStep[code];
+		index += Audio::ADPCMStream::_stepAdjustTable[code];
 		index  = CLIP<int32>(index, 0, 88);
 
 		int32 value = predictor / 8;
@@ -2654,7 +2635,7 @@ byte *VMDDecoder::deADPCM(const byte *data, uint32 &size, int32 init, int32 inde
 
 		init = CLIP<int32>(init, -32768, 32767);
 
-		predictor = _tableADPCM[index];
+		predictor = Audio::Ima_ADPCMStream::_imaTable[index];
 
 		*out++ = TO_BE_16(init);
 	}

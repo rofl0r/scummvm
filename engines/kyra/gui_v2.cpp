@@ -18,18 +18,15 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
- * $URL$
- * $Id$
- *
  */
 
 #include "kyra/gui_v2.h"
-#include "kyra/kyra_v2.h"
 #include "kyra/screen_v2.h"
 #include "kyra/text.h"
 #include "kyra/util.h"
 
 #include "common/savefile.h"
+#include "common/system.h"
 
 namespace Kyra {
 
@@ -459,6 +456,15 @@ void GUI_v2::setupSavegameNames(Menu &menu, int num) {
 			char *s = getTableString(menu.item[i].itemId);
 			Common::strlcpy(s, header.description.c_str(), 80);
 			Util::convertISOToDOS(s);
+
+			// Trim long GMM save descriptions to fit our save slots
+			_screen->_charWidth = -2;
+			int fC = _screen->getTextWidth(s);
+			while (s[0] && fC > 240) {
+				s[strlen(s) - 1]  = 0;
+				fC = _screen->getTextWidth(s);
+			}
+			_screen->_charWidth = 0;
 
 			menu.item[i].saveSlot = _saveSlots[i + _savegameOffset];
 			menu.item[i].enabled = true;

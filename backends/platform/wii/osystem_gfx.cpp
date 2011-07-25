@@ -19,6 +19,9 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  */
 
+#define FORBIDDEN_SYMBOL_EXCEPTION_printf
+#define FORBIDDEN_SYMBOL_EXCEPTION_abort
+
 #include <malloc.h>
 
 #include <gxflux/gfx_con.h>
@@ -392,15 +395,6 @@ void OSystem_Wii::setCursorPalette(const byte *colors, uint start, uint num) {
 	_cursorPaletteDirty = true;
 }
 
-void OSystem_Wii::disableCursorPalette(bool disable) {
-	_cursorPaletteDisabled = disable;
-
-	if (_texMouse.palette && disable) {
-		memcpy(_texMouse.palette, _cursorPalette, 256 * 2);
-		_cursorPaletteDirty = true;
-	}
-}
-
 void OSystem_Wii::copyRectToScreen(const byte *buf, int pitch, int x, int y,
 									int w, int h) {
 	assert(x >= 0 && x < _gameWidth);
@@ -537,10 +531,10 @@ Graphics::Surface *OSystem_Wii::lockScreen() {
 	_surface.h = _gameHeight;
 #ifdef USE_RGB_COLOR
 	_surface.pitch = _gameWidth * _pfGame.bytesPerPixel;
-	_surface.bytesPerPixel = _pfGame.bytesPerPixel;
+	_surface.format = _pfGame;
 #else
 	_surface.pitch = _gameWidth;
-	_surface.bytesPerPixel = 1;
+	_surface.format = Graphics::PixelFormat::createFormatCLUT8();
 #endif
 
 	return &_surface;

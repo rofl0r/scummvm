@@ -18,9 +18,6 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
- * $URL$
- * $Id$
- *
  */
 
 #ifndef RIVEN_EXTERNAL_H
@@ -41,6 +38,7 @@ public:
 	uint16 getComboDigit(uint32 correctCombo, uint32 digit);
 	uint32 getDomeSliderState() { return _sliderState; }
 	void setDomeSliderState(uint32 state) { _sliderState = state; }
+	void checkYtramCatch(bool playSound);
 
 private:
 	MohawkEngine_Riven *_vm;
@@ -61,8 +59,8 @@ private:
 	// Supplementary Functions
 	int jspitElevatorLoop();
 	void runDemoBoundaryDialog();
-	void runEndGame(uint16 video);
-	void runCredits(uint16 video);
+	void runEndGame(uint16 video, uint32 delay);
+	void runCredits(uint16 video, uint32 delay);
 	void runDomeCheck();
 	void runDomeButtonMovie();
 	void resetDomeSliders(uint16 soundId, uint16 startHotspot);

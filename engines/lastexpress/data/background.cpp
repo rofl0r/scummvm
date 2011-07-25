@@ -18,9 +18,6 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
- * $URL$
- * $Id$
- *
  */
 
 // Based on Deniz Oezmen's code and Xentax Wiki documentation
@@ -31,6 +28,7 @@
 
 #include "lastexpress/debug.h"
 
+#include "common/rect.h"
 #include "common/stream.h"
 
 namespace LastExpress {
@@ -87,7 +85,7 @@ bool Background::load(Common::SeekableReadStream *stream) {
 
 Common::Rect Background::draw(Graphics::Surface *surface) {
 	if (!_data) {
-		debugC(2, kLastExpressDebugGraphics, "Trying to show a background before loading data!");
+		debugC(2, kLastExpressDebugGraphics, "Trying to show a background before loading data");
 		return Common::Rect();
 	}
 

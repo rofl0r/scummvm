@@ -17,10 +17,9 @@
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * $URL$
- * $Id$
  */
+
+#define FORBIDDEN_SYMBOL_EXCEPTION_getcwd
 
 #if defined(WIN32) && !defined(_WIN32_WCE) && !defined(__SYMBIAN32__)
 #define WIN32_LEAN_AND_MEAN
@@ -32,25 +31,27 @@
 
 #include "engines/engine.h"
 #include "engines/dialogs.h"
-#include "engines/metaengine.h"
-#include "engines/util.h"
 
 #include "common/config-manager.h"
-#include "common/debug.h"
 #include "common/events.h"
 #include "common/file.h"
-#include "common/timer.h"
-#include "common/savefile.h"
 #include "common/system.h"
 #include "common/str.h"
+#include "common/error.h"
+#include "common/list.h"
+#include "common/list_intern.h"
+#include "common/scummsys.h"
+#include "common/textconsole.h"
+#include "common/translation.h"
 
 #include "gui/debugger.h"
+#include "gui/dialog.h"
 #include "gui/message.h"
-#include "gui/gui-manager.h"
 
 #include "audio/mixer.h"
 
 #include "graphics/cursorman.h"
+#include "graphics/pixelformat.h"
 
 #ifdef _WIN32_WCE
 extern bool isSmartphone();
@@ -95,6 +96,7 @@ Engine::Engine(OSystem *syst)
 		_targetName(ConfMan.getActiveDomainName()),
 		_pauseLevel(0),
 		_pauseStartTime(0),
+		_saveSlotToLoad(-1),
 		_engineStartTime(_system->getMillis()),
 		_mainMenuDialog(NULL) {
 
@@ -145,7 +147,11 @@ void initCommonGFX(bool defaultTo1XScaler) {
 	assert(transientDomain);
 
 	const bool useDefaultGraphicsMode =
-		!transientDomain->contains("gfx_mode") &&
+		(!transientDomain->contains("gfx_mode") ||
+		!scumm_stricmp(transientDomain->getVal("gfx_mode").c_str(), "normal") ||
+		!scumm_stricmp(transientDomain->getVal("gfx_mode").c_str(), "default")
+		)
+		 &&
 		(
 		!gameDomain ||
 		!gameDomain->contains("gfx_mode") ||
@@ -202,12 +208,8 @@ void initGraphics(int width, int height, bool defaultTo1xScaler, const Graphics:
 
 	// Error out on size switch failure
 	if (gfxError & OSystem::kTransactionSizeChangeFailed) {
-		char buffer[16];
-		snprintf(buffer, 16, "%dx%d", width, height);
-
-		Common::String message = "Could not switch to resolution: '";
-		message += buffer;
-		message += "'.";
+		Common::String message;
+		message = Common::String::format("Could not switch to resolution: '%dx%d'.", width, height);
 
 		GUIErrorMessage(message);
 		error("%s", message.c_str());
@@ -216,7 +218,7 @@ void initGraphics(int width, int height, bool defaultTo1xScaler, const Graphics:
 	// Just show warnings then these occur:
 #ifdef USE_RGB_COLOR
 	if (gfxError & OSystem::kTransactionFormatNotSupported) {
-		Common::String message = "Could not initialize color format.";
+		Common::String message = _("Could not initialize color format.");
 
 		GUI::MessageDialog dialog(message);
 		dialog.runModal();
@@ -224,7 +226,7 @@ void initGraphics(int width, int height, bool defaultTo1xScaler, const Graphics:
 #endif
 
 	if (gfxError & OSystem::kTransactionModeSwitchFailed) {
-		Common::String message = "Could not switch to video mode: '";
+		Common::String message = _("Could not switch to video mode: '");
 		message += ConfMan.get("gfx_mode");
 		message += "'.";
 
@@ -233,12 +235,12 @@ void initGraphics(int width, int height, bool defaultTo1xScaler, const Graphics:
 	}
 
 	if (gfxError & OSystem::kTransactionAspectRatioFailed) {
-		GUI::MessageDialog dialog("Could not apply aspect ratio setting.");
+		GUI::MessageDialog dialog(_("Could not apply aspect ratio setting."));
 		dialog.runModal();
 	}
 
 	if (gfxError & OSystem::kTransactionFullscreenFailed) {
-		GUI::MessageDialog dialog("Could not apply fullscreen setting.");
+		GUI::MessageDialog dialog(_("Could not apply fullscreen setting."));
 		dialog.runModal();
 	}
 }
@@ -277,7 +279,7 @@ void initGraphics(int width, int height, bool defaultTo1xScaler) {
 	initGraphics(width, height, defaultTo1xScaler, &format);
 }
 
-void GUIErrorMessage(const Common::String msg) {
+void GUIErrorMessage(const Common::String &msg) {
 	g_system->setWindowCaption("Error");
 	g_system->beginGFXTransaction();
 		initCommonGFX(false);
@@ -338,22 +340,22 @@ void Engine::checkCD() {
 
 	if (GetDriveType(buffer) == DRIVE_CDROM) {
 		GUI::MessageDialog dialog(
-			"You appear to be playing this game directly\n"
+			_("You appear to be playing this game directly\n"
 			"from the CD. This is known to cause problems,\n"
 			"and it is therefore recommended that you copy\n"
 			"the data files to your hard disk instead.\n"
-			"See the README file for details.", "OK");
+			"See the README file for details."), _("OK"));
 		dialog.runModal();
 	} else {
 		// If we reached here, the game has audio tracks,
 		// it's not ran from the CD and the tracks have not
 		// been ripped.
 		GUI::MessageDialog dialog(
-			"This game has audio tracks in its disk. These\n"
+			_("This game has audio tracks in its disk. These\n"
 			"tracks need to be ripped from the disk using\n"
 			"an appropriate CD audio extracting tool in\n"
 			"order to listen to the game's music.\n"
-			"See the README file for details.", "OK");
+			"See the README file for details."), _("OK"));
 		dialog.runModal();
 	}
 #endif
@@ -395,8 +397,34 @@ void Engine::pauseEngineIntern(bool pause) {
 void Engine::openMainMenuDialog() {
 	if (!_mainMenuDialog)
 		_mainMenuDialog = new MainMenuDialog(this);
+
+	setGameToLoadSlot(-1);
+
 	runDialog(*_mainMenuDialog);
+
+	// Load savegame after main menu execution
+	// (not from inside the menu loop to avoid
+	// mouse cursor glitches and simliar bugs,
+	// e.g. #2822778).
+	// FIXME: For now we just ignore the return
+	// value, which is quite bad since it could
+	// be a fatal loading error, which renders
+	// the engine unusable.
+	if (_saveSlotToLoad >= 0)
+		loadGameState(_saveSlotToLoad);
+
 	syncSoundSettings();
+}
+
+bool Engine::warnUserAboutUnsupportedGame() {
+	if (ConfMan.getBool("enable_unsupported_game_warning")) {
+		GUI::MessageDialog alert(_("WARNING: The game you are about to start is"
+			" not yet fully supported by ScummVM. As such, it is likely to be"
+			" unstable, and any saves you make might not work in future"
+			" versions of ScummVM."), _("Start anyway"), _("Cancel"));
+		return alert.runModal() == GUI::kMessageOK;
+	}
+	return true;
 }
 
 uint32 Engine::getTotalPlayTime() const {
@@ -425,8 +453,11 @@ int Engine::runDialog(GUI::Dialog &dialog) {
 	return result;
 }
 
-void Engine::syncSoundSettings() {
+void Engine::setGameToLoadSlot(int slot) {
+	_saveSlotToLoad = slot;
+}
 
+void Engine::syncSoundSettings() {
 	// Sync the engine with the config manager
 	int soundVolumeMusic = ConfMan.getInt("music_volume");
 	int soundVolumeSFX = ConfMan.getInt("sfx_volume");
@@ -436,9 +467,14 @@ void Engine::syncSoundSettings() {
 	if (ConfMan.hasKey("mute"))
 		mute = ConfMan.getBool("mute");
 
-	_mixer->setVolumeForSoundType(Audio::Mixer::kMusicSoundType, (mute ? 0 : soundVolumeMusic));
-	_mixer->setVolumeForSoundType(Audio::Mixer::kSFXSoundType, (mute ? 0 : soundVolumeSFX));
-	_mixer->setVolumeForSoundType(Audio::Mixer::kSpeechSoundType, (mute ? 0 : soundVolumeSpeech));
+	_mixer->muteSoundType(Audio::Mixer::kPlainSoundType, mute);
+	_mixer->muteSoundType(Audio::Mixer::kMusicSoundType, mute);
+	_mixer->muteSoundType(Audio::Mixer::kSFXSoundType, mute);
+	_mixer->muteSoundType(Audio::Mixer::kSpeechSoundType, mute);
+	_mixer->setVolumeForSoundType(Audio::Mixer::kPlainSoundType, Audio::Mixer::kMaxMixerVolume);
+	_mixer->setVolumeForSoundType(Audio::Mixer::kMusicSoundType, soundVolumeMusic);
+	_mixer->setVolumeForSoundType(Audio::Mixer::kSFXSoundType, soundVolumeSFX);
+	_mixer->setVolumeForSoundType(Audio::Mixer::kSpeechSoundType, soundVolumeSpeech);
 }
 
 void Engine::flipMute() {
@@ -466,7 +502,7 @@ bool Engine::canLoadGameStateCurrently() {
 	return false;
 }
 
-Common::Error Engine::saveGameState(int slot, const char *desc) {
+Common::Error Engine::saveGameState(int slot, const Common::String &desc) {
 	// Do nothing by default
 	return Common::kNoError;
 }

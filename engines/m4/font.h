@@ -18,9 +18,6 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
- * $URL$
- * $Id$
- *
  */
 
 #ifndef M4_FONT_H
@@ -62,8 +59,8 @@ public:
 	Font(MadsM4Engine *vm, const char *filename);
 	~Font();
 
-	void setColour(uint8 colour);
-	void setColours(uint8 col1, uint8 col2, uint8 col3);
+	void setColor(uint8 color);
+	void setColors(uint8 col1, uint8 col2, uint8 col3);
 
 	int32 getWidth(const char *text, int spaceWidth = -1);
 	int32 getHeight() const { return _maxHeight; }
@@ -111,7 +108,7 @@ public:
 	Font *getFont(const char *filename);
 	void setFont(const char *filename);
 
-	Font *current() { 
+	Font *current() {
 		assert(_currentFont);
 		return _currentFont;
 	}

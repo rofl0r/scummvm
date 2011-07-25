@@ -18,9 +18,6 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
- * $URL$
- * $Id$
- *
  */
 
 #include "common/error.h"
@@ -36,10 +33,10 @@ void displayErrorDialog(const char *text) {
 	alert.runModal();
 }
 
-void displayErrorDialog(Common::Error error, const char *extraText) {
+void displayErrorDialog(const Common::Error &error, const char *extraText) {
 	Common::String errorText(extraText);
 	errorText += " ";
-	errorText += _(Common::errorToString(error));
+	errorText += _(error.getDesc());
 	GUI::MessageDialog alert(errorText);
 	alert.runModal();
 }

@@ -18,9 +18,6 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
- * $URL$
- * $Id$
- *
  */
 
 #ifdef ENABLE_HE
@@ -624,15 +621,15 @@ void ScummEngine_v72he::o72_getArrayDimSize() {
 }
 
 void ScummEngine_v72he::o72_getNumFreeArrays() {
-	byte **addr = _res->address[rtString];
+	const ResourceManager::ResTypeData &rtd = _res->_types[rtString];
 	int i, num = 0;
 
 	for (i = 1; i < _numArray; i++) {
-		if (!addr[i])
+		if (!rtd[i]._address)
 			num++;
 	}
 
-	push (num);
+	push(num);
 }
 
 void ScummEngine_v72he::o72_roomOps() {
@@ -1408,18 +1405,49 @@ void ScummEngine_v72he::o72_openFile() {
 
 	if (slot != -1) {
 		switch (mode) {
-		case 1:
+		case 1:   // Read mode
 			if (!_saveFileMan->listSavefiles(filename).empty()) {
 				_hInFileTable[slot] = _saveFileMan->openForLoading(filename);
 			} else {
 				_hInFileTable[slot] = SearchMan.createReadStreamForMember(filename);
 			}
 			break;
-		case 2:
+		case 2:   // Write mode
 			if (!strchr(filename, '/')) {
 				_hOutFileTable[slot] = _saveFileMan->openForSaving(filename);
 			}
 			break;
+		case 6: { // Append mode
+			if (strchr(filename, '/'))
+				break;
+
+			// First check if the file already exists
+			Common::InSaveFile *initialState = 0;
+			if (!_saveFileMan->listSavefiles(filename).empty())
+				initialState = _saveFileMan->openForLoading(filename);
+			else
+				initialState = SearchMan.createReadStreamForMember(filename);
+
+			// Read in the data from the initial file
+			uint32 initialSize = 0;
+			byte *initialData = 0;
+			if (initialState) {
+				initialSize = initialState->size();
+				initialData = new byte[initialSize];
+				initialState->read(initialData, initialSize);
+				delete initialState;
+			}
+
+			// Attempt to open a save file
+			_hOutFileTable[slot] = _saveFileMan->openForSaving(filename);
+
+			// Begin us off with the data from the previous file
+			if (_hOutFileTable[slot] && initialData) {
+				_hOutFileTable[slot]->write(initialData, initialSize);
+				delete[] initialData;
+			}
+
+			} break;
 		default:
 			error("o72_openFile(): wrong open file mode %d", mode);
 		}
@@ -1883,7 +1911,8 @@ void ScummEngine_v72he::o72_writeINI() {
 
 void ScummEngine_v72he::o72_getResourceSize() {
 	const byte *ptr;
-	int size, type;
+	int size;
+	ResType type;
 
 	int resid = pop();
 	if (_game.heversion == 72) {
@@ -1895,7 +1924,7 @@ void ScummEngine_v72he::o72_getResourceSize() {
 
 	switch (subOp) {
 	case 13:
-		push (getSoundResourceSize(resid));
+		push(getSoundResourceSize(resid));
 		return;
 	case 14:
 		type = rtRoomImage;
@@ -2008,7 +2037,7 @@ void ScummEngine_v72he::decodeParseString(int m, int n) {
 	case 0xE1:
 		{
 		byte *dataPtr = getResourceAddress(rtTalkie, pop());
-		byte *text = findWrappedBlock(MKID_BE('TEXT'), dataPtr, 0, 0);
+		byte *text = findWrappedBlock(MKTAG('T','E','X','T'), dataPtr, 0, 0);
 		size = getResourceDataSize(text);
 		memcpy(name, text, size);
 		printString(m, name);

@@ -17,37 +17,34 @@
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * $URL$
- * $Id$
  */
 
 #ifndef ENGINES_ENGINE_H
 #define ENGINES_ENGINE_H
 
 #include "common/scummsys.h"
-#include "common/error.h"
 #include "common/str.h"
 
 class OSystem;
 
 namespace Audio {
-	class Mixer;
+class Mixer;
 }
 namespace Common {
-	class EventManager;
-	class SaveFileManager;
-	class TimerManager;
+class Error;
+class EventManager;
+class SaveFileManager;
+class TimerManager;
 }
 namespace GUI {
-	class Debugger;
-	class Dialog;
+class Debugger;
+class Dialog;
 }
 
 /**
  * Initializes graphics and shows error message.
  */
-void GUIErrorMessage(const Common::String msg);
+void GUIErrorMessage(const Common::String &msg);
 
 
 class Engine {
@@ -84,6 +81,13 @@ private:
 	 * the current play time of the game running.
 	 */
 	int32 _engineStartTime;
+
+	/**
+	 * Save slot selected via global main menu.
+	 * This slot will be loaded after main menu execution (not from inside
+	 * the menu loop, to avoid bugs like #2822778).
+	 */
+	int _saveSlotToLoad;
 
 public:
 
@@ -163,6 +167,15 @@ public:
 	 * Notify the engine that the sound settings in the config manager may have
 	 * changed and that it hence should adjust any internal volume etc. values
 	 * accordingly.
+	 * The default implementation sets the volume levels of all mixer sound
+	 * types according to the config entries of the active domain.
+	 * When overwriting, call the default implementation first, then adjust the
+	 * volumes further (if required).
+	 *
+	 * @note When setting volume levels, respect the "mute" config entry.
+	 * @note The volume for the plain sound type is reset to the maximum
+	 *       volume. If the engine can associate its own value for this
+	 *       type, it needs to overwrite this member and set it accordingly.
 	 * @todo find a better name for this
 	 */
 	virtual void syncSoundSettings();
@@ -180,6 +193,15 @@ public:
 	virtual Common::Error loadGameState(int slot);
 
 	/**
+	 * Sets the game slot for a savegame to be loaded after global
+	 * main menu execution. This is to avoid loading a savegame from
+	 * inside the menu loop which causes bugs like #2822778.
+	 *
+	 * @param slot	the slot from which a savestate should be loaded.
+	 */
+	void setGameToLoadSlot(int slot);
+
+	/**
 	 * Indicates whether a game state can be loaded.
 	 */
 	virtual bool canLoadGameStateCurrently();
@@ -190,7 +212,7 @@ public:
 	 * @param desc	a description for the savestate, entered by the user
 	 * @return returns kNoError on success, else an error code.
 	 */
-	virtual Common::Error saveGameState(int slot, const char *desc);
+	virtual Common::Error saveGameState(int slot, const Common::String &desc);
 
 	/**
 	 * Indicates whether a game state can be saved.
@@ -244,6 +266,13 @@ public:
 	 * Run the Global Main Menu Dialog
 	 */
 	void openMainMenuDialog();
+
+	/**
+	 * Display a warning to the user that the game is not fully supported.
+	 *
+	 * @return true if the user chose to start anyway, false otherwise
+	 */
+	static bool warnUserAboutUnsupportedGame();
 
 	/**
 	 * Get the total play time.

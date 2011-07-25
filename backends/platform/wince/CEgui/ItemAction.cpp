@@ -18,9 +18,6 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
- * $URL$
- * $Id$
- *
  */
 
 #include "ItemAction.h"
@@ -28,7 +25,7 @@
 namespace CEGUI {
 
 ItemAction::ItemAction(WORD reference, GUI::ActionType action) :
-PanelItem(reference) {
+	PanelItem(reference) {
 	_action = action;
 	if (!GUI::Actions::Instance()->isEnabled(_action))
 		_visible = false;

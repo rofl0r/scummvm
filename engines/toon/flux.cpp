@@ -18,10 +18,9 @@
 * along with this program; if not, write to the Free Software
 * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
 *
-* $URL$
-* $Id$
-*
 */
+
+#include "common/debug.h"
 
 #include "toon/flux.h"
 
@@ -96,7 +95,7 @@ int32 CharacterFlux::fixFacingForAnimation(int32 originalFacing, int32 animation
 		if (!facingMask)
 			break;
 	}
-	
+
 	return finalFacing;
 }
 

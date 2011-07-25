@@ -18,9 +18,6 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
- * $URL$
- * $Id$
- *
  */
 
 #ifndef HUGO_H
@@ -29,7 +26,7 @@
 #include "engines/engine.h"
 #include "common/file.h"
 #include "hugo/console.h"
-#include "hugo/menu.h"
+#include "hugo/dialogs.h"
 
 // This include is here temporarily while the engine is being refactored.
 #include "hugo/game.h"
@@ -58,7 +55,7 @@ class RandomSource;
  */
 namespace Hugo {
 
-static const int kSavegameVersion = 4;
+static const int kSavegameVersion = 6;
 static const int kInvDx = 32;                       // Width of an inventory icon
 static const int kInvDy = 32;                       // Height of inventory icon
 static const int kMaxTunes = 16;                    // Max number of tunes
@@ -125,10 +122,11 @@ enum HugoDebugChannels {
 	kDebugMusic     = 1 <<  9
 };
 
-/**
- * Ways to dismiss a text/prompt box
- */
-enum box_t {kBoxAny, kBoxOk, kBoxPrompt, kBoxYesNo};
+enum HugoRegistered {
+	kRegShareware = 0,
+	kRegRegistered,
+	kRegFreeware
+};
 
 /**
  * Inventory icon bar states
@@ -175,13 +173,15 @@ struct HugoGameDescription;
 struct status_t {                                   // Game status (not saved)
 	bool     storyModeFl;                           // Game is telling story - no commands
 	bool     gameOverFl;                            // Game is over - hero knobbled
-	bool     textBoxFl;                             // Game is (halted) in text box
 	bool     lookFl;                                // Toolbar "look" button pressed
 	bool     recallFl;                              // Toolbar "recall" button pressed
 	bool     newScreenFl;                           // New screen just loaded in dib_a
 	bool     godModeFl;                             // Allow DEBUG features in live version
+	bool     showBoundariesFl;                      // Flag used to show and hide boundaries,
+	                                                // used by the console
 	bool     doQuitFl;
 	bool     skipIntroFl;
+	bool     helpFl;
 	uint32   tick;                                  // Current time in ticks
 	vstate_t viewState;                             // View state machine
 	int16    song;                                  // Current song
@@ -193,6 +193,7 @@ struct status_t {                                   // Game status (not saved)
 //	bool     helpFl;                                // Calling WinHelp (don't disable music)
 //	bool     mmtimeFl;                              // Multimedia timer supported
 //	bool     demoFl;                                // Game is in demo mode
+//	bool     textBoxFl;                             // Game is (halted) in text box
 //	int16    screenWidth;                           // Desktop screen width
 //	int16    saveSlot;                              // Current slot to save/restore game
 //	int16    cx, cy;                                // Cursor position (dib coords)
@@ -237,6 +238,7 @@ public:
 	int8   _soundTest;
 	int8   _tunesNbr;
 	uint16 _numScreens;
+	uint16 _numStates;
 	int8   _normalTPS;                              // Number of ticks (frames) per second.
 	                                                // 8 for Win versions, 9 for DOS versions
 	object_t *_hero;
@@ -299,7 +301,7 @@ public:
 	void adjustScore(const int adjustment);
 	int getMaxScore() const;
 	void setMaxScore(const int newScore);
-	Common::Error saveGameState(int slot, const char *desc);
+	Common::Error saveGameState(int slot, const Common::String &desc);
 	Common::Error loadGameState(int slot);
 	bool hasFeature(EngineFeature f) const;
 	const char *getCopyrightString() const;

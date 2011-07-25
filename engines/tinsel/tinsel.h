@@ -18,9 +18,6 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
- * $URL$
- * $Id$
- *
  */
 
 #ifndef TINSEL_H
@@ -125,8 +122,8 @@ typedef bool (*KEYFPTR)(const Common::KeyState &);
 
 #define	SCREEN_WIDTH	(_vm->screen().w)	// PC screen dimensions
 #define	SCREEN_HEIGHT	(_vm->screen().h)
-#define	SCRN_CENTRE_X	((SCREEN_WIDTH  - 1) / 2)	// screen centre x
-#define	SCRN_CENTRE_Y	((SCREEN_HEIGHT - 1) / 2)	// screen centre y
+#define	SCRN_CENTER_X	((SCREEN_WIDTH  - 1) / 2)	// screen center x
+#define	SCRN_CENTER_Y	((SCREEN_HEIGHT - 1) / 2)	// screen center y
 #define UNUSED_LINES	48
 #define EXTRA_UNUSED_LINES	3
 //#define	SCREEN_BOX_HEIGHT1	(SCREEN_HEIGHT - UNUSED_LINES)
@@ -172,7 +169,7 @@ protected:
 	virtual bool hasFeature(EngineFeature f) const;
 	Common::Error loadGameState(int slot);
 #if 0
-	Common::Error saveGameState(int slot, const char *desc);
+	Common::Error saveGameState(int slot, const Common::String &desc);
 #endif
 	bool canLoadGameStateCurrently();
 #if 0
@@ -219,9 +216,6 @@ public:
 	RectList _clipRects;
 
 private:
-	//MidiMusicPlayer *_midiMusic;
-	int _musicVolume;
-
 	void NextGameCycle();
 	void CreateConstProcesses();
 	void RestartGame();

@@ -18,18 +18,11 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
- * $URL$
- * $Id$
- *
  */
 
-#include "common/events.h"
-#include "common/EventRecorder.h"
 #include "common/file.h"
-#include "common/savefile.h"
-#include "common/config-manager.h"
 #include "common/debug-channels.h"
-#include "common/system.h"
+#include "common/textconsole.h"
 
 #include "engines/util.h"
 
@@ -47,22 +40,18 @@ namespace Cruise {
 
 CruiseEngine *_vm;
 
-CruiseEngine::CruiseEngine(OSystem * syst, const CRUISEGameDescription *gameDesc) : Engine(syst), _gameDescription(gameDesc) {
+CruiseEngine::CruiseEngine(OSystem * syst, const CRUISEGameDescription *gameDesc)
+	: Engine(syst), _gameDescription(gameDesc), _rnd("cruise") {
 
 	DebugMan.addDebugChannel(kCruiseDebugScript, "scripts", "Scripts debug level");
 	DebugMan.addDebugChannel(kCruiseDebugSound, "sound", "Sound debug level");
-
-	// Setup mixer
-	_mixer->setVolumeForSoundType(Audio::Mixer::kSFXSoundType,
-			ConfMan.getInt("sfx_volume"));
-	_mixer->setVolumeForSoundType(Audio::Mixer::kMusicSoundType,
-			ConfMan.getInt("music_volume"));
 
 	_vm = this;
 	_debugger = new Debugger();
 	_sound = new PCSound(_mixer, this);
 
-	g_eventRec.registerRandomSource(_rnd, "cruise");
+	// Setup mixer
+	syncSoundSettings();
 }
 
 extern void listMemory();
@@ -103,7 +92,7 @@ Common::Error CruiseEngine::run() {
 
 	mainLoop();
 
-	deinitialise();
+	deinitialize();
 
 	return Common::kNoError;
 }
@@ -129,7 +118,7 @@ void CruiseEngine::initialize() {
 	_vm->_polyStruct = NULL;
 }
 
-void CruiseEngine::deinitialise() {
+void CruiseEngine::deinitialize() {
 	_vm->_polyStructNorm.clear();
 	_vm->_polyStructExp.clear();
 
@@ -220,7 +209,7 @@ bool CruiseEngine::canLoadGameStateCurrently() {
 	return playerMenuEnabled != 0;
 }
 
-Common::Error CruiseEngine::saveGameState(int slot, const char *desc) {
+Common::Error CruiseEngine::saveGameState(int slot, const Common::String &desc) {
 	return saveSavegameData(slot, desc);
 }
 
@@ -235,6 +224,8 @@ const char *CruiseEngine::getSavegameFile(int saveGameIdx) {
 }
 
 void CruiseEngine::syncSoundSettings() {
+	Engine::syncSoundSettings();
+
 	_sound->syncSounds();
 }
 

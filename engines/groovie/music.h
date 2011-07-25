@@ -18,9 +18,6 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
- * $URL$
- * $Id$
- *
  */
 
 #ifndef GROOVIE_MUSIC_H
@@ -29,6 +26,7 @@
 #include "common/array.h"
 #include "common/mutex.h"
 #include "audio/mididrv.h"
+#include "audio/mixer.h"
 
 class MidiParser;
 
@@ -62,6 +60,11 @@ private:
 
 	uint16 _backgroundDelay;
 
+	// T7G iOS credits mp3 stream
+	void playCreditsIOS();
+	void stopCreditsIOS();
+	Audio::SoundHandle _handleCreditsIOS;
+
 	// Volume fading
 	uint32 _fadingStartTime;
 	uint16 _fadingStartVolume;
@@ -88,20 +91,14 @@ protected:
 	virtual void unload();
 };
 
-class MusicPlayerMidi : public MusicPlayer, public MidiDriver {
+class MusicPlayerMidi : public MusicPlayer, public MidiDriver_BASE {
 public:
 	MusicPlayerMidi(GroovieEngine *vm);
 	~MusicPlayerMidi();
 
-	// MidiDriver interface
-	int open();
-	void close();
-	void send(uint32 b);
-	void metaEvent(byte type, byte *data, uint16 length);
-	void setTimerCallback(void *timer_param, Common::TimerManager::TimerProc timer_proc);
-	uint32 getBaseTempo();
-	MidiChannel *allocateChannel();
-	MidiChannel *getPercussionChannel();
+	// MidiDriver_BASE interface
+	virtual void send(uint32 b);
+	virtual void metaEvent(byte type, byte *data, uint16 length);
 
 private:
 	// Channel volumes
@@ -115,7 +112,7 @@ protected:
 	MidiParser *_midiParser;
 	MidiDriver *_driver;
 
-	void onTimerInternal();
+	virtual void onTimerInternal();
 	void updateVolume();
 	void unload();
 
@@ -164,6 +161,20 @@ protected:
 
 private:
 	Common::SeekableReadStream *decompressMidi(Common::SeekableReadStream *stream);
+};
+
+class MusicPlayerIOS : public MusicPlayer {
+public:
+	MusicPlayerIOS(GroovieEngine *vm);
+	~MusicPlayerIOS();
+
+protected:
+	void updateVolume();
+	bool load(uint32 fileref, bool loop);
+	void unload();
+
+private:
+	Audio::SoundHandle _handle;
 };
 
 } // End of Groovie namespace

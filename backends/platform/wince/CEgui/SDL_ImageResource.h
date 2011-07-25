@@ -18,9 +18,6 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
- * $URL$
- * $Id$
- *
  */
 
 #ifndef CEGUI_SDL_IMAGERESOURCE_H
@@ -36,8 +33,8 @@ namespace CEGUI {
 class SDL_ImageResource {
 public:
 	SDL_ImageResource();
-	SDL_Surface* load(WORD resourceID);
-	SDL_Surface* get();
+	SDL_Surface *load(WORD resourceID);
+	SDL_Surface *get();
 	int height();
 	int width();
 	virtual ~SDL_ImageResource();

@@ -18,9 +18,6 @@
 * along with this program; if not, write to the Free Software
 * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
 *
-* $URL$
-* $Id$
-*
 */
 
 #include "audio/softsynth/pcspk.h"
@@ -109,7 +106,7 @@ int8 PCSpeaker::generateSine(uint32 x, uint32 oscLength) {
 		return 0;
 
 	// TODO: Maybe using a look-up-table would be better?
-	return CLIP<int16>((int16) (128 * sin(2.0 * PI * x / oscLength)), -128, 127);
+	return CLIP<int16>((int16) (128 * sin(2.0 * M_PI * x / oscLength)), -128, 127);
 }
 
 int8 PCSpeaker::generateSaw(uint32 x, uint32 oscLength) {

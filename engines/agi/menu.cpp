@@ -18,9 +18,6 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
- * $URL$
- * $Id$
- *
  */
 
 #include "agi/agi.h"
@@ -117,7 +114,7 @@ void Menu::drawMenuOptionHilite(int hMenu, int vMenu) {
 	AgiMenuOption *d = getMenuOption(hMenu, vMenu);
 
 	// Disabled menu items are "greyed out" with a checkerboard effect,
-	// rather than having a different colour. -- dsymonds
+	// rather than having a different color. -- dsymonds
 	_vm->printText(d->text, 0, m->wincol + 1, vMenu + 2, m->width + 2,
 			MENU_BG, MENU_FG, !d->enabled);
 }

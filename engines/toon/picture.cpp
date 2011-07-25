@@ -18,27 +18,24 @@
 * along with this program; if not, write to the Free Software
 * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
 *
-* $URL$
-* $Id$
-*
 */
-
 
 #include "toon/picture.h"
 #include "toon/tools.h"
+
+#include "common/debug.h"
+#include "common/rect.h"
 #include "common/stack.h"
 
 namespace Toon {
 
-bool Picture::loadPicture(Common::String file, bool totalPalette /*= false*/) {
-	debugC(1, kDebugPicture, "loadPicture(%s, %d)", file.c_str(), (totalPalette) ? 1 : 0);
-	
+bool Picture::loadPicture(Common::String file) {
+	debugC(1, kDebugPicture, "loadPicture(%s)", file.c_str());
+
 	uint32 size = 0;
 	uint8 *fileData = _vm->resources()->getFileData(file, &size);
 	if (!fileData)
 		return false;
-
-	_useFullPalette = totalPalette;
 
 	uint32 compId = READ_BE_UINT32(fileData);
 
@@ -49,15 +46,17 @@ bool Picture::loadPicture(Common::String file, bool totalPalette /*= false*/) {
 		decompressLZSS(fileData + 8, _data, dstsize);
 
 		// size can only be 640x400 or 1280x400
-		if (dstsize > 640 * 400 + 768)
-			_width = 1280;
+		if (dstsize > TOON_SCREEN_WIDTH * TOON_SCREEN_HEIGHT + 768)
+			_width = TOON_BACKBUFFER_WIDTH;
 		else
-			_width = 640;
+			_width = TOON_SCREEN_WIDTH;
 
-		_height = 400;
+		_height = TOON_SCREEN_HEIGHT;
 
 		// do we have a palette ?
 		_paletteEntries = (dstsize & 0x7ff) / 3;
+		_useFullPalette = (_paletteEntries == 256);
+		//	_useFullPalette = true;
 		if (_paletteEntries) {
 			_palette = new uint8[_paletteEntries * 3];
 			memcpy(_palette, _data + dstsize - (dstsize & 0x7ff), _paletteEntries * 3);
@@ -69,9 +68,10 @@ bool Picture::loadPicture(Common::String file, bool totalPalette /*= false*/) {
 	}
 	case kCompSPCN: {
 		uint32 decSize = READ_LE_UINT32(fileData + 10);
-		_data = new uint8[decSize+100];
+		_data = new uint8[decSize + 100];
 		_paletteEntries = READ_LE_UINT16(fileData + 14) / 3;
-
+		_useFullPalette = (_paletteEntries == 256);
+		
 		if (_paletteEntries) {
 			_palette = new uint8[_paletteEntries * 3];
 			memcpy(_palette, fileData + 16, _paletteEntries * 3);
@@ -79,12 +79,12 @@ bool Picture::loadPicture(Common::String file, bool totalPalette /*= false*/) {
 		}
 
 		// size can only be 640x400 or 1280x400
-		if (decSize > 640 * 400 + 768)
-			_width = 1280;
+		if (decSize > TOON_SCREEN_WIDTH * TOON_SCREEN_HEIGHT + 768)
+			_width = TOON_BACKBUFFER_WIDTH;
 		else
-			_width = 640;
+			_width = TOON_SCREEN_WIDTH;
 
-		_height = 400;
+		_height = TOON_SCREEN_HEIGHT;
 
 		// decompress the picture into our buffer
 		decompressSPCN(fileData + 16 + _paletteEntries * 3, _data, decSize);
@@ -98,15 +98,15 @@ bool Picture::loadPicture(Common::String file, bool totalPalette /*= false*/) {
 
 		_data = new uint8[decSize];
 
-		rnc.unpackM1(fileData, _data);
+		rnc.unpackM1(fileData, size, _data);
 
 		// size can only be 640x400 or 1280x400
-		if (decSize > 640 * 400 + 768)
-			_width = 1280;
+		if (decSize > TOON_SCREEN_WIDTH * TOON_SCREEN_HEIGHT + 768)
+			_width = TOON_BACKBUFFER_WIDTH;
 		else
-			_width = 640;
+			_width = TOON_SCREEN_WIDTH;
 
-		_height = 400;
+		_height = TOON_SCREEN_HEIGHT;
 		return true;
 	}
 	case kCompRNC2: {
@@ -119,12 +119,12 @@ bool Picture::loadPicture(Common::String file, bool totalPalette /*= false*/) {
 
 		decSize = rnc.unpackM2(fileData, _data);
 
-		if (decSize > 640 * 400 + 768)
-			_width = 1280;
+		if (decSize > TOON_SCREEN_WIDTH * TOON_SCREEN_HEIGHT + 768)
+			_width = TOON_BACKBUFFER_WIDTH;
 		else
-			_width = 640;
+			_width = TOON_SCREEN_WIDTH;
 
-		_height = 400;
+		_height = TOON_SCREEN_HEIGHT;
 		return true;
 	}
 	}
@@ -184,6 +184,41 @@ void Picture::drawMask(Graphics::Surface &surface, int32 x, int32 y, int32 dx, i
 		}
 		curRow += destPitch;
 		c += srcPitch;
+	}
+}
+
+void Picture::drawWithRectList(Graphics::Surface& surface, int32 x, int32 y, int32 dx, int32 dy, Common::Array<Common::Rect>& rectArray) {
+
+	int32 rx = MIN(_width, surface.w - x);
+	int32 ry = MIN(_height, surface.h - y);
+
+	if (rx < 0 || ry < 0)
+		return;
+
+	int32 destPitch = surface.pitch;
+	int32 srcPitch = _width;
+
+	for (uint32 i = 0; i < rectArray.size(); i++) {
+
+		Common::Rect rect = rectArray[i];
+
+		int32 fillRx = MIN<int32>(rx, rect.right - rect.left);
+		int32 fillRy = MIN<int32>(ry, rect.bottom - rect.top);
+
+		uint8 *c = _data + _width * (dy + rect.top) + (dx + rect.left);
+		uint8 *curRow = (uint8 *)surface.pixels + (y + rect.top) * destPitch + (x + rect.left);
+
+		for (int32 yy = 0; yy < fillRy; yy++) {
+			uint8 *curSrc = c;
+			uint8 *cur = curRow;
+			for (int32 xx = 0; xx < fillRx; xx++) {
+				*cur = *curSrc;
+				curSrc++;
+				cur++;
+			}
+			curRow += destPitch;
+			c += srcPitch;
+		}
 	}
 }
 
@@ -279,7 +314,6 @@ void Picture::drawLineOnMask(int32 x, int32 y, int32 x2, int32 y2, bool walkable
 	else
 		t = adx;
 
-
 	int32 cdx = (dx << 16) / t;
 	int32 cdy = (dy << 16) / t;
 
@@ -289,15 +323,15 @@ void Picture::drawLineOnMask(int32 x, int32 y, int32 x2, int32 y2, bool walkable
 		int32 rx = bx >> 16;
 		int32 ry = by >> 16;
 
-		if( rx >= 0 && rx < _width-1 && ry >= 0 && ry < _height) {	// sanity check: some lines in the game 
+		if( rx >= 0 && rx < _width-1 && ry >= 0 && ry < _height) {	// sanity check: some lines in the game
 																	// were drawing outside the screen causing corruption
 			if (!walkable) {
 				_data[_width * ry + rx] &= 0xe0;
-				_data[_width * ry + rx+1] &= 0xe0;
+				_data[_width * ry + rx + 1] &= 0xe0;
 			} else {
 				int32 v = _data[_width * (by >> 16) + rx - 1];
 				_data[_width * ry + rx] = v;
-				_data[_width * ry + rx+1] = v;
+				_data[_width * ry + rx + 1] = v;
 			}
 		}
 

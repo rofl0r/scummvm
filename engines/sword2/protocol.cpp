@@ -20,9 +20,6 @@
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * $URL$
- * $Id$
  */
 
 #include "common/file.h"
@@ -52,8 +49,8 @@ void Sword2Engine::fetchPalette(byte *screenFile, byte *palBuffer) {
 		palette = screenFile + ResHeader::size() + mscreenHeader.palette;
 	}
 
-	// Always set colour 0 to black, because while most background screen
-	// palettes have a bright colour 0 it should come out as black in the
+	// Always set color 0 to black, because while most background screen
+	// palettes have a bright color 0 it should come out as black in the
 	// game.
 
 	palBuffer[0] = 0;

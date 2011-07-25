@@ -18,9 +18,6 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
- * $URL$
- * $Id$
- *
  */
 
 // Based on the Xentax Wiki documentation:
@@ -33,7 +30,9 @@
 #include "lastexpress/debug.h"
 
 #include "common/debug.h"
+#include "common/rect.h"
 #include "common/stream.h"
+#include "common/textconsole.h"
 
 namespace LastExpress {
 
@@ -169,13 +168,13 @@ bool SubtitleManager::load(Common::SeekableReadStream *stream) {
 	// Read header to get the number of subtitles
 	uint32 numSubtitles = stream->readUint16LE();
 	if (stream->eos())
-		error("Cannot read from subtitle file");
+		error("[SubtitleManager::load] Cannot read from subtitle file");
 
 	debugC(3, kLastExpressDebugSubtitle, "Number of subtitles in file: %d", numSubtitles);
 
 	// TODO: Check that stream contain enough data
 	//if (stream->size() < (signed)(numSubtitles * sizeof(SubtitleData))) {
-		//debugC(2, kLastExpressDebugSubtitle, "Subtitle file does not contain valid data!");
+		//debugC(2, kLastExpressDebugSubtitle, "Subtitle file does not contain valid data");
 		//return false;
 	//}
 

@@ -17,9 +17,6 @@
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * $URL$
- * $Id$
  */
 
 /*
@@ -34,9 +31,10 @@
 
 #if defined(IRIX)
 
-#include "common/scummsys.h"
-#include "common/util.h"
 #include "common/config-manager.h"
+#include "common/error.h"
+#include "common/textconsole.h"
+#include "common/util.h"
 #include "audio/musicplugin.h"
 #include "audio/mpu401.h"
 
@@ -57,6 +55,7 @@ class MidiDriver_DMEDIA : public MidiDriver_MPU401 {
 public:
 	MidiDriver_DMEDIA();
 	int open();
+	bool isOpen() const { return _isOpen; }
 	void close();
 	void send(uint32 b);
 	void sysEx(const byte *msg, uint16 length);
@@ -179,7 +178,7 @@ void MidiDriver_DMEDIA::sysEx (const byte *msg, uint16 length) {
 	memcpy(buf, msg, length);
 	buf[length] = MD_EOX;
 	event.sysexmsg = buf;
-        event.msglen = length;
+	event.msglen = length;
 	event.msg[0] = MD_SYSEX;
 	event.msg[1] = 0;
 	event.msg[2] = 0;

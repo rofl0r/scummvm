@@ -18,10 +18,9 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
- * $URL$
- * $Id$
- *
  */
+
+#include "common/textconsole.h"
 
 #include "m4/m4.h"
 #include "m4/dialogs.h"
@@ -32,7 +31,7 @@
 
 namespace M4 {
 
-void MadsGameLogic::initialiseGlobals() {
+void MadsGameLogic::initializeGlobals() {
 	// Clear the entire globals list
 	Common::set_to(&_madsVm->globals()->_globals[0], &_madsVm->globals()->_globals[TOTAL_NUM_VARIABLES], 0);
 
@@ -170,25 +169,81 @@ const char *MadsSceneLogic::_opcodeStrings[] = {
  * This method sets up the data map with pointers to all the common game objects. This allows the script engine to
  * convert game specific offsets for various fields in the original game's data segment into a generic data index
  * that will be common across all the MADS games
- */
-void MadsSceneLogic::initialiseDataMap() {
-	// The unique order of these items must be maintained
-	MAP_DATA((uint16 *)&_madsVm->scene()->_abortTimersMode2);
-	MAP_DATA(&_madsVm->scene()->_abortTimers);
-	MAP_DATA(&_madsVm->_player._stepEnabled);
-	MAP_DATA(&_madsVm->scene()->_nextScene);
-	MAP_DATA(&_madsVm->scene()->_previousScene);
-	MAP_DATA(&_madsVm->_player._playerPos.x);
-	MAP_DATA(&_madsVm->_player._playerPos.y);
-	MAP_DATA(&_madsVm->_player._direction);
-	MAP_DATA(&_madsVm->_player._visible);
-	MAP_DATA(&getActiveAnimationBool);
-	MAP_DATA(&getAnimationCurrentFrame);
 
+void MadsSceneLogic::initializeDataMap() {
+	// The unique order of these items must be maintained
+}
+*/
+
+uint32 MadsSceneLogic::getDataValue(int dataId) {
+	switch (dataId) {
+	case 1:
+		return _madsVm->scene()->_abortTimersMode2;
+	case 2:
+		return _madsVm->scene()->_abortTimers;
+	case 3:
+		return _madsVm->_player._stepEnabled ? 0xffff : 0;
+	case 4:
+		return _madsVm->scene()->_nextScene;
+	case 5:
+		return _madsVm->scene()->_previousScene;
+	case 6:
+		return _madsVm->_player._playerPos.x;
+	case 7:
+		return _madsVm->_player._playerPos.y;
+	case 8:
+		return _madsVm->_player._direction;
+	case 9:
+		return _madsVm->_player._visible ? 0xffff : 0;
+	case 10:
+		return getActiveAnimationBool();
+	case 11:
+		return getAnimationCurrentFrame();
+	default:
+		// All other data variables get stored in the hash table
+		return _madsVm->globals()->_dataMap[dataId];
+		break;
+	}
 }
 
-DataMap &MadsSceneLogic::dataMap() {
-	return _madsVm->globals()->_dataMap;
+void MadsSceneLogic::setDataValue(int dataId, uint16 dataValue) {
+	switch (dataId) {
+	case 1:
+		_madsVm->scene()->_abortTimersMode2 = (AbortTimerMode)dataValue;
+		break;
+	case 2:
+		_madsVm->scene()->_abortTimers = dataValue;
+		break;
+	case 3:
+		_madsVm->_player._stepEnabled = dataValue != 0;
+		break;
+	case 4:
+		_madsVm->scene()->_nextScene = dataValue;
+		break;
+	case 5:
+		_madsVm->scene()->_previousScene = dataValue;
+		break;
+	case 6:
+		_madsVm->_player._playerPos.x = dataValue;
+		break;
+	case 7:
+		_madsVm->_player._playerPos.y = dataValue;
+		break;
+	case 8:
+		_madsVm->_player._direction = dataValue;
+		break;
+	case 9:
+		_madsVm->_player._visible = dataValue != 0;
+		break;
+	case 10:
+	case 11:
+		error("Tried to set read only data field %d", dataId);
+		break;
+	default:
+		// All other data variables get stored in the hash table
+		_madsVm->globals()->_dataMap[dataId] = dataValue;
+		break;
+	}
 }
 
 const char *MadsSceneLogic::formAnimName(char sepChar, int16 suffixNum) {
@@ -242,7 +297,7 @@ uint16 MadsSceneLogic::startReversibleSpriteSequence(uint16 srcSpriteIdx, bool f
 	uint8 depth = _madsVm->_rails->getDepth(Common::Point(spriteFrame->x + (spriteFrame->width() / 2),
 		spriteFrame->y + (spriteFrame->height() / 2)));
 
-	return _madsVm->scene()->_sequenceList.add(srcSpriteIdx, flipped, 1, triggerCountdown, timeoutTicks, extraTicks, numTicks, 0, 0, 
+	return _madsVm->scene()->_sequenceList.add(srcSpriteIdx, flipped, 1, triggerCountdown, timeoutTicks, extraTicks, numTicks, 0, 0,
 		true, 100, depth - 1, 1, ANIMTYPE_REVERSIBLE, 0, 0);
 }
 
@@ -251,7 +306,7 @@ uint16 MadsSceneLogic::startCycledSpriteSequence(uint16 srcSpriteIdx, bool flipp
 	uint8 depth = _madsVm->_rails->getDepth(Common::Point(spriteFrame->x + (spriteFrame->width() / 2),
 		spriteFrame->y + (spriteFrame->height() / 2)));
 
-	return _madsVm->scene()->_sequenceList.add(srcSpriteIdx, flipped, 1, triggerCountdown, timeoutTicks, extraTicks, numTicks, 0, 0, 
+	return _madsVm->scene()->_sequenceList.add(srcSpriteIdx, flipped, 1, triggerCountdown, timeoutTicks, extraTicks, numTicks, 0, 0,
 		true, 100, depth - 1, 1, ANIMTYPE_CYCLED, 0, 0);
 }
 
@@ -260,7 +315,7 @@ uint16 MadsSceneLogic::startSpriteSequence3(uint16 srcSpriteIdx, bool flipped, i
 	uint8 depth = _madsVm->_rails->getDepth(Common::Point(spriteFrame->x + (spriteFrame->width() / 2),
 		spriteFrame->y + (spriteFrame->height() / 2)));
 
-	return _madsVm->scene()->_sequenceList.add(srcSpriteIdx, flipped, 1, triggerCountdown, timeoutTicks, extraTicks, numTicks, 0, 0, 
+	return _madsVm->scene()->_sequenceList.add(srcSpriteIdx, flipped, 1, triggerCountdown, timeoutTicks, extraTicks, numTicks, 0, 0,
 		true, 100, depth - 1, -1, ANIMTYPE_CYCLED, 0, 0);
 }
 
@@ -280,11 +335,11 @@ void MadsSceneLogic::getPlayerSpritesPrefix() {
 		strcpy(_madsVm->_player._spritesPrefix, "RXSM");
 	else if (_madsVm->globals()->_nextSceneId == 112)
 		strcpy(_madsVm->_player._spritesPrefix, "");
-		
+
 	if (strcmp(oldName, _madsVm->_player._spritesPrefix) != 0)
 		_madsVm->_player._spritesChanged = true;
 
-	if ((_madsVm->globals()->_nextSceneId == 105) || 
+	if ((_madsVm->globals()->_nextSceneId == 105) ||
 		((_madsVm->globals()->_nextSceneId == 109) && (_madsVm->globals()->_globals[15] != 0))) {
 		// TODO: unknown flag setting
 		_madsVm->_player._spritesChanged = true;
@@ -327,7 +382,7 @@ void MadsSceneLogic::getPlayerSpritesPrefix2() {
 /**
  * Loads the MADS.DAT file and loads the script data for the correct game/language
  */
-void MadsSceneLogic::initialiseScripts() {
+void MadsSceneLogic::initializeScripts() {
 	Common::File f;
 	if (!f.open("mads.dat")) {
 		warning("Could not locate mads.dat file");
@@ -365,7 +420,7 @@ void MadsSceneLogic::initialiseScripts() {
 		if ((language != 1) || (_madsVm->getLanguage() != Common::EN_ANY))
 			continue;
 
-		// Found script block for the given game and language. 
+		// Found script block for the given game and language.
 		_scriptsSize = (i < (offsets.size() - 1)) ? offsets[i + 1] - offsets[i] : f.size() - offsets[i];
 		break;
 	}
@@ -378,7 +433,7 @@ void MadsSceneLogic::initialiseScripts() {
 
 	// Load up the list of subroutines into a hash map
 	uint32 blockOffset = f.pos() - 3;
-	uint32 subsStart = 0;	
+	uint32 subsStart = 0;
 	for (;;) {
 		// Get next entry
 		Common::String subName;
@@ -532,18 +587,18 @@ void MadsSceneLogic::execute(uint32 subOffset) {
 
 		case OP_DLOAD: {		// Gets data variable
 			param = getParam(scriptOffset, opcode);
-			uint16 v = dataMap().get(param);
+			uint16 v = getDataValue(param);
 			stack.push(ScriptVar(v));
 			break;
 		}
 
 		case OP_DSTORE:	{		// Stores data variable
-			param = getParam(scriptOffset, opcode); 
+			param = getParam(scriptOffset, opcode);
 			ScriptVar v = stack.pop();
-			dataMap().set(param, v.isInt() ? v.get() : 0);
+			setDataValue(param, v.isInt() ? v.get() : 0);
 			break;
 		}
-		
+
 		case OP_LOAD:			// loads local variable onto stack
 			param = getParam(scriptOffset, opcode);
 			stack.push(locals[param]);
@@ -566,7 +621,7 @@ void MadsSceneLogic::execute(uint32 subOffset) {
 
 		case OP_GSTORE:				// pops stack and stores in global variable
 			param = getParam(scriptOffset, opcode);
-			assert(param < TOTAL_NUM_VARIABLES);			
+			assert(param < TOTAL_NUM_VARIABLES);
 			_madsVm->globals()->_globals[param] = stack.pop().get();
 			break;
 
@@ -592,7 +647,7 @@ void MadsSceneLogic::execute(uint32 subOffset) {
 				// Condition satisfied - do the jump
 				scriptOffset = param;
 			break;
-					   
+
 		case OP_JMPTRUE:	// conditional jump
 			param = subOffset + getParam(scriptOffset, opcode);
 			if (stack.pop().get() != 0)
@@ -653,7 +708,7 @@ void MadsSceneLogic::execute(uint32 subOffset) {
 				case OP_OR:     param1 |= param2; break;
 				case OP_EOR:    param1 ^= param2; break;
 				}
-				
+
 				stack.push(ScriptVar(param1));
 			}
 			break;
@@ -719,7 +774,7 @@ uint32 MadsSceneLogic::getParam(uint32 &scriptOffset, int opcode) {
  */
 void MadsSceneLogic::getCallParameters(int numParams, Common::Stack<ScriptVar> &stack, ScriptVar *callParams) {
 	assert(numParams <= MAX_CALL_PARAMS);
-	for (int i = 0; i < numParams; ++i, ++callParams) 
+	for (int i = 0; i < numParams; ++i, ++callParams)
 		*callParams = stack.pop();
 }
 
@@ -826,7 +881,7 @@ void MadsSceneLogic::callSubroutine(int subIndex, Common::Stack<ScriptVar> &stac
 	case 14: {
 		// DynamicHotspots_add
 		EXTRACT_PARAMS(7);
-		int idx = _madsVm->scene()->_dynamicHotspots.add(p[0], p[1], p[2], 
+		int idx = _madsVm->scene()->_dynamicHotspots.add(p[0], p[1], p[2],
 			Common::Rect(p[6], p[5], p[6] + p[4], p[5] + p[3]));
 		stack.push(ScriptVar(idx));
 		break;
@@ -896,7 +951,7 @@ void MadsSceneLogic::callSubroutine(int subIndex, Common::Stack<ScriptVar> &stac
 		// object_is_present
 		EXTRACT_PARAMS(1);
 		const MadsObject *obj = _madsVm->globals()->getObject(p[0]);
-		stack.push(ScriptVar((obj->roomNumber == _madsVm->scene()->_currentScene)));
+		stack.push(ScriptVar((obj->_roomNumber == _madsVm->scene()->_currentScene)));
 		break;
 	}
 
@@ -920,6 +975,14 @@ void MadsSceneLogic::callSubroutine(int subIndex, Common::Stack<ScriptVar> &stac
 		EXTRACT_PARAMS(1);
 		const MadsObject *obj = _madsVm->globals()->getObject(p[0]);
 		stack.push(ScriptVar(obj->isInInventory()));
+		break;
+	}
+
+	case 26: {
+		// object_set_room
+		EXTRACT_PARAMS(2);
+		MadsObject *obj = _madsVm->globals()->getObject(p[0]);
+		obj->setRoom(p[1]);
 		break;
 	}
 

@@ -18,9 +18,6 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
- * $URL$
- * $Id$
- *
  */
 
 #ifndef _ANDROID_TEXTURE_H_
@@ -31,25 +28,60 @@
 #include <GLES/gl.h>
 
 #include "graphics/surface.h"
+#include "graphics/pixelformat.h"
 
 #include "common/rect.h"
 #include "common/array.h"
 
-class GLESTexture {
+class GLESBaseTexture {
 public:
 	static void initGLExtensions();
 
-	GLESTexture();
-	virtual ~GLESTexture();
+protected:
+	GLESBaseTexture(GLenum glFormat, GLenum glType,
+					Graphics::PixelFormat pixelFormat);
 
-	virtual void reinitGL();
-	virtual void allocBuffer(GLuint width, GLuint height);
+public:
+	virtual ~GLESBaseTexture();
+
+	void release();
+	void reinit();
+	void initSize();
+
+	void setLinearFilter(bool value);
+
+	virtual void allocBuffer(GLuint w, GLuint h);
 
 	virtual void updateBuffer(GLuint x, GLuint y, GLuint width, GLuint height,
-								const void *buf, int pitch);
-	virtual void fillBuffer(byte x);
+								const void *buf, int pitch_buf) = 0;
+	virtual void fillBuffer(uint32 color) = 0;
 
 	virtual void drawTexture(GLshort x, GLshort y, GLshort w, GLshort h);
+
+	inline void setDrawRect(const Common::Rect &rect) {
+		_draw_rect = rect;
+	}
+
+	inline void setDrawRect(int16 w, int16 h) {
+		_draw_rect = Common::Rect(w, h);
+	}
+
+	inline void setDrawRect(int16 x1, int16 y1, int16 x2, int16 y2) {
+		_draw_rect = Common::Rect(x1, y1, x2, y2);
+	}
+
+	inline const Common::Rect &getDrawRect() const {
+		return _draw_rect;
+	}
+
+	inline void drawTextureRect() {
+		drawTexture(_draw_rect.left, _draw_rect.top,
+					_draw_rect.width(), _draw_rect.height());
+	}
+
+	inline void drawTextureOrigin() {
+			drawTexture(0, 0, _surface.w, _surface.h);
+	}
 
 	inline GLuint width() const {
 		return _surface.w;
@@ -59,8 +91,12 @@ public:
 		return _surface.h;
 	}
 
-	inline GLuint texture_name() const {
-		return _texture_name;
+	inline uint16 pitch() const {
+		return _surface.pitch;
+	}
+
+	inline bool isEmpty() const {
+		return _surface.w == 0 || _surface.h == 0;
 	}
 
 	inline const Graphics::Surface *surface_const() const {
@@ -72,26 +108,39 @@ public:
 		return &_surface;
 	}
 
+	virtual const byte *palette_const() const {
+		return 0;
+	};
+
+	virtual byte *palette() {
+		return 0;
+	};
+
+	inline bool hasPalette() const {
+		return _palettePixelFormat.bytesPerPixel > 0;
+	}
+
 	inline bool dirty() const {
 		return _all_dirty || !_dirty_rect.isEmpty();
 	}
 
-	inline void drawTexture() {
-		drawTexture(0, 0, _surface.w, _surface.h);
+	virtual const Graphics::PixelFormat &getPixelFormat() const;
+
+	inline const Graphics::PixelFormat &getPalettePixelFormat() const {
+		return _palettePixelFormat;
 	}
 
 protected:
-	virtual byte bytesPerPixel() const = 0;
-	virtual GLenum glFormat() const = 0;
-	virtual GLenum glType() const = 0;
-
-	virtual size_t paletteSize() const {
-		return 0;
-	}
-
 	inline void setDirty() {
 		_all_dirty = true;
-		_dirty_rect = Common::Rect();
+	}
+
+	inline void clearDirty() {
+		_all_dirty = false;
+		_dirty_rect.top = 0;
+		_dirty_rect.left = 0;
+		_dirty_rect.bottom = 0;
+		_dirty_rect.right = 0;
 	}
 
 	inline void setDirtyRect(const Common::Rect& r) {
@@ -103,110 +152,121 @@ protected:
 		}
 	}
 
+	GLenum _glFormat;
+	GLenum _glType;
+	GLint _glFilter;
+
 	GLuint _texture_name;
 	Graphics::Surface _surface;
 	GLuint _texture_width;
 	GLuint _texture_height;
-	bool _all_dirty;
 
-	// Covers dirty area
+	Common::Rect _draw_rect;
+
+	bool _all_dirty;
 	Common::Rect _dirty_rect;
+
+	Graphics::PixelFormat _pixelFormat;
+	Graphics::PixelFormat _palettePixelFormat;
+};
+
+class GLESTexture : public GLESBaseTexture {
+protected:
+	GLESTexture(GLenum glFormat, GLenum glType,
+				Graphics::PixelFormat pixelFormat);
+
+public:
+	virtual ~GLESTexture();
+
+	virtual void allocBuffer(GLuint w, GLuint h);
+
+	virtual void updateBuffer(GLuint x, GLuint y, GLuint width, GLuint height,
+								const void *buf, int pitch_buf);
+	virtual void fillBuffer(uint32 color);
+
+	virtual void drawTexture(GLshort x, GLshort y, GLshort w, GLshort h);
+
+protected:
+	byte *_pixels;
+	byte *_buf;
 };
 
 // RGBA4444 texture
 class GLES4444Texture : public GLESTexture {
-protected:
-	virtual byte bytesPerPixel() const {
-		return 2;
-	}
+public:
+	GLES4444Texture();
+	virtual ~GLES4444Texture();
 
-	virtual GLenum glFormat() const {
-		return GL_RGBA;
+	static Graphics::PixelFormat pixelFormat() {
+		return Graphics::PixelFormat(2, 4, 4, 4, 4, 12, 8, 4, 0);
 	}
+};
 
-	virtual GLenum glType() const {
-		return GL_UNSIGNED_SHORT_4_4_4_4;
+// RGBA5551 texture
+class GLES5551Texture : public GLESTexture {
+public:
+	GLES5551Texture();
+	virtual ~GLES5551Texture();
+
+	static inline Graphics::PixelFormat pixelFormat() {
+		return Graphics::PixelFormat(2, 5, 5, 5, 1, 11, 6, 1, 0);
 	}
 };
 
 // RGB565 texture
 class GLES565Texture : public GLESTexture {
-protected:
-	virtual byte bytesPerPixel() const {
-		return 2;
-	}
+public:
+	GLES565Texture();
+	virtual ~GLES565Texture();
 
-	virtual GLenum glFormat() const {
-		return GL_RGB;
-	}
-
-	virtual GLenum glType() const {
-		return GL_UNSIGNED_SHORT_5_6_5;
+	static inline Graphics::PixelFormat pixelFormat() {
+		return Graphics::PixelFormat(2, 5, 6, 5, 0, 11, 5, 0, 0);
 	}
 };
 
-// RGB888 256-entry paletted texture
-class GLESPaletteTexture : public GLESTexture {
-public:
-	GLESPaletteTexture();
-	virtual ~GLESPaletteTexture();
+class GLESFakePaletteTexture : public GLESBaseTexture {
+protected:
+	GLESFakePaletteTexture(GLenum glFormat, GLenum glType,
+							Graphics::PixelFormat pixelFormat);
 
-	virtual void allocBuffer(GLuint width, GLuint height);
+public:
+	virtual ~GLESFakePaletteTexture();
+
+	virtual void allocBuffer(GLuint w, GLuint h);
 	virtual void updateBuffer(GLuint x, GLuint y, GLuint width, GLuint height,
-								const void *buf, int pitch);
-	virtual void fillBuffer(byte x);
+								const void *buf, int pitch_buf);
+	virtual void fillBuffer(uint32 color);
 
 	virtual void drawTexture(GLshort x, GLshort y, GLshort w, GLshort h);
 
-	inline void drawTexture() {
-		drawTexture(0, 0, _surface.w, _surface.h);
-	}
-
-	inline const byte *palette_const() const {
-		return _texture;
+	virtual const byte *palette_const() const {
+		return (byte *)_palette;
 	};
 
-	inline byte *palette() {
+	virtual byte *palette() {
 		setDirty();
-		return _texture;
+		return (byte *)_palette;
 	};
+
+	virtual const Graphics::PixelFormat &getPixelFormat() const;
 
 protected:
-	virtual byte bytesPerPixel() const {
-		return 1;
-	}
-
-	virtual GLenum glFormat() const {
-		return GL_RGB;
-	}
-
-	virtual GLenum glType() const {
-		return GL_PALETTE8_RGB8_OES;
-	}
-
-	virtual size_t paletteSize() const {
-		return 256 * 3;
-	}
-
-	void uploadTexture() const;
-
-	byte *_texture;
+	Graphics::PixelFormat _fake_format;
+	uint16 *_palette;
+	byte *_pixels;
+	uint16 *_buf;
 };
 
-// RGBA8888 256-entry paletted texture
-class GLESPaletteATexture : public GLESPaletteTexture {
-protected:
-	virtual GLenum glFormat() const {
-		return GL_RGBA;
-	}
+class GLESFakePalette565Texture : public GLESFakePaletteTexture {
+public:
+	GLESFakePalette565Texture();
+	virtual ~GLESFakePalette565Texture();
+};
 
-	virtual GLenum glType() const {
-		return GL_PALETTE8_RGBA8_OES;
-	}
-
-	virtual size_t paletteSize() const {
-		return 256 * 4;
-	}
+class GLESFakePalette5551Texture : public GLESFakePaletteTexture {
+public:
+	GLESFakePalette5551Texture();
+	virtual ~GLESFakePalette5551Texture();
 };
 
 #endif

@@ -20,13 +20,11 @@
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * $URL$
- * $Id$
  */
 
 
 #include "common/memstream.h"
+#include "common/textconsole.h"
 
 #include "sword2/sword2.h"
 #include "sword2/defs.h"
@@ -322,7 +320,7 @@ int32 Router::getRoute() {
 		// of a line
 
 		// scan through the nodes linking each node to its nearest
-		// neighbour until no more nodes change
+		// neighbor until no more nodes change
 
 		// This is the routine that finds a route using scan()
 
@@ -2344,9 +2342,9 @@ void Router::plotWalkGrid() {
 		plotCross(_node[i].x, _node[i].y, 184);
 }
 
-void Router::plotCross(int16 x, int16 y, uint8 colour) {
-	_vm->_screen->drawLine(x - 1, y - 1, x + 1, y + 1, colour);
-	_vm->_screen->drawLine(x + 1, y - 1, x - 1, y + 1, colour);
+void Router::plotCross(int16 x, int16 y, uint8 color) {
+	_vm->_screen->drawLine(x - 1, y - 1, x + 1, y + 1, color);
+	_vm->_screen->drawLine(x + 1, y - 1, x - 1, y + 1, color);
 }
 
 void Router::loadWalkGrid() {

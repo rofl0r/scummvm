@@ -18,9 +18,6 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
- * $URL$
- * $Id$
- *
  */
 
 #include "common/config-manager.h"
@@ -31,7 +28,7 @@
 #include "graphics/thumbnail.h"
 #include "toon/toon.h"
 
-static const PlainGameDescriptor ToonGames[] = {
+static const PlainGameDescriptor toonGames[] = {
 	{ "toon", "Toonstruck" },
 	{ 0, 0 }
 };
@@ -91,6 +88,15 @@ static const ADGameDescription gameDescriptions[] = {
 		},
 		Common::DE_DEU, Common::kPlatformPC, ADGF_DEMO, GUIO_NONE
 	},
+	{
+		"toon", "",
+		{
+			{"local.pak", 0, "8ef3368078b9ea70b305c04db826feea", 2680573},
+			{"generic.svl", 0, "5c42724bb93b360dca7044d6b7ef26e5", 7739319},
+			AD_LISTEND
+		},
+		Common::EN_ANY, Common::kPlatformPC, ADGF_DEMO, GUIO_NONE
+	},
 
 	AD_TABLE_END_MARKER
 };
@@ -111,37 +117,20 @@ static const char * const directoryGlobs[] = {
 	0
 };
 
-static const ADParams detectionParams = {
-	// Pointer to ADGameDescription or its superset structure
-	(const byte *)Toon::gameDescriptions,
-	// Size of that superset structure
-	sizeof(ADGameDescription),
-	// Number of bytes to compute MD5 sum for
-	5000,
-	// List of all engine targets
-	ToonGames,
-	// Structure for autoupgrading obsolete targets
-	0,
-	// Name of single gameid (optional)
-	"toon",
-	// List of files for file-based fallback detection (optional)
-	Toon::fileBasedFallback,
-	// Flags
-	0,
-	// Additional GUI options (for every game}
-	Common::GUIO_NONE,
-	// Maximum directory depth
-	3,
-	// List of directory globs
-	directoryGlobs
-};
-
 class ToonMetaEngine : public AdvancedMetaEngine {
 public:
-	ToonMetaEngine() : AdvancedMetaEngine(detectionParams) {}
+	ToonMetaEngine() : AdvancedMetaEngine(Toon::gameDescriptions, sizeof(ADGameDescription), toonGames) {
+		_singleid = "toon";
+		_maxScanDepth = 3;
+		_directoryGlobs = directoryGlobs;
+	}
+
+	virtual const ADGameDescription *fallbackDetect(const FileMap &allFiles, const Common::FSList &fslist) const {
+		return detectGameFilebased(allFiles, Toon::fileBasedFallback);
+	}
 
 	virtual const char *getName() const {
-		return "Toon Engine";
+		return "Toon";
 	}
 
 	virtual const char *getOriginalCopyright() const {

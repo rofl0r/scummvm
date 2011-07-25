@@ -18,10 +18,10 @@
 * along with this program; if not, write to the Free Software
 * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
 *
-* $URL$
-* $Id$
-*
 */
+
+#include "common/debug.h"
+#include "common/system.h"
 
 #include "toon/character.h"
 #include "toon/drew.h"
@@ -64,6 +64,7 @@ Character::Character(ToonEngine *vm) : _vm(vm) {
 	_lastWalkTime = 0;
 	_numPixelToWalk = 0;
 	_nextIdleTime = _vm->getSystem()->getMillis() + (_vm->randRange(0, 600) + 300) * _vm->getTickLength();
+	_lineToSayId = 0;
 }
 
 Character::~Character(void) {
@@ -104,7 +105,7 @@ void Character::setFacing(int32 facing) {
 		_lastWalkTime = _vm->getSystem()->getMillis();
 		if ((_facing - facing + 8) % 8 > (facing - _facing + 8) % 8)
 			dir = 1;
-		else 
+		else
 			dir = -1;
 
 		while (_facing != facing) {
@@ -125,13 +126,12 @@ void Character::setFacing(int32 facing) {
 			if	(_currentPathNode == 0)
 				playStandingAnim();
 			else
-				playWalkAnim(0,0);
+				playWalkAnim(0, 0);
 			_vm->doFrame();
 		};
 
 		_flags &= ~2;
 	}
-
 
 	_facing = facing;
 }
@@ -140,7 +140,7 @@ void Character::forcePosition(int32 x, int32 y) {
 
 	debugC(5, kDebugCharacter, "forcePosition(%d, %d)", x, y);
 
-	setPosition(x,y);
+	setPosition(x, y);
 	_finalX = x;
 	_finalY = y;
 }
@@ -166,8 +166,9 @@ bool Character::walkTo(int32 newPosX, int32 newPosY) {
 
 	_vm->getPathFinding()->resetBlockingRects();
 
-	if (_id == 1) {
-		int32 sizeX = MAX<int32>(5, 40 * _vm->getDrew()->getScale() / 1024);
+	// don't allow flux to go at the same position as drew
+	if (_id == 1 ) {
+		int32 sizeX = MAX<int32>(5, 30 * _vm->getDrew()->getScale() / 1024);
 		int32 sizeY = MAX<int32>(2, 20 * _vm->getDrew()->getScale() / 1024);
 		_vm->getPathFinding()->addBlockingEllipse(_vm->getDrew()->getFinalX(), _vm->getDrew()->getFinalY(), sizeX, sizeY);
 	}
@@ -175,7 +176,6 @@ bool Character::walkTo(int32 newPosX, int32 newPosY) {
 	_vm->getPathFinding()->findClosestWalkingPoint(newPosX, newPosY, &_finalX, &_finalY, _x, _y);
 	if (_x == _finalX && _y == _finalY)
 		return true;
-
 
 	if (_vm->getPathFinding()->findPath(_x, _y, _finalX, _finalY)) {
 
@@ -191,7 +191,7 @@ bool Character::walkTo(int32 newPosX, int32 newPosY) {
 		_currentPathNodeCount = _vm->getPathFinding()->getPathNodeCount();
 		_currentPathNode = 0;
 		stopSpecialAnim();
-	
+
 		_lastWalkTime = _vm->getSystem()->getMillis();
 
 		_numPixelToWalk = 0;
@@ -327,11 +327,6 @@ void Character::updateTimers(int32 relativeAdd) {
 
 void Character::stopSpecialAnim() {
 	debugC(4, kDebugCharacter, "stopSpecialAnim()");
-// Strangerke - Commented (not used)
-#if 0
-	if (_animSpecialId != _animSpecialDefaultId)
-		delete anim;
-#endif
 	if (_animScriptId != -1)
 		_vm->getSceneAnimationScript(_animScriptId)->_frozenForConversation = false;
 
@@ -388,7 +383,6 @@ void Character::update(int32 timeIncrement) {
 	if ((_flags & 4) == 0)
 		return;
 
-
 	if (_animScriptId != -1) {
 		_animationInstance = _vm->getSceneAnimation(this->)
 #endif
@@ -423,19 +417,9 @@ void Character::update(int32 timeIncrement) {
 				return;
 			}
 
-// Strangerke - Commented (not used)
-#if 0
-			if (_animFlags & 8) {
-				if (anim->_flags7 == 0xff && anim->_flags9 == 0xff) {
-					// start voice
-				}
-			}
-#endif
-
 			if (_animScriptId != -1)
 				_vm->getSceneAnimationScript(_animScriptId)->_frozenForConversation = true;
-			
-			
+
 			// TODO setup backup //
 
 			_animFlags |= 0x10;
@@ -494,17 +478,6 @@ void Character::update(int32 timeIncrement) {
 				}
 			} else {
 				nextFrame = currentFrame + 1;
-// Strangerke - Commented (not used)
-#if 0
-				if (!_vm->getAudioManager()->voiceStillPlaying()) {
-					if (_animFlags & 8) {
-						if ((anim->_flags9 == 0xff && nextFrame == anim->_flags6) ||
-						    (anim->_flags9 != 0xff && nextFrame >= anim->_flags9)) {
-							// start really talking
-						}
-					}
-				}
-#endif
 				if (nextFrame == anim->_flags7 + 1 && (_animFlags & 0x40) == 0) {
 					if (anim->_flags8 != 1 && (_vm->randRange(0, 1) || anim->_flags8 == 2)) {
 						_animFlags |= 0x20;
@@ -525,7 +498,6 @@ void Character::update(int32 timeIncrement) {
 
 	//label78
 
-	
 #if 0
 	if (_id == 0)
 		debug(" drew animation name %s / flag %d / frame %d", _specialAnim->_name, _animFlags, nextFrame);
@@ -611,7 +583,6 @@ int32 Character::getScale() {
 }
 
 void Character::playWalkAnim(int32 startFrame, int32 endFrame) {
-
 }
 
 void Character::setId(int32 id) {
@@ -625,7 +596,8 @@ int32 Character::getId() {
 void Character::save(Common::WriteStream *stream) {
 	debugC(1, kDebugCharacter, "save(stream)");
 
-	stream->writeSint32LE(_flags);
+	// we have to save visibility too, put in flags to not invalidate old savegames.
+	stream->writeSint32LE(_flags | ((_visible == false) ? 0x100 : 0));
 	stream->writeSint32LE(_x);
 	stream->writeSint32LE(_y);
 	stream->writeSint32LE(_z);
@@ -662,6 +634,12 @@ void Character::load(Common::ReadStream *stream) {
 	if (_sceneAnimationId > -1) {
 		setAnimationInstance(_vm->getSceneAnimation(_sceneAnimationId)->_animInstance);
 	}
+
+	// "not visible" flag.
+	if (_flags & 0x100) {
+		_flags &= ~0x100;
+		setVisible(false);	
+	}
 }
 
 void Character::setAnimScript(int32 animScriptId) {
@@ -677,7 +655,6 @@ int32 Character::getAnimScript() {
 }
 
 void Character::playTalkAnim() {
-
 }
 
 void Character::stopWalk() {
@@ -1046,7 +1023,6 @@ void Character::playAnim(int32 animId, int32 unused, int32 flags) {
 		*strchr(animName, '?') = '0' + facing;
 	strcat(animName, ".CAF");
 
-
 	if (_animScriptId != -1 && (flags & 8) == 0)
 		_vm->getSceneAnimationScript(_animScriptId)->_frozenForConversation = true;
 
@@ -1068,10 +1044,8 @@ void Character::playAnim(int32 animId, int32 unused, int32 flags) {
 		}
 	}
 
-
 	if (_sceneAnimationId > -1)
 		setAnimationInstance(_vm->getSceneAnimation(_sceneAnimationId)->_animInstance);
-
 
 	_animFlags |= flags;
 

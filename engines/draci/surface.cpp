@@ -18,9 +18,6 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
- * $URL$
- * $Id$
- *
  */
 
 #include "draci/screen.h"
@@ -29,9 +26,9 @@
 namespace Draci {
 
 Surface::Surface(int width, int height) {
-	this->create(width, height, 1);
+	this->create(width, height, Graphics::PixelFormat::createFormatCLUT8());
 	this->markClean();
-	_transparentColour = kDefaultTransparent;
+	_transparentColor = kDefaultTransparent;
 }
 
 Surface::~Surface() {
@@ -80,12 +77,12 @@ void Surface::markClean() {
 }
 
 /**
- * @brief Fills the surface with the specified colour
+ * @brief Fills the surface with the specified color
  */
-void Surface::fill(uint colour) {
+void Surface::fill(uint color) {
 	byte *ptr = (byte *)getBasePtr(0, 0);
 
-	memset(ptr, colour, w * h);
+	memset(ptr, color, w * h);
 }
 
 /**

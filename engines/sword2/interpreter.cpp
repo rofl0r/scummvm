@@ -20,14 +20,12 @@
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * $URL$
- * $Id$
  */
 
 
 #include "common/util.h"
 #include "common/stack.h"
+#include "common/textconsole.h"
 
 #include "sword2/sword2.h"
 #include "sword2/header.h"
@@ -147,7 +145,7 @@ void Logic::setupOpcodes() {
 		OPCODE(fnSetScrollLeftMouse),
 		OPCODE(fnSetScrollRightMouse),
 		/* 4C */
-		OPCODE(fnColour),
+		OPCODE(fnColor),
 		OPCODE(fnFlash),
 		OPCODE(fnPreFetch),
 		OPCODE(fnGetPlayerSaveData),
@@ -266,7 +264,7 @@ int Logic::runScript2(byte *scriptData, byte *objectData, byte *offsetPtr) {
 	//	int32_TYPE	1		numberOfScripts
 	//	int32_TYPE	numberOfScripts	The offsets for each script
 
-	// Initialise some stuff
+	// Initialize some stuff
 
 	uint32 ip = 0;			 // Code pointer
 	int scriptNumber;
@@ -376,7 +374,7 @@ int Logic::runScript2(byte *scriptData, byte *objectData, byte *offsetPtr) {
 			// sets variable 913 to 1 (probably to stop him from
 			// turning around every now and then). The script may
 			// then go on to set the variable to different values
-			// to trigger various behaviours in him, but if you
+			// to trigger various behaviors in him, but if you
 			// have run out of these cases the script won't ever
 			// set it back to 0 again.
 			//
@@ -616,7 +614,7 @@ int Logic::runScript2(byte *scriptData, byte *objectData, byte *offsetPtr) {
 
 			// The scripts do not always call the mcode command
 			// with as many parameters as it can accept. To keep
-			// things predictable, initialise the remaining
+			// things predictable, initialize the remaining
 			// parameters to 0.
 
 			for (i = STACK_SIZE - 1; i >= value; i--) {

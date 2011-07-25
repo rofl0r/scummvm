@@ -18,16 +18,13 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
- * $URL$
- * $Id$
- *
  */
 
 #ifndef GROOVIE_RESOURCE_H
 #define GROOVIE_RESOURCE_H
 
 namespace Common {
-	class MacResManager;
+class MacResManager;
 }
 
 namespace Groovie {
@@ -36,6 +33,7 @@ struct ResInfo {
 	uint16 gjd;
 	uint32 offset;
 	uint32 size;
+	Common::String filename;
 };
 
 class ResMan {
@@ -43,11 +41,12 @@ public:
 	virtual ~ResMan() {}
 
 	Common::SeekableReadStream *open(uint32 fileRef);
-	virtual uint16 getRef(Common::String name, Common::String scriptname = "") = 0;
+
+	virtual uint32 getRef(Common::String name, Common::String scriptname = "") = 0;
+	virtual bool getResInfo(uint32 fileRef, ResInfo &resInfo) = 0;
 
 protected:
 	Common::Array<Common::String> _gjds;
-	virtual bool getResInfo(uint32 fileRef, ResInfo &resInfo) = 0;
 
 	uint16 _lastGjd;
 };
@@ -57,7 +56,7 @@ public:
 	ResMan_t7g(Common::MacResManager *macResFork = 0);
 	~ResMan_t7g() {}
 
-	uint16 getRef(Common::String name, Common::String scriptname);
+	uint32 getRef(Common::String name, Common::String scriptname);
 	bool getResInfo(uint32 fileRef, ResInfo &resInfo);
 
 private:
@@ -69,7 +68,7 @@ public:
 	ResMan_v2();
 	~ResMan_v2() {}
 
-	uint16 getRef(Common::String name, Common::String scriptname);
+	uint32 getRef(Common::String name, Common::String scriptname);
 	bool getResInfo(uint32 fileRef, ResInfo &resInfo);
 };
 

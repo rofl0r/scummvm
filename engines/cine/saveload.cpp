@@ -18,13 +18,11 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
- * $URL$
- * $Id$
- *
  */
 
 #include "common/debug.h"
 #include "common/savefile.h"
+#include "common/textconsole.h"
 
 #include "cine/cine.h"
 #include "cine/bg_list.h"
@@ -462,10 +460,7 @@ void saveSeqList(Common::OutSaveFile &out) {
 
 bool CineEngine::loadSaveDirectory() {
 	Common::InSaveFile *fHandle;
-	char tmp[80];
-
-	snprintf(tmp, 80, "%s.dir", _targetName.c_str());
-	fHandle = _saveFileMan->openForLoading(tmp);
+	fHandle = _saveFileMan->openForLoading(Common::String::format("%s.dir", _targetName.c_str()));
 
 	if (!fHandle) {
 		return false;
@@ -770,7 +765,7 @@ bool CineEngine::loadPlainSaveFW(Common::SeekableReadStream &in, CineSaveGameFor
 	return !(in.eos() || in.err());
 }
 
-bool CineEngine::makeLoad(char *saveName) {
+bool CineEngine::makeLoad(const Common::String &saveName) {
 	Common::SharedPtr<Common::InSaveFile> saveFile(_saveFileMan->openForLoading(saveName));
 
 	if (!saveFile) {
@@ -996,9 +991,8 @@ void CineEngine::makeSave(char *saveFileName) {
  * at a time.
  */
 void loadResourcesFromSave(Common::SeekableReadStream &fHandle, enum CineSaveGameFormat saveGameFormat) {
-	int16 currentAnim, foundFileIdx, frame;
+	int16 currentAnim, foundFileIdx;
 	char *animName, part[256], name[10];
-	uint16 width, height, bpp, var1;
 
 	strcpy(part, currentPartName);
 
@@ -1012,10 +1006,10 @@ void loadResourcesFromSave(Common::SeekableReadStream &fHandle, enum CineSaveGam
 		// Seek to the start of the current animation's entry
 		fHandle.seek(fileStartPos + currentAnim * entrySize);
 		// Read in the current animation entry
-		width = fHandle.readUint16BE();
-		var1 = fHandle.readUint16BE();
-		bpp = fHandle.readUint16BE();
-		height = fHandle.readUint16BE();
+		fHandle.readUint16BE(); // width
+		fHandle.readUint16BE();
+		fHandle.readUint16BE(); // bpp
+		fHandle.readUint16BE(); // height
 
 		bool validPtr = false;
 		// Handle variables only present in animation entries of size 30
@@ -1025,7 +1019,7 @@ void loadResourcesFromSave(Common::SeekableReadStream &fHandle, enum CineSaveGam
 		}
 
 		foundFileIdx = fHandle.readSint16BE();
-		frame = fHandle.readSint16BE();
+		fHandle.readSint16BE(); // frame
 		fHandle.read(name, 10);
 
 		// Handle variables only present in animation entries of size 23

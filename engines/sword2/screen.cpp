@@ -20,9 +20,6 @@
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * $URL$
- * $Id$
  */
 
 // ---------------------------------------------------------------------------
@@ -32,6 +29,7 @@
 
 #include "common/system.h"
 #include "common/events.h"
+#include "common/textconsole.h"
 
 #include "sword2/sword2.h"
 #include "sword2/defs.h"
@@ -63,11 +61,11 @@ Screen::Screen(Sword2Engine *vm, int16 width, int16 height) {
 
 	_dirtyGrid = (byte *)calloc(_gridWide, _gridDeep);
 	if (!_dirtyGrid)
-		error("Could not initialise dirty grid");
+		error("Could not initialize dirty grid");
 
 	_buffer = (byte *)malloc(width * height);
 	if (!_buffer)
-		error("Could not initialise display");
+		error("Could not initialize display");
 
 	for (int i = 0; i < ARRAYSIZE(_blockSurfaces); i++)
 		_blockSurfaces[i] = NULL;
@@ -253,7 +251,7 @@ void Screen::updateDisplay(bool redrawScene) {
 }
 
 /**
- * Fill the screen buffer with palette colour zero. Note that it does not
+ * Fill the screen buffer with palette color zero. Note that it does not
  * touch the menu areas of the screen.
  */
 
@@ -392,7 +390,7 @@ void Screen::displayMsg(byte *text, int time) {
 	spriteInfo.type = RDSPR_DISPLAYALIGN | RDSPR_NOCOMPRESSION | RDSPR_TRANS;
 	spriteInfo.blend = 0;
 	spriteInfo.data = text_spr + FrameHeader::size();
-	spriteInfo.colourTable = 0;
+	spriteInfo.colorTable = 0;
 	spriteInfo.isText = true;
 
 	uint32 rv = drawSprite(&spriteInfo);
@@ -530,7 +528,7 @@ void Screen::processLayer(byte *file, uint32 layer_number) {
 	}
 
 	spriteInfo.blend = 0;
-	spriteInfo.colourTable = 0;
+	spriteInfo.colorTable = 0;
 
 	// check for largest layer for debug info
 
@@ -572,7 +570,7 @@ void Screen::processImage(BuildUnit *build_unit) {
 	cdt_entry.read(_vm->fetchCdtEntry(file, build_unit->anim_pc));
 	frame_head.read(frame);
 
-	// so that 0-colour is transparent
+	// so that 0-color is transparent
 	uint32 spriteType = RDSPR_TRANS;
 
 	if (anim_head.blend)
@@ -606,7 +604,7 @@ void Screen::processImage(BuildUnit *build_unit) {
 		case RLE16:
 			spriteType |= RDSPR_RLE16;
 			// points to just after last cdt_entry, ie.
-			// start of colour table
+			// start of color table
 			colTablePtr = _vm->fetchAnimHeader(file) + AnimHeader::size() + anim_head.noAnimFrames * CdtEntry::size();
 			if (Sword2Engine::isPsx())
 				colTablePtr++; // There is one additional byte to skip before the table in psx version
@@ -632,7 +630,7 @@ void Screen::processImage(BuildUnit *build_unit) {
 	spriteInfo.blend = anim_head.blend;
 	// points to just after frame header, ie. start of sprite data
 	spriteInfo.data = frame + FrameHeader::size();
-	spriteInfo.colourTable = colTablePtr;
+	spriteInfo.colorTable = colTablePtr;
 	spriteInfo.isText = false;
 
 	// check for largest layer for debug info
@@ -895,7 +893,7 @@ void Screen::rollCredits() {
 	//     palette   3 * 256 bytes
 	//     data      width * height bytes
 	//
-	//     Note that the maximum colour component in the palette is 0x3F.
+	//     Note that the maximum color component in the palette is 0x3F.
 	//     This is the same resolution as the _paletteMatch table. I doubt
 	//     that this is a coincidence, but let's use the image palette
 	//     directly anyway, just to be safe.
@@ -1227,11 +1225,11 @@ void Screen::rollCredits() {
 void Screen::splashScreen() {
 	byte *bgfile = _vm->_resman->openResource(2950);
 
-	initialiseBackgroundLayer(NULL);
-	initialiseBackgroundLayer(NULL);
-	initialiseBackgroundLayer(_vm->fetchBackgroundLayer(bgfile));
-	initialiseBackgroundLayer(NULL);
-	initialiseBackgroundLayer(NULL);
+	initializeBackgroundLayer(NULL);
+	initializeBackgroundLayer(NULL);
+	initializeBackgroundLayer(_vm->fetchBackgroundLayer(bgfile));
+	initializeBackgroundLayer(NULL);
+	initializeBackgroundLayer(NULL);
 
 	_vm->fetchPalette(bgfile, _palette);
 	setPalette(0, 256, _palette, RDPAL_FADE);
@@ -1261,7 +1259,7 @@ void Screen::splashScreen() {
 	barSprite.scaledHeight = 0;
 	barSprite.type = RDSPR_RLE256FAST | RDSPR_TRANS;
 	barSprite.blend = 0;
-	barSprite.colourTable = 0;
+	barSprite.colorTable = 0;
 	barSprite.data = frame + FrameHeader::size();
 	barSprite.isText = false;
 

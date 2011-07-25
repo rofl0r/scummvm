@@ -18,9 +18,6 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
- * $URL$
- * $Id$
- *
  */
 
 #include "mohawk/cstime_game.h"
@@ -29,6 +26,8 @@
 #include "mohawk/resource.h"
 #include "mohawk/sound.h"
 #include "common/events.h"
+#include "common/system.h"
+#include "common/textconsole.h"
 
 namespace Mohawk {
 
@@ -470,8 +469,8 @@ void CSTimeConversation::end(bool useLastClicked, bool runEvents) {
 			_vm->getCase()->getCurrScene()->getChar(_sourceChar)->setupAmbientAnims(true);
 	}
 
-	CSTimeInterface *interface = _vm->getInterface();
-	CSTimeInventoryDisplay *invDisplay = interface->getInventoryDisplay();
+	CSTimeInterface *iface = _vm->getInterface();
+	CSTimeInventoryDisplay *invDisplay = iface->getInventoryDisplay();
 	if (invDisplay->getState() == 4) {
 		invDisplay->hide();
 		invDisplay->setState(0);
@@ -480,8 +479,8 @@ void CSTimeConversation::end(bool useLastClicked, bool runEvents) {
 	setState((uint)~0);
 	_currHover = 0xffff;
 
-	interface->clearTextLine();
-	interface->clearDialogArea();
+	iface->clearTextLine();
+	iface->clearDialogArea();
 	invDisplay->show();
 
 	// TODO: stupid case 20 stuff

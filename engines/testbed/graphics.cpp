@@ -17,9 +17,6 @@
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * $URL$
- * $Id$
  */
 
 #include "common/events.h"
@@ -33,6 +30,7 @@
 
 #include "graphics/cursorman.h"
 #include "graphics/fontman.h"
+#include "graphics/palette.h"
 #include "graphics/surface.h"
 #include "graphics/VectorRendererSpec.h"
 
@@ -104,7 +102,7 @@ void GFXtests::initMousePalette() {
 	CursorMan.replaceCursorPalette(palette, 0, 3);
 }
 
-Common::Rect GFXtests::computeSize(Common::Rect &cursorRect, int scalingFactor, int cursorTargetScale) {
+Common::Rect GFXtests::computeSize(const Common::Rect &cursorRect, int scalingFactor, int cursorTargetScale) {
 	if (cursorTargetScale == 1 || scalingFactor == 1) {
 		// Game data and cursor would be scaled equally.
 		// so dimensions would be same.
@@ -139,7 +137,7 @@ void GFXtests::HSVtoRGB(int &rComp, int &gComp, int &bComp, int hue, int sat, in
 	float f, p, q, t;
 
 	if (s == 0) {
-		r = g = b = v * 255;
+		rComp = gComp = bComp = (int)(v * 255);
 		return;
 	}
 
@@ -188,7 +186,7 @@ void GFXtests::HSVtoRGB(int &rComp, int &gComp, int &bComp, int hue, int sat, in
 	bComp = (int)(b * 255);
 }
 
-Common::Rect GFXtests::drawCursor(bool cursorPaletteDisabled, const char *gfxModeName, int cursorTargetScale) {
+Common::Rect GFXtests::drawCursor(bool cursorPaletteDisabled, int cursorTargetScale) {
 	// Buffer initialized with yellow color
 	byte buffer[500];
 	memset(buffer, 2, sizeof(buffer));
@@ -229,16 +227,16 @@ void rotatePalette(byte *palette, int size) {
 	// Rotate the colors starting from address palette "size" times
 
 	// take a temporary palette color
-	byte tColor[4] = {0};
+	byte tColor[3] = {0};
 	// save first color in it.
-	memcpy(tColor, &palette[0], 4 * sizeof(byte));
+	memcpy(tColor, &palette[0], 3 * sizeof(byte));
 
 	// Move each color upward by 1
 	for (int i = 0; i < size - 1; i++) {
-		memcpy(&palette[i * 4], &palette[(i + 1) * 4], 4 * sizeof(byte));
+		memcpy(&palette[i * 3], &palette[(i + 1) * 3], 3 * sizeof(byte));
 	}
 	// Assign last color to tcolor
-	memcpy(&palette[(size - 1) * 4], tColor, 4 * sizeof(byte));
+	memcpy(&palette[(size - 1) * 3], tColor, 3 * sizeof(byte));
 }
 
 /**
@@ -246,12 +244,12 @@ void rotatePalette(byte *palette, int size) {
  */
 void GFXtests::setupMouseLoop(bool disableCursorPalette, const char *gfxModeName, int cursorTargetScale) {
 	bool isFeaturePresent;
-	isFeaturePresent = g_system->hasFeature(OSystem::kFeatureCursorHasPalette);
+	isFeaturePresent = g_system->hasFeature(OSystem::kFeatureCursorPalette);
 	Common::Rect cursorRect;
 
 	if (isFeaturePresent) {
 
-		cursorRect = GFXtests::drawCursor(disableCursorPalette, gfxModeName, cursorTargetScale);
+		cursorRect = GFXtests::drawCursor(disableCursorPalette, cursorTargetScale);
 
 		Common::EventManager *eventMan = g_system->getEventManager();
 		Common::Event event;
@@ -360,7 +358,7 @@ void GFXtests::drawEllipse(int cx, int cy, int a, int b) {
 
 	// Illuminate the points lying on ellipse
 
-	for (theta = 0; theta <= PI / 2; theta += PI / 360) {
+	for (theta = 0; theta <= M_PI / 2; theta += M_PI / 360) {
 		x = (int)(b * sin(theta) + 0.5);
 		y = (int)(a * cos(theta) + 0.5);
 
@@ -606,7 +604,7 @@ TestExitStatus GFXtests::mouseMovements() {
 
 	Common::String info = "Testing Automated Mouse movements.\n"
 						"You should expect cursor hotspot(top-left corner) to automatically move from (0, 0) to (100, 100).\n"
-						"There we have a rectangle drawn, finally the cursor would lie centred in that rectangle.";
+						"There we have a rectangle drawn, finally the cursor would lie centered in that rectangle.";
 
 	if (Testsuite::handleInteractiveInput(info, "OK", "Skip", kOptionRight)) {
 		Testsuite::logPrintf("Info! Skipping test : Mouse Movements\n");
@@ -637,7 +635,7 @@ TestExitStatus GFXtests::mouseMovements() {
 	g_system->delayMillis(1500);
 	CursorMan.showMouse(false);
 
-	if (Testsuite::handleInteractiveInput("Was the cursor centred in the rectangle at (100, 100)?", "Yes", "No", kOptionRight)) {
+	if (Testsuite::handleInteractiveInput("Was the cursor centered in the rectangle at (100, 100)?", "Yes", "No", kOptionRight)) {
 		return kTestFailed;
 	}
 
@@ -654,7 +652,7 @@ TestExitStatus GFXtests::copyRectToScreen() {
 
 	Testsuite::clearScreen();
 	Common::String info = "Testing Blitting a Bitmap to screen.\n"
-		"You should expect to see a 20x40 yellow horizontal rectangle centred at the screen.";
+		"You should expect to see a 20x40 yellow horizontal rectangle centered at the screen.";
 
 	if (Testsuite::handleInteractiveInput(info, "OK", "Skip", kOptionRight)) {
 		Testsuite::logPrintf("Info! Skipping test : Blitting Bitmap\n");
@@ -743,7 +741,7 @@ TestExitStatus GFXtests::scaledCursors() {
 	if (isAspectRatioCorrected) {
 		info += "\nDisabling Aspect ratio correction, for letting cusors match exactly, will be restored after this test.";
 	}
-	
+
 	if (Testsuite::handleInteractiveInput(info, "OK", "Skip", kOptionRight)) {
 		Testsuite::logPrintf("Info! Skipping test : Scaled Cursors\n");
 		return kTestSkipped;
@@ -755,7 +753,7 @@ TestExitStatus GFXtests::scaledCursors() {
 	}
 
 
-	if (isAspectRatioCorrected) {	
+	if (isAspectRatioCorrected) {
 		g_system->beginGFXTransaction();
 		g_system->setFeatureState(OSystem::kFeatureAspectRatioCorrection, false);
 		g_system->endGFXTransaction();
@@ -768,7 +766,7 @@ TestExitStatus GFXtests::scaledCursors() {
 		// for every graphics mode display cursors for cursorTargetScale 1, 2 and 3
 		// Switch Graphics mode
 		// FIXME: Crashes with "3x" mode now.:
-		
+
 		info = Common::String::format("Testing : Scaled cursors with GFX Mode %s\n", gfxMode->name);
 		if (Testsuite::handleInteractiveInput(info, "OK", "Skip", kOptionRight)) {
 			Testsuite::logPrintf("\tInfo! Skipping sub-test : Scaled Cursors :: GFX Mode %s\n", gfxMode->name);
@@ -781,7 +779,7 @@ TestExitStatus GFXtests::scaledCursors() {
 			Testsuite::logPrintf("Info! Explicit exit requested during scaling test, this test may be incomplete\n");
 			return kTestSkipped;
 		}
-		
+
 		g_system->beginGFXTransaction();
 
 		bool isGFXModeSet = g_system->setGraphicsMode(gfxMode->id);
@@ -809,7 +807,7 @@ TestExitStatus GFXtests::scaledCursors() {
 		if (Testsuite::handleInteractiveInput(info, "Yes", "No", kOptionRight)) {
 			Testsuite::logPrintf("\tInfo! Failed sub-test : Scaled Cursors :: GFX Mode %s\n", gfxMode->name);
 		}
-		
+
 		if (Engine::shouldQuit()) {
 			// Explicit exit requested
 			Testsuite::logPrintf("Info! Explicit exit requested during scaling test, this test may be incomplete\n");
@@ -826,7 +824,7 @@ TestExitStatus GFXtests::scaledCursors() {
 	if (isAspectRatioCorrected) {
 		g_system->setFeatureState(OSystem::kFeatureAspectRatioCorrection, true);
 	}
-	
+
 	OSystem::TransactionError gfxError = g_system->endGFXTransaction();
 
 	if (gfxError != OSystem::kTransactionSuccess || !isGFXModeSet) {
@@ -964,13 +962,14 @@ TestExitStatus GFXtests::paletteRotation() {
 		Testsuite::logPrintf("Info! Skipping test : palette Rotation\n");
 		return kTestSkipped;
 	}
-	Common::Point pt(0, 10);
+
 	Testsuite::clearEntireScreen();
 
 	// Use 256 colors
 	byte palette[256 * 3] = {0};
 
 	int r, g, b;
+	r = g = b = 0;
 	int colIndx;
 
 	for (int i = 0; i < 256; i++) {
@@ -1067,7 +1066,6 @@ TestExitStatus GFXtests::pixelFormats() {
 	}
 
 	Common::List<Graphics::PixelFormat> pfList = g_system->getSupportedFormats();
-	Common::List<Graphics::PixelFormat>::const_iterator iter = pfList.begin();
 
 	int numFormatsTested = 0;
 	int numPassed = 0;
@@ -1075,7 +1073,7 @@ TestExitStatus GFXtests::pixelFormats() {
 
 	Testsuite::logDetailedPrintf("Testing Pixel Formats. Size of list : %d\n", pfList.size());
 
-	for (iter = pfList.begin(); iter != pfList.end(); iter++) {
+	for (Common::List<Graphics::PixelFormat>::const_iterator iter = pfList.begin(); iter != pfList.end(); iter++) {
 		numFormatsTested++;
 		if (iter->bytesPerPixel == 1) {
 			// Palettes already tested
@@ -1113,7 +1111,7 @@ TestExitStatus GFXtests::pixelFormats() {
 
 		Graphics::Surface *screen = g_system->lockScreen();
 
-		// Draw 6 rectangles centred at (50, 160), piled over one another
+		// Draw 6 rectangles centered at (50, 160), piled over one another
 		// each with color in colors[]
 		for (int i = 0; i < 6; i++) {
 			screen->fillRect(Common::Rect::center(160, 20 + i * 10, 100, 10), colors[i]);

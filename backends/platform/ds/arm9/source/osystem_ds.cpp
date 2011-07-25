@@ -20,6 +20,9 @@
  */
 
 
+// Allow use of stuff in <time.h>
+#define FORBIDDEN_SYMBOL_EXCEPTION_time_h
+
 #include "common/scummsys.h"
 #include "common/system.h"
 
@@ -37,6 +40,9 @@
 #include "graphics/surface.h"
 #include "touchkeyboard.h"
 #include "backends/fs/ds/ds-fs-factory.h"
+
+#include "backends/audiocd/default/default-audiocd.h"
+#include "backends/timer/default/default-timer.h"
 
 #ifdef ENABLE_AGI
 #include "wordcompletion.h"
@@ -76,7 +82,7 @@
 OSystem_DS *OSystem_DS::_instance = NULL;
 
 OSystem_DS::OSystem_DS()
-	: eventNum(0), lastPenFrame(0), queuePos(0), _mixer(NULL), _timer(NULL), _frameBufferExists(false),
+	: eventNum(0), lastPenFrame(0), queuePos(0), _mixer(NULL), _frameBufferExists(false),
 	_disableCursorPalette(true), _graphicsEnable(true), _gammaValue(0)
 {
 //	eventNum = 0;
@@ -84,13 +90,17 @@ OSystem_DS::OSystem_DS()
 //	queuePos = 0;
 	_instance = this;
 //	_mixer = NULL;
-  //  _timer = NULL;
 	//_frameBufferExists = false;
 }
 
 OSystem_DS::~OSystem_DS() {
 	delete _mixer;
-	delete _timer;
+	_mixer = 0;
+
+	// If _savefileManager is not 0, then it points to the OSystem_DS
+	// member variable mpSaveManager. Hence we set _savefileManager to
+	// 0, to prevent the OSystem destructor from trying to delete it.
+	_savefileManager = 0;
 }
 
 int OSystem_DS::timerHandler(int t) {
@@ -103,7 +113,11 @@ void OSystem_DS::initBackend() {
 	ConfMan.setInt("autosave_period", 0);
 	ConfMan.setBool("FM_medium_quality", true);
 
-	_timer = new DefaultTimerManager();
+	if (DS::isGBAMPAvailable()) {
+		_savefileManager = &mpSaveManager;
+	}
+
+	_timerManager = new DefaultTimerManager();
     DS::setTimerCallback(&OSystem_DS::timerHandler, 10);
 
 	if (ConfMan.hasKey("22khzaudio", "ds") && ConfMan.getBool("22khzaudio", "ds")) {
@@ -115,21 +129,32 @@ void OSystem_DS::initBackend() {
 	_mixer = new Audio::MixerImpl(this, DS::getSoundFrequency());
 	_mixer->setReady(true);
 
-	OSystem::initBackend();
+	/* TODO/FIXME: The NDS should use a custom AudioCD manager instance!
+	if (!_audiocdManager)
+		_audiocdManager = new DSAudioCDManager();
+	*/
+
+	EventsBaseBackend::initBackend();
 }
 
 bool OSystem_DS::hasFeature(Feature f) {
-	return (f == kFeatureVirtualKeyboard) || (f == kFeatureCursorHasPalette);
+	return (f == kFeatureVirtualKeyboard) || (f == kFeatureCursorPalette);
 }
 
 void OSystem_DS::setFeatureState(Feature f, bool enable) {
 	if (f == kFeatureVirtualKeyboard)
 		DS::setKeyboardIcon(enable);
+	else if (f == kFeatureCursorPalette) {
+		_disableCursorPalette = !enable;
+		refreshCursor();
+	}
 }
 
 bool OSystem_DS::getFeatureState(Feature f) {
 	if (f == kFeatureVirtualKeyboard)
 		return DS::getKeyboardIcon();
+	if (f == kFeatureCursorPalette)
+		return !_disableCursorPalette;
 	return false;
 }
 
@@ -243,7 +268,7 @@ void OSystem_DS::setCursorPalette(const byte *colors, uint start, uint num) {
 }
 
 bool OSystem_DS::grabRawScreen(Graphics::Surface *surf) {
-	surf->create(DS::getGameWidth(), DS::getGameHeight(), 1);
+	surf->create(DS::getGameWidth(), DS::getGameHeight(), Graphics::PixelFormat::createFormatCLUT8());
 
 	// Ensure we copy using 16 bit quantities due to limitation of VRAM addressing
 
@@ -259,13 +284,13 @@ bool OSystem_DS::grabRawScreen(Graphics::Surface *surf) {
 	return true;
 }
 
-void OSystem_DS::grabPalette(unsigned char *colours, uint start, uint num) {
+void OSystem_DS::grabPalette(unsigned char *colors, uint start, uint num) {
 //	consolePrintf("Grabpalette");
 
 	for (unsigned int r = start; r < start + num; r++) {
-		*colours++ = (BG_PALETTE[r] & 0x001F) << 3;
-		*colours++ = (BG_PALETTE[r] & 0x03E0) >> 5 << 3;
-		*colours++ = (BG_PALETTE[r] & 0x7C00) >> 10 << 3;
+		*colors++ = (BG_PALETTE[r] & 0x001F) << 3;
+		*colors++ = (BG_PALETTE[r] & 0x03E0) >> 5 << 3;
+		*colors++ = (BG_PALETTE[r] & 0x7C00) >> 10 << 3;
 	}
 }
 
@@ -731,14 +756,6 @@ void OSystem_DS::quit() {
 	swiSoftReset();*/
 }
 
-Common::SaveFileManager *OSystem_DS::getSavefileManager() {
-	if (DS::isGBAMPAvailable()) {
-		return &mpSaveManager;
-	}
-	return NULL;
-}
-
-
 Graphics::Surface *OSystem_DS::createTempFrameBuffer() {
 
 	// Ensure we copy using 16 bit quantities due to limitation of VRAM addressing
@@ -756,7 +773,7 @@ Graphics::Surface *OSystem_DS::createTempFrameBuffer() {
 		_framebuffer.w = DS::getGameWidth();
 		_framebuffer.h = DS::getGameHeight();
 		_framebuffer.pitch = DS::getGameWidth();
-		_framebuffer.bytesPerPixel = 1;
+		_framebuffer.format = Graphics::PixelFormat::createFormatCLUT8();
 
 	} else {
 
@@ -781,7 +798,7 @@ Graphics::Surface *OSystem_DS::createTempFrameBuffer() {
 		_framebuffer.w = width;
 		_framebuffer.h = height;
 		_framebuffer.pitch = width;
-		_framebuffer.bytesPerPixel = 1;
+		_framebuffer.format = Graphics::PixelFormat::createFormatCLUT8();
 
 	}
 
@@ -837,28 +854,27 @@ void OSystem_DS::setCharactersEntered(int count) {
 	DS::setCharactersEntered(count);
 }
 
-Common::SeekableReadStream *OSystem_DS::createConfigReadStream() {
-	Common::FSNode file(DEFAULT_CONFIG_FILE);
-//	consolePrintf("R %s", DEFAULT_CONFIG_FILE);
-	return file.createReadStream();
+Common::String OSystem_DS::getDefaultConfigFileName() {
+	return DEFAULT_CONFIG_FILE;
 }
 
-Common::WriteStream *OSystem_DS::createConfigWriteStream() {
-	Common::FSNode file(DEFAULT_CONFIG_FILE);
-//	consolePrintf("W %s", DEFAULT_CONFIG_FILE);
-	return file.createWriteStream();
+void OSystem_DS::logMessage(LogMessageType::Type type, const char *message) {
+#ifndef DISABLE_TEXT_CONSOLE
+	nocashMessage((char *)message);
+//	consolePrintf((char *)message);
+#endif
 }
 
-u16 OSystem_DS::applyGamma(u16 colour) {
+u16 OSystem_DS::applyGamma(u16 color) {
 	// Attempt to do gamma correction (or something like it) to palette entries
 	// to improve the contrast of the image on the original DS screen.
 
-	// Split the colour into it's component channels
-	int r = colour & 0x001F;
-	int g = (colour & 0x03E0) >> 5;
-	int b = (colour & 0x7C00) >> 10;
+	// Split the color into it's component channels
+	int r = color & 0x001F;
+	int g = (color & 0x03E0) >> 5;
+	int b = (color & 0x7C00) >> 10;
 
-	// Caluclate the scaling factor for this colour based on it's brightness
+	// Caluclate the scaling factor for this color based on it's brightness
 	int scale = ((23 - ((r + g + b) >> 2)) * _gammaValue) >> 3;
 
 	// Scale the three components by the scaling factor, with clamping
@@ -871,7 +887,7 @@ u16 OSystem_DS::applyGamma(u16 colour) {
 	b = b + ((b * scale) >> 4);
 	if (b > 31) b = 31;
 
-	// Stick them back together into a 555 colour value
+	// Stick them back together into a 555 color value
 	return 0x8000 | r | (g << 5) | (b << 10);
 }
 

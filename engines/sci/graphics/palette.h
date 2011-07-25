@@ -18,9 +18,6 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
- * $URL$
- * $Id$
- *
  */
 
 #ifndef SCI_GRAPHICS_PALETTE_H
@@ -54,6 +51,7 @@ public:
 	bool merge(Palette *pFrom, bool force, bool forceRealMerge);
 	uint16 matchColor(byte r, byte g, byte b);
 	void getSys(Palette *pal);
+	uint16 getTotalColorCount() const { return _totalScreenColors; }
 
 	void setOnScreen();
 	void copySysPaletteToScreen();
@@ -123,10 +121,11 @@ private:
 	uint16 _palVaryTicks;
 	int _palVaryPaused;
 	int _palVarySignal;
+	uint16 _totalScreenColors;
 
 	void loadMacIconBarPalette();
 	byte *_macClut;
-	
+
 #ifdef ENABLE_SCI32
 	byte *_clutTable;
 #endif

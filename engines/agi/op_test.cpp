@@ -18,9 +18,6 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
- * $URL$
- * $Id$
- *
  */
 
 
@@ -132,8 +129,8 @@ uint8 AgiEngine::testObjInBox(uint8 n, uint8 x1, uint8 y1, uint8 x2, uint8 y2) {
 	    v->yPos >= y1 && v->xPos + v->xSize - 1 <= x2 && v->yPos <= y2;
 }
 
-// if n is in centre of box
-uint8 AgiEngine::testObjCentre(uint8 n, uint8 x1, uint8 y1, uint8 x2, uint8 y2) {
+// if n is in center of box
+uint8 AgiEngine::testObjCenter(uint8 n, uint8 x1, uint8 y1, uint8 x2, uint8 y2) {
 	VtEntry *v = &_game.viewTable[n];
 
 	return v->xPos + v->xSize / 2 >= x1 &&
@@ -170,7 +167,7 @@ uint8 AgiEngine::testSaid(uint8 nwords, uint8 *cc) {
 	// user typed should be correct, but it looks like code 9999 means that
 	// if the string is empty at this point, the entry is also correct...
 	//
-	// With the removal of this code, the behaviour of the scene was
+	// With the removal of this code, the behavior of the scene was
 	// corrected
 
 	for (c = 0; nwords && n; c++, nwords--, n--) {
@@ -311,7 +308,7 @@ int AgiEngine::testIfCode(int lognum) {
 			ec = testObjInBox(p[0], p[1], p[2], p[3], p[4]);
 			break;
 		case 0x11:
-			ec = testObjCentre(p[0], p[1], p[2], p[3], p[4]);
+			ec = testObjCenter(p[0], p[1], p[2], p[3], p[4]);
 			break;
 		case 0x12:
 			ec = testObjRight(p[0], p[1], p[2], p[3], p[4]);
@@ -319,7 +316,7 @@ int AgiEngine::testIfCode(int lognum) {
 		case 0x13: // Unknown test command 19
 			// My current theory is that this command checks whether the ego is currently moving
 			// and that that movement has been caused using the mouse and not using the keyboard.
-			// I base this theory on the game's behaviour on an Amiga emulator, not on disassembly.
+			// I base this theory on the game's behavior on an Amiga emulator, not on disassembly.
 			// This command is used at least in the Amiga version of Gold Rush! v2.05 1989-03-09
 			// (AGI 2.316) in logics 1, 3, 5, 6, 137 and 192 (Logic.192 revealed this command's nature).
 			// TODO: Check this command's implementation using disassembly just to be sure.

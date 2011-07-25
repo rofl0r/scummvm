@@ -18,9 +18,6 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
- * $URL$
- * $Id$
- *
  */
 
 #include "m4/woodscript.h"
@@ -291,7 +288,7 @@ void Sequence::draw(M4Surface *surface, const Common::Rect &clipRect, Common::Re
 	info.hotX = _curFrame->xOffset;
 	info.hotY = _curFrame->yOffset;
 	info.encoding = _curFrame->encoding;
-	info.inverseColourTable = _m4Vm->scene()->getInverseColourTable();
+	info.inverseColorTable = _m4Vm->scene()->getInverseColorTable();
 	info.palette = _ws->getMainPalette();
 	info.width = _curFrame->width();
 	info.height = _curFrame->height();

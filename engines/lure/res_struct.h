@@ -18,18 +18,17 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
- * $URL$
- * $Id$
- *
  */
 
 #ifndef LURE_RESSTRUCT_H
 #define LURE_RESSTRUCT_H
 
 #include "lure/luredefs.h"
+#include "common/rect.h"
 #include "common/list.h"
 #include "common/file.h"
 #include "common/ptr.h"
+#include "common/textconsole.h"
 
 namespace Lure {
 
@@ -88,7 +87,7 @@ struct HotspotResource {
 	uint16 walkY;
 	int8 talkX;
 	int8 talkY;
-	uint16 colourOffset;
+	uint16 colorOffset;
 	uint16 animRecordId;
 	uint16 hotspotScriptOffset;
 	uint16 talkScriptOffset;
@@ -471,7 +470,7 @@ public:
 	bool isEmpty() const { return _actions.begin() == _actions.end(); }
 	void clear() { _actions.clear(); }
 	CurrentActionEntry &top() { return **_actions.begin(); }
-	CurrentActionEntry &bottom() { 
+	CurrentActionEntry &bottom() {
 		ActionsList::iterator i = _actions.end();
 		--i;
 		return **i;
@@ -538,7 +537,7 @@ public:
 	uint16 walkY;
 	int8 talkX;
 	int8 talkY;
-	uint16 colourOffset;
+	uint16 colorOffset;
 	uint16 animRecordId;
 	uint16 hotspotScriptOffset;
 	uint16 talkScriptOffset;

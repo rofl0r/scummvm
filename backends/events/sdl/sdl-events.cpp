@@ -18,9 +18,6 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
- * $URL$
- * $Id$
- *
  */
 
 #include "common/scummsys.h"
@@ -31,6 +28,7 @@
 #include "backends/platform/sdl/sdl.h"
 #include "backends/graphics/graphics.h"
 #include "common/config-manager.h"
+#include "common/textconsole.h"
 
 // FIXME move joystick defines out and replace with confile file options
 // we should really allow users to map any key to a joystick button
@@ -65,7 +63,7 @@ SdlEventSource::SdlEventSource()
 
 		// Enable joystick
 		if (SDL_NumJoysticks() > 0) {
-			printf("Using joystick: %s\n", SDL_JoystickName(0));
+			debug("Using joystick: %s", SDL_JoystickName(0));
 			_joystick = SDL_JoystickOpen(joystick_num);
 		}
 	}
@@ -208,7 +206,6 @@ bool SdlEventSource::pollEvent(Common::Event &event) {
 	}
 
 	SDL_Event ev;
-	ev.type = SDL_NOEVENT;
 	while (SDL_PollEvent(&ev)) {
 		preprocessEvents(&ev);
 		if (dispatchSDLEvent(ev, event))
@@ -281,7 +278,7 @@ bool SdlEventSource::handleKeyDown(SDL_Event &ev, Common::Event &event) {
 		event.type = Common::EVENT_QUIT;
 		return true;
 	}
-#elif defined(UNIX)
+#elif defined(POSIX)
 	// On other *nix systems, Control-Q quits
 	if ((ev.key.keysym.mod & KMOD_CTRL) && ev.key.keysym.sym == 'q') {
 		event.type = Common::EVENT_QUIT;
@@ -306,7 +303,7 @@ bool SdlEventSource::handleKeyDown(SDL_Event &ev, Common::Event &event) {
 
 	event.type = Common::EVENT_KEYDOWN;
 	event.kbd.keycode = (Common::KeyCode)ev.key.keysym.sym;
-	event.kbd.ascii = mapKey(ev.key.keysym.sym, ev.key.keysym.mod, ev.key.keysym.unicode);
+	event.kbd.ascii = mapKey(ev.key.keysym.sym, (SDLMod)ev.key.keysym.mod, (Uint16)ev.key.keysym.unicode);
 
 	return true;
 }
@@ -325,7 +322,7 @@ bool SdlEventSource::handleKeyUp(SDL_Event &ev, Common::Event &event) {
 		if (ev.key.keysym.sym == 'm' ||	// Ctrl-m toggles mouse capture
 #if defined(MACOSX)
 			// Meta - Q, handled below
-#elif defined(UNIX)
+#elif defined(POSIX)
 			ev.key.keysym.sym == 'q' ||	// On other *nix systems, Control-Q quits
 #else
 			ev.key.keysym.sym == 'z' ||	// Ctrl-z quit
@@ -338,7 +335,7 @@ bool SdlEventSource::handleKeyUp(SDL_Event &ev, Common::Event &event) {
 #if defined(MACOSX)
 	if ((mod & KMOD_META) && ev.key.keysym.sym == 'q')
 		return false;	// On Macintosh, Cmd-Q quits
-#elif defined(UNIX)
+#elif defined(POSIX)
 	// Control Q has already been handled above
 #else
 	if ((mod & KMOD_ALT) && ev.key.keysym.sym == 'x')
@@ -350,7 +347,7 @@ bool SdlEventSource::handleKeyUp(SDL_Event &ev, Common::Event &event) {
 
 	event.type = Common::EVENT_KEYUP;
 	event.kbd.keycode = (Common::KeyCode)ev.key.keysym.sym;
-	event.kbd.ascii = mapKey(ev.key.keysym.sym, ev.key.keysym.mod, ev.key.keysym.unicode);
+	event.kbd.ascii = mapKey(ev.key.keysym.sym, (SDLMod)ev.key.keysym.mod, (Uint16)ev.key.keysym.unicode);
 
 	// Ctrl-Alt-<key> will change the GFX mode
 	SDLModToOSystemKeyFlags(mod, event);
@@ -420,19 +417,19 @@ bool SdlEventSource::handleJoyButtonDown(SDL_Event &ev, Common::Event &event) {
 		switch (ev.jbutton.button) {
 		case JOY_BUT_ESCAPE:
 			event.kbd.keycode = Common::KEYCODE_ESCAPE;
-			event.kbd.ascii = mapKey(SDLK_ESCAPE, ev.key.keysym.mod, 0);
+			event.kbd.ascii = mapKey(SDLK_ESCAPE, (SDLMod)ev.key.keysym.mod, 0);
 			break;
 		case JOY_BUT_PERIOD:
 			event.kbd.keycode = Common::KEYCODE_PERIOD;
-			event.kbd.ascii = mapKey(SDLK_PERIOD, ev.key.keysym.mod, 0);
+			event.kbd.ascii = mapKey(SDLK_PERIOD, (SDLMod)ev.key.keysym.mod, 0);
 			break;
 		case JOY_BUT_SPACE:
 			event.kbd.keycode = Common::KEYCODE_SPACE;
-			event.kbd.ascii = mapKey(SDLK_SPACE, ev.key.keysym.mod, 0);
+			event.kbd.ascii = mapKey(SDLK_SPACE, (SDLMod)ev.key.keysym.mod, 0);
 			break;
 		case JOY_BUT_F5:
 			event.kbd.keycode = Common::KEYCODE_F5;
-			event.kbd.ascii = mapKey(SDLK_F5, ev.key.keysym.mod, 0);
+			event.kbd.ascii = mapKey(SDLK_F5, (SDLMod)ev.key.keysym.mod, 0);
 			break;
 		}
 	}
@@ -451,19 +448,19 @@ bool SdlEventSource::handleJoyButtonUp(SDL_Event &ev, Common::Event &event) {
 		switch (ev.jbutton.button) {
 		case JOY_BUT_ESCAPE:
 			event.kbd.keycode = Common::KEYCODE_ESCAPE;
-			event.kbd.ascii = mapKey(SDLK_ESCAPE, ev.key.keysym.mod, 0);
+			event.kbd.ascii = mapKey(SDLK_ESCAPE, (SDLMod)ev.key.keysym.mod, 0);
 			break;
 		case JOY_BUT_PERIOD:
 			event.kbd.keycode = Common::KEYCODE_PERIOD;
-			event.kbd.ascii = mapKey(SDLK_PERIOD, ev.key.keysym.mod, 0);
+			event.kbd.ascii = mapKey(SDLK_PERIOD, (SDLMod)ev.key.keysym.mod, 0);
 			break;
 		case JOY_BUT_SPACE:
 			event.kbd.keycode = Common::KEYCODE_SPACE;
-			event.kbd.ascii = mapKey(SDLK_SPACE, ev.key.keysym.mod, 0);
+			event.kbd.ascii = mapKey(SDLK_SPACE, (SDLMod)ev.key.keysym.mod, 0);
 			break;
 		case JOY_BUT_F5:
 			event.kbd.keycode = Common::KEYCODE_F5;
-			event.kbd.ascii = mapKey(SDLK_F5, ev.key.keysym.mod, 0);
+			event.kbd.ascii = mapKey(SDLK_F5, (SDLMod)ev.key.keysym.mod, 0);
 			break;
 		}
 	}

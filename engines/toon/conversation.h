@@ -18,9 +18,6 @@
 * along with this program; if not, write to the Free Software
 * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
 *
-* $URL$
-* $Id$
-*
 */
 
 #ifndef TOON_CONVERSATION_H
@@ -33,10 +30,10 @@ namespace Toon {
 
 class Conversation {
 public:
-	int32 _enable;   // 00
+	int32 _enable;    // 00
 
 	struct ConvState {
-		int32 _data2;   // 04
+		int32 _data2; // 04
 		int16 _data3; // 08
 		void *_data4; // 10
 	} state[10];

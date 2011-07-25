@@ -18,16 +18,11 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
- * $URL$
- * $Id$
- *
  */
 
 #include "kyra/script_tim.h"
-#include "kyra/script.h"
 #include "kyra/resource.h"
 #include "kyra/sound.h"
-#include "kyra/wsamovie.h"
 
 #ifdef ENABLE_LOL
 #include "kyra/lol.h"
@@ -35,7 +30,7 @@
 #endif // ENABLE_LOL
 
 #include "common/iff_container.h"
-#include "common/endian.h"
+#include "common/system.h"
 
 namespace Kyra {
 
@@ -115,14 +110,14 @@ TIMInterpreter::~TIMInterpreter() {
 
 bool TIMInterpreter::callback(Common::IFFChunk &chunk) {
 	switch (chunk._type) {
-	case MKID_BE('TEXT'):
+	case MKTAG('T','E','X','T'):
 		_tim->text = new byte[chunk._size];
 		assert(_tim->text);
 		if (chunk._stream->read(_tim->text, chunk._size) != chunk._size)
 			error("Couldn't read TEXT chunk from file '%s'", _filename);
 		break;
 
-	case MKID_BE('AVTL'):
+	case MKTAG('A','V','T','L'):
 		_avtlChunkSize = chunk._size >> 1;
 		_tim->avtl = new uint16[_avtlChunkSize];
 		assert(_tim->avtl);
@@ -487,17 +482,16 @@ int TIMInterpreter::initAnimStruct(int index, const char *filename, int x, int y
 			wsaOpenFlags = 1;
 	}
 
-	char file[32];
-	snprintf(file, 32, "%s.WSA", filename);
+	Common::String file = Common::String::format("%s.WSA", filename);
 
-	if (_vm->resource()->exists(file)) {
+	if (_vm->resource()->exists(file.c_str())) {
 		if (isLoLDemo)
 			wsa = new WSAMovie_v1(_vm);
 		else
 			wsa = new WSAMovie_v2(_vm);
 		assert(wsa);
 
-		wsa->open(file, wsaOpenFlags, (index == 1) ? &_screen->getPalette(0) : 0);
+		wsa->open(file.c_str(), wsaOpenFlags, (index == 1) ? &_screen->getPalette(0) : 0);
 	}
 
 	if (wsa && wsa->opened()) {
@@ -531,10 +525,10 @@ int TIMInterpreter::initAnimStruct(int index, const char *filename, int x, int y
 		}
 
 		if (wsaFlags & 4) {
-			snprintf(file, 32, "%s.CPS", filename);
+			file = Common::String::format("%s.CPS", filename);
 
-			if (_vm->resource()->exists(file)) {
-				_screen->loadBitmap(file, 3, 3, &_screen->getPalette(0));
+			if (_vm->resource()->exists(file.c_str())) {
+				_screen->loadBitmap(file.c_str(), 3, 3, &_screen->getPalette(0));
 				_screen->copyRegion(0, 0, 0, 0, 320, 200, 2, _drawPage2, Screen::CR_NO_P_CHECK);
 				if (_drawPage2)
 					_screen->checkedPageUpdate(8, 4);
@@ -555,10 +549,10 @@ int TIMInterpreter::initAnimStruct(int index, const char *filename, int x, int y
 			_screen->updateScreen();
 		}
 
-		snprintf(file, 32, "%s.CPS", filename);
+		file = Common::String::format("%s.CPS", filename);
 
-		if (_vm->resource()->exists(file)) {
-			_screen->loadBitmap(file, 3, 3, &_screen->getPalette(0));
+		if (_vm->resource()->exists(file.c_str())) {
+			_screen->loadBitmap(file.c_str(), 3, 3, &_screen->getPalette(0));
 			_screen->copyRegion(0, 0, 0, 0, 320, 200, 2, _drawPage2, Screen::CR_NO_P_CHECK);
 			if (_drawPage2)
 				_screen->checkedPageUpdate(8, 4);
@@ -927,13 +921,12 @@ int TIMInterpreter_LoL::initAnimStruct(int index, const char *filename, int x, i
 	if (wsaFlags & 8)
 		wsaOpenFlags |= 1;
 
-	char file[32];
-	snprintf(file, 32, "%s.WSA", filename);
+	Common::String file = Common::String::format("%s.WSA", filename);
 
-	if (_vm->resource()->exists(file)) {
+	if (_vm->resource()->exists(file.c_str())) {
 		wsa = new WSAMovie_v2(_vm);
 		assert(wsa);
-		wsa->open(file, wsaOpenFlags, &_screen->getPalette(3));
+		wsa->open(file.c_str(), wsaOpenFlags, &_screen->getPalette(3));
 	}
 
 	if (!_vm->_flags.use16ColorMode) {

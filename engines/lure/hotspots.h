@@ -18,9 +18,6 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
- * $URL$
- * $Id$
- *
  */
 
 #ifndef LURE_HOTSPOTS_H
@@ -203,7 +200,7 @@ private:
 	Direction _direction;
 	uint8 _layer;
 	uint16 _hotspotScriptOffset;
-	uint8 _colourOffset;
+	uint8 _colorOffset;
 	bool _persistant;
 	HotspotOverrideData *_override;
 	bool _skipFlag;
@@ -324,8 +321,8 @@ public:
 	void setTickProc(uint16 newVal);
 	bool persistant() { return _persistant; }
 	void setPersistant(bool value) { _persistant = value; }
-	uint8 colourOffset() { return _colourOffset; }
-	void setColourOffset(uint8 value) { _colourOffset = value; }
+	uint8 colorOffset() { return _colorOffset; }
+	void setColorOffset(uint8 value) { _colorOffset = value; }
 	void setRoomNumber(uint16 roomNum) {
 		_roomNumber = roomNum;
 		if (_data) _data->roomNumber = roomNum;

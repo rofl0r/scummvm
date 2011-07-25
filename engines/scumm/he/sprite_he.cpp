@@ -18,9 +18,6 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
- * $URL$
- * $Id$
- *
  */
 
 #ifdef ENABLE_HE
@@ -46,7 +43,7 @@ Sprite::~Sprite() {
 }
 
 void ScummEngine_v90he::allocateArrays() {
-	ScummEngine::allocateArrays();
+	ScummEngine_v70he::allocateArrays();
 	_sprite->allocTables(_numSprites, MAX(64, _numSprites / 4), 64);
 }
 

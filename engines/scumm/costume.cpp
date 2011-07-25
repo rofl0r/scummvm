@@ -18,9 +18,6 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
- * $URL$
- * $Id$
- *
  */
 
 
@@ -76,10 +73,10 @@ static const int v1MMNESLookup[25] = {
 };
 
 static const byte v0ActorTalkArray[0x19] = {
-	0x00, 0x06, 0x06, 0x06, 0x06, 
-	0x06, 0x06, 0x00, 0x46, 0x06, 
-	0x06, 0x06, 0x06, 0xFF, 0xFF, 
-	0x06, 0xC0, 0x06, 0x06, 0x00, 
+	0x00, 0x06, 0x06, 0x06, 0x06,
+	0x06, 0x06, 0x00, 0x46, 0x06,
+	0x06, 0x06, 0x06, 0xFF, 0xFF,
+	0x06, 0xC0, 0x06, 0x06, 0x00,
 	0xC0, 0xC0, 0x00, 0x06, 0x06
 };
 
@@ -419,6 +416,11 @@ void ClassicCostumeRenderer::procC64(Codec1 &v1, int actor) {
 #undef MASK_AT
 
 #ifdef USE_ARM_COSTUME_ASM
+
+#ifndef IPHONE
+#define ClassicProc3RendererShadowARM _ClassicProc3RendererShadowARM
+#endif
+
 extern "C" int ClassicProc3RendererShadowARM(int _scaleY,
                                         ClassicCostumeRenderer::Codec1 *v1,
                                         Graphics::Surface *_out,
@@ -1415,7 +1417,7 @@ byte C64CostumeLoader::increaseAnims(Actor *a) {
 	if (A->_moving  && _vm->_currentRoom != 1 && _vm->_currentRoom != 44) {
 		if (a->_cost.soundPos == 0)
 			a->_cost.soundCounter++;
-		
+
 		// Is this the correct location?
 		// 0x073C
 		if (v0ActorTalkArray[a->_number] & 0x3F)

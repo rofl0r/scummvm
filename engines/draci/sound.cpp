@@ -18,9 +18,6 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
- * $URL$
- * $Id$
- *
  */
 
 #include "common/archive.h"
@@ -29,6 +26,7 @@
 #include "common/file.h"
 #include "common/str.h"
 #include "common/substream.h"
+#include "common/textconsole.h"
 #include "common/memstream.h"
 #include "common/unzip.h"
 
@@ -69,8 +67,12 @@ void LegacySoundArchive::openArchive(const char *path) {
 	debugC(1, kDraciArchiverDebugLevel, "Loading header");
 
 	uint totalLength = _f->readUint32LE();
+
 	const uint kMaxSamples = 4095;	// The no-sound file is exactly 16K bytes long, so don't fail on short reads
-	uint sampleStarts[kMaxSamples];
+	uint *sampleStarts = (uint *)malloc(kMaxSamples * sizeof(uint));
+	if (!sampleStarts)
+		error("[LegacySoundArchive::openArchive] Cannot allocate buffer for no-sound file");
+
 	for (uint i = 0; i < kMaxSamples; ++i) {
 		sampleStarts[i] = _f->readUint32LE();
 	}
@@ -92,16 +94,21 @@ void LegacySoundArchive::openArchive(const char *path) {
 		}
 		if (_samples[_sampleCount-1]._offset + _samples[_sampleCount-1]._length != totalLength &&
 		    _samples[_sampleCount-1]._offset + _samples[_sampleCount-1]._length - _samples[0]._offset != totalLength) {
-			// WORKAROUND: the stored length is stored with the header for sounds and without the hader for dubbing.  Crazy.
+			// WORKAROUND: the stored length is stored with the header for sounds and without the header for dubbing.  Crazy.
 			debugC(1, kDraciArchiverDebugLevel, "Broken sound archive: %d != %d",
 				_samples[_sampleCount-1]._offset + _samples[_sampleCount-1]._length,
 				totalLength);
 			closeArchive();
+
+			free(sampleStarts);
+
 			return;
 		}
 	} else {
 		debugC(1, kDraciArchiverDebugLevel, "Archive info: empty");
 	}
+
+	free(sampleStarts);
 
 	// Indicate that the archive has been successfully opened
 	_opened = true;
@@ -242,9 +249,8 @@ SoundSample *ZipSoundArchive::getSample(int i, uint freq) {
 	sample._frequency = freq ? freq : _defaultFreq;
 	sample._format = _format;
 	// Read in the file (without the file header)
-	char file_name[20];
-	sprintf(file_name, "%d.%s", i+1, _extension);
-	sample._stream = _archive->createReadStreamForMember(file_name);
+	Common::String filename = Common::String::format("%d.%s", i+1, _extension);
+	sample._stream = _archive->createReadStreamForMember(filename);
 	if (!sample._stream) {
 		debugC(2, kDraciArchiverDebugLevel, "Doesn't exist");
 		return NULL;
@@ -408,21 +414,25 @@ void Sound::stopVoice() {
 }
 
 void Sound::setVolume() {
+	_showSubtitles = ConfMan.getBool("subtitles");
+	_talkSpeed = ConfMan.getInt("talkspeed");
+
 	if (_mixer->isReady()) {
 		_muteSound = ConfMan.getBool("sfx_mute");
 		_muteVoice = ConfMan.getBool("speech_mute");
 	} else {
 		_muteSound = _muteVoice = true;
 	}
+
 	if (ConfMan.getBool("mute")) {
 		_muteSound = _muteVoice = true;
 	}
-	_showSubtitles = ConfMan.getBool("subtitles");
-	_talkSpeed = ConfMan.getInt("talkspeed");
-	const int soundVolume = ConfMan.getInt("sfx_volume");
-	const int speechVolume = ConfMan.getInt("speech_volume");
-	_mixer->setVolumeForSoundType(Audio::Mixer::kSFXSoundType, soundVolume);
-	_mixer->setVolumeForSoundType(Audio::Mixer::kSpeechSoundType, speechVolume);
+
+	_mixer->muteSoundType(Audio::Mixer::kSFXSoundType, _muteSound);
+	_mixer->muteSoundType(Audio::Mixer::kSpeechSoundType, _muteVoice);
+
+	_mixer->setVolumeForSoundType(Audio::Mixer::kSFXSoundType, ConfMan.getInt("sfx_volume"));
+	_mixer->setVolumeForSoundType(Audio::Mixer::kSpeechSoundType, ConfMan.getInt("speech_volume"));
 }
 
 } // End of namespace Draci

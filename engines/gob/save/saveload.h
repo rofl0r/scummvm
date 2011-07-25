@@ -18,9 +18,6 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
- * $URL$
- * $Id$
- *
  */
 
 #ifndef GOB_SAVE_SAVELOAD_H
@@ -305,7 +302,7 @@ protected:
 			int getSlot(int32 offset) const;
 			int getSlotRemainder(int32 offset) const;
 
-			void buildIndex(byte *buffer) const;
+			void buildScreenshotIndex(byte *buffer) const;
 
 		protected:
 			uint32 _shotSize;
@@ -430,7 +427,7 @@ protected:
 			int getSlot(int32 offset) const;
 			int getSlotRemainder(int32 offset) const;
 
-			void buildIndex(byte *buffer) const;
+			void buildScreenshotIndex(byte *buffer) const;
 		};
 
 		File *_file;

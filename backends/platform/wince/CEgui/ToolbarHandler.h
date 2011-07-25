@@ -18,9 +18,6 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
- * $URL$
- * $Id$
- *
  */
 
 #ifndef CEGUI_TOOLBARHANDLER_H
@@ -57,7 +54,7 @@ public:
 	virtual ~ToolbarHandler();
 private:
 
-	HashMap<String, Toolbar*, Common::IgnoreCase_Hash, Common::IgnoreCase_EqualTo> _toolbarMap;
+	HashMap<String, Toolbar *, Common::IgnoreCase_Hash, Common::IgnoreCase_EqualTo> _toolbarMap;
 	String _current;
 	Toolbar *_active;
 	int _offset;

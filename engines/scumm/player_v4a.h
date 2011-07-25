@@ -18,15 +18,13 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
- * $URL$
- * $Id$
- *
  */
 
 #ifndef SCUMM_PLAYER_V4A_H
 #define SCUMM_PLAYER_V4A_H
 
 #include "common/scummsys.h"
+#include "common/util.h"
 #include "scumm/music.h"
 #include "audio/mixer.h"
 #include "audio/mods/tfmx.h"
@@ -69,7 +67,7 @@ private:
 //		byte type;
 	} _sfxSlots[4];
 
-	int8 _initState; // < 0: failed, 0: uninitialised, > 0: initialised
+	int8 _initState; // < 0: failed, 0: uninitialized, > 0: initialized
 
 	int getSfxChan(int id) const {
 		for (int i = 0; i < ARRAYSIZE(_sfxSlots); ++i)

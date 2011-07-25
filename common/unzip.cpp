@@ -17,9 +17,6 @@
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * $URL$
- * $Id$
  */
 
 /* unzip.c -- IO on .zip files using zlib
@@ -68,6 +65,8 @@
    PkWare has also a specification at :
       ftp://ftp.pkware.com/probdesc.zip */
 
+// Disable symbol overrides so that we can use zlib.h
+#define FORBIDDEN_SYMBOL_ALLOW_ALL
 
 #include "common/scummsys.h"
 
@@ -105,7 +104,6 @@ typedef struct {
 
 #include "common/fs.h"
 #include "common/unzip.h"
-#include "common/file.h"
 #include "common/memstream.h"
 
 #include "common/hashmap.h"
@@ -351,7 +349,7 @@ typedef struct {
 	z_stream stream;            /* zLib stream structure for inflate */
 
 	uLong pos_in_zipfile;       /* position in byte on the zipfile, for fseek*/
-	uLong stream_initialised;   /* flag set if stream structure is initialised*/
+	uLong stream_initialized;   /* flag set if stream structure is initialized*/
 
 	uLong offset_local_extrafield;/* offset of the local extra field */
 	uInt  size_local_extrafield;/* size of the local extra field */
@@ -1075,7 +1073,7 @@ int unzOpenCurrentFile (unzFile file) {
 		return UNZ_INTERNALERROR;
 	}
 
-	pfile_in_zip_read_info->stream_initialised=0;
+	pfile_in_zip_read_info->stream_initialized=0;
 
 	if ((s->cur_file_info.compression_method!=0) &&
 	    (s->cur_file_info.compression_method!=Z_DEFLATED))
@@ -1098,7 +1096,7 @@ int unzOpenCurrentFile (unzFile file) {
 
 		err=inflateInit2(&pfile_in_zip_read_info->stream, -MAX_WBITS);
 		if (err == Z_OK)
-			pfile_in_zip_read_info->stream_initialised = 1;
+			pfile_in_zip_read_info->stream_initialized = 1;
 	/* windowBits is passed < 0 to tell that there is no zlib header.
 	 * Note that in this case inflate *requires* an extra "dummy" byte
 	 * after the compressed stream in order to complete decompression and
@@ -1367,7 +1365,7 @@ int unzCloseCurrentFile(unzFile file) {
 		if (pfile_in_zip_read_info->crc32_data != pfile_in_zip_read_info->crc32_wait)
 			err=UNZ_CRCERROR;
 	}
-	if (pfile_in_zip_read_info->stream_initialised)
+	if (pfile_in_zip_read_info->stream_initialized)
 		inflateEnd(&pfile_in_zip_read_info->stream);
 #endif
 
@@ -1375,7 +1373,7 @@ int unzCloseCurrentFile(unzFile file) {
 	free(pfile_in_zip_read_info->read_buffer);
 	pfile_in_zip_read_info->read_buffer = NULL;
 
-	pfile_in_zip_read_info->stream_initialised = 0;
+	pfile_in_zip_read_info->stream_initialized = 0;
 	free(pfile_in_zip_read_info);
 
 	s->pfile_in_zip_read=NULL;
@@ -1470,11 +1468,13 @@ int ZipArchive::listMembers(Common::ArchiveMemberList &list) {
 
 	while (err == UNZ_OK) {
 		char szCurrentFileName[UNZ_MAXFILENAMEINZIP+1];
-		unzGetCurrentFileInfo(_zipFile, NULL,
-								szCurrentFileName, sizeof(szCurrentFileName)-1,
-								NULL, 0, NULL, 0);
-		list.push_back(ArchiveMemberList::value_type(new GenericArchiveMember(szCurrentFileName, this)));
-		matches++;
+		if (unzGetCurrentFileInfo(_zipFile, NULL,
+		                          szCurrentFileName, sizeof(szCurrentFileName)-1,
+		                          NULL, 0, NULL, 0) == UNZ_OK) {
+			list.push_back(ArchiveMemberList::value_type(new GenericArchiveMember(szCurrentFileName, this)));
+			matches++;
+		}
+
 		err = unzGoToNextFile(_zipFile);
 	}
 
@@ -1493,18 +1493,31 @@ Common::SeekableReadStream *ZipArchive::createReadStreamForMember(const Common::
 		return 0;
 
 	unz_file_info fileInfo;
-	unzOpenCurrentFile(_zipFile);
-	unzGetCurrentFileInfo(_zipFile, &fileInfo, NULL, 0, NULL, 0, NULL, 0);
+	if (unzOpenCurrentFile(_zipFile) != UNZ_OK)
+		return 0;
+
+	if (unzGetCurrentFileInfo(_zipFile, &fileInfo, NULL, 0, NULL, 0, NULL, 0) != UNZ_OK)
+		return 0;
+
 	byte *buffer = (byte *)malloc(fileInfo.uncompressed_size);
 	assert(buffer);
-	unzReadCurrentFile(_zipFile, buffer, fileInfo.uncompressed_size);
-	unzCloseCurrentFile(_zipFile);
+
+	if (unzReadCurrentFile(_zipFile, buffer, fileInfo.uncompressed_size) != (int)fileInfo.uncompressed_size) {
+		free(buffer);
+		return 0;
+	}
+
+	if (unzCloseCurrentFile(_zipFile) != UNZ_OK) {
+		free(buffer);
+		return 0;
+	}
+
 	return new Common::MemoryReadStream(buffer, fileInfo.uncompressed_size, DisposeAfterUse::YES);
 
 	// FIXME: instead of reading all into a memory stream, we could
 	// instead create a new ZipStream class. But then we have to be
 	// careful to handle the case where the client code opens multiple
-	// files in the archive and tries to use them indepenendtly.
+	// files in the archive and tries to use them independently.
 }
 
 Archive *makeZipArchive(const String &name) {

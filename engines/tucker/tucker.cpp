@@ -18,18 +18,22 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
- * $URL$
- * $Id$
- *
  */
 
 #include "common/config-manager.h"
 #include "common/events.h"
 #include "common/system.h"
+#include "common/archive.h"
+#include "common/debug.h"
+#include "common/error.h"
+#include "common/keyboard.h"
+#include "common/textconsole.h"
 
 #include "engines/util.h"
 
 #include "graphics/cursorman.h"
+#include "graphics/palette.h"
+#include "gui/debugger.h"
 
 #include "tucker/tucker.h"
 #include "tucker/graphics.h"
@@ -37,7 +41,7 @@
 namespace Tucker {
 
 TuckerEngine::TuckerEngine(OSystem *system, Common::Language language, uint32 flags)
-	: Engine(system), _gameLang(language), _gameFlags(flags) {
+	: Engine(system), _gameLang(language), _gameFlags(flags), _rnd("tucker") {
 	_console = new TuckerConsole(this);
 }
 
@@ -66,12 +70,6 @@ Common::Error TuckerEngine::run() {
 	}
 	_compressedSound.closeFile();
 	return Common::kNoError;
-}
-
-void TuckerEngine::syncSoundSettings() {
-	_mixer->setVolumeForSoundType(Audio::Mixer::kSFXSoundType, ConfMan.getInt("sfx_volume"));
-	_mixer->setVolumeForSoundType(Audio::Mixer::kSpeechSoundType, ConfMan.getInt("speech_volume"));
-	_mixer->setVolumeForSoundType(Audio::Mixer::kMusicSoundType, ConfMan.getInt("music_volume"));
 }
 
 int TuckerEngine::getRandomNumber() {
@@ -130,10 +128,7 @@ void TuckerEngine::restart() {
 	_timerCounter2 = 0;
 	_partNum = _currentPartNum = 0;
 	_locationNum = 0;
-	_nextLocationNum = ConfMan.getInt("boot_param");
-	if (_nextLocationNum == 0) {
-		_nextLocationNum = (_gameFlags & kGameFlagDemo) == 0 ? kStartupLocationGame : kStartupLocationDemo;
-	}
+	_nextLocationNum = (_gameFlags & kGameFlagDemo) == 0 ? kStartupLocationGame : kStartupLocationDemo;
 	_gamePaused = false;
 	_gameDebug = false;
 	_displayGameHints = false;
@@ -358,6 +353,15 @@ void TuckerEngine::mainLoop() {
 	_flagsTable[105] = 1;
 
 	_spriteAnimationFrameIndex =  _spriteAnimationsTable[14].firstFrameIndex;
+
+	if (ConfMan.hasKey("save_slot")) {
+		const int slot = ConfMan.getInt("save_slot");
+		if (slot >= 0 && slot <= kLastSaveSlot) {
+			loadGameState(slot);
+		}
+	} else if (ConfMan.hasKey("boot_param")) {
+		_nextLocationNum = ConfMan.getInt("boot_param");
+	}
 
 	do {
 		++_syncCounter;

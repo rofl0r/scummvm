@@ -18,9 +18,6 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
- * $URL$
- * $Id$
- *
  */
 
 #ifndef KYRA_KYRA_HOF_H
@@ -574,13 +571,16 @@ protected:
 
 	// character
 	bool _useCharPal;
+	bool _setCharPalFinal;
 	int _charPalEntry;
 	uint8 _charPalTable[16];
 	void updateCharPal(int unk1);
 	void setCharPalEntry(int entry, int value);
 
+	int _characterFacingCountTable[2];
+
 	int getCharacterWalkspeed() const;
-	void updateCharAnimFrame(int num, int *table);
+	void updateCharAnimFrame(int *table);
 
 	bool checkCharCollision(int x, int y);
 
@@ -681,6 +681,7 @@ protected:
 
 	uint32 _nextIdleAnim;
 	int _lastIdleScript;
+	bool _useSceneIdleAnim;
 
 	void setNextIdleAnimTimer();
 	void showIdleAnim();

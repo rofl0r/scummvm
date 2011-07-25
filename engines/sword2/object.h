@@ -20,9 +20,6 @@
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * $URL$
- * $Id$
  */
 
 #ifndef	SWORD2_OBJECT_H
@@ -139,7 +136,7 @@ public:
 // speech structure - contains fields used by speech scripts & text output
 
 class ObjectSpeech {
-	// int32 pen;			// colour to use for body of characters
+	// int32 pen;			// color to use for body of characters
 	// int32 width;			// max width of text sprite
 	// int32 command;		// speech script command id
 	// int32 ins1;			// speech script instruction parameters

@@ -18,9 +18,6 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
- * $URL$
- * $Id$
- *
  */
 
 #include "sky/control.h"
@@ -34,6 +31,7 @@
 #include "common/file.h"
 #include "common/fs.h"
 #include "common/savefile.h"
+#include "common/textconsole.h"
 
 #include "engines/metaengine.h"
 
@@ -81,7 +79,7 @@ public:
 };
 
 const char *SkyMetaEngine::getName() const {
-	return "Beneath a Steel Sky";
+	return "Sky";
 }
 
 const char *SkyMetaEngine::getOriginalCopyright() const {
@@ -153,9 +151,7 @@ GameList SkyMetaEngine::detectGames(const Common::FSList &fslist) const {
 		while (sv->dinnerTableEntries) {
 			if (dinnerTableEntries == sv->dinnerTableEntries &&
 				(sv->dataDiskSize == dataDiskSize || sv->dataDiskSize == -1)) {
-				char buf[32];
-				snprintf(buf, sizeof(buf), "v0.0%d %s", sv->version, sv->extraDesc);
-				dg.updateDesc(buf);
+				dg.updateDesc(Common::String::format("v0.0%d %s", sv->version, sv->extraDesc).c_str());
 				dg.setGUIOptions(sv->guioptions);
 				break;
 			}
@@ -210,7 +206,7 @@ SaveStateList SkyMetaEngine::listSaves(const char *target) const {
 		// Extract the extension
 		Common::String ext = file->c_str() + file->size() - 3;
 		ext.toUppercase();
-		if (isdigit(ext[0]) && isdigit(ext[1]) && isdigit(ext[2])){
+		if (isdigit(static_cast<unsigned char>(ext[0])) && isdigit(static_cast<unsigned char>(ext[1])) && isdigit(static_cast<unsigned char>(ext[2]))){
 			int slotNum = atoi(ext.c_str());
 			Common::InSaveFile *in = saveFileMan->openForLoading(*file);
 			if (in) {
@@ -284,7 +280,7 @@ Common::Error SkyEngine::loadGameState(int slot) {
 	return (result == GAME_RESTORED) ? Common::kNoError : Common::kUnknownError;
 }
 
-Common::Error SkyEngine::saveGameState(int slot, const char *desc) {
+Common::Error SkyEngine::saveGameState(int slot, const Common::String &desc) {
 	if (slot == 0)
 		return Common::kWritePermissionDenied;	// we can't overwrite the auto save
 

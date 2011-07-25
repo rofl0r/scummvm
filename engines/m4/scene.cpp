@@ -18,9 +18,6 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
- * $URL$
- * $Id$
- *
  */
 
 #include "common/system.h"
@@ -39,7 +36,7 @@
 
 namespace M4 {
 
-Scene::Scene(MadsM4Engine *vm, SceneResources *res): View(vm, Common::Rect(0, 0, vm->_screen->width(), 
+Scene::Scene(MadsM4Engine *vm, SceneResources *res): View(vm, Common::Rect(0, 0, vm->_screen->width(),
 			vm->_screen->height())), _sceneResources(res) {
 	_screenType = VIEWID_SCENE;
 
@@ -145,7 +142,7 @@ void Scene::showCodes() {
 		// Show the walk areas for the M4 engine in black and white
 		const byte *srcP = (const byte *)_walkSurface->getBasePtr(0, 0);
 		byte *destP = _backgroundSurface->getBasePtr(0, 0);
-		
+
 		for (int i = 0; i < _walkSurface->width() * _walkSurface->height(); i++)
 			destP[i] = (srcP[i] & 0x10) ? 0xFF : 0;
 
@@ -157,13 +154,13 @@ void Scene::showCodes() {
 		_vm->_palette->setPalette(colors, 0, 256);
 	} else {
 		// MADS handling
-		
+
 		// copy the walk data to the background, in whatever current palette is active
 		_walkSurface->copyTo(_backgroundSurface);
 
 		// Show all the scene's walk nodes
 		SceneNodeList &nodeList = _madsVm->scene()->getSceneResources()._nodes;
-		_backgroundSurface->setColour(_madsVm->_palette->WHITE);
+		_backgroundSurface->setColor(_madsVm->_palette->WHITE);
 		for (uint i = 0; i < nodeList.size() - 2; ++i) {
 			// Draw a little cross at the node's position
 			_backgroundSurface->hLine(nodeList[i].pt.x - 2, nodeList[i].pt.x + 2, nodeList[i].pt.y);

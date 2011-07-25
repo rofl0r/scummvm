@@ -17,9 +17,6 @@
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * $URL$
- * $Id$
  */
 
 // Disable symbol overrides so that we can use system headers.
@@ -30,6 +27,8 @@
 #if defined(USE_ALSA)
 
 #include "common/config-manager.h"
+#include "common/error.h"
+#include "common/textconsole.h"
 #include "common/util.h"
 #include "audio/musicplugin.h"
 #include "audio/mpu401.h"
@@ -44,7 +43,7 @@
 
 #if SND_LIB_MAJOR >= 1 || SND_LIB_MINOR >= 6
 #define snd_seq_flush_output(x) snd_seq_drain_output(x)
-#define snd_seq_set_client_group(x,name)	/*nop */
+#define snd_seq_set_client_group(x,name)    /*nop */
 #define my_snd_seq_open(seqp) snd_seq_open(seqp, "hw", SND_SEQ_OPEN_DUPLEX, 0)
 #else
 /* SND_SEQ_OPEN_OUT causes oops on early version of ALSA */
@@ -53,9 +52,8 @@
 
 #define perm_ok(pinfo,bits) ((snd_seq_port_info_get_capability(pinfo) & (bits)) == (bits))
 
-static int check_permission(snd_seq_port_info_t *pinfo)
-{
-	if (perm_ok(pinfo, SND_SEQ_PORT_CAP_WRITE|SND_SEQ_PORT_CAP_SUBS_WRITE)) {
+static int check_permission(snd_seq_port_info_t *pinfo) {
+	if (perm_ok(pinfo, SND_SEQ_PORT_CAP_WRITE | SND_SEQ_PORT_CAP_SUBS_WRITE)) {
 		if (!(snd_seq_port_info_get_capability(pinfo) & SND_SEQ_PORT_CAP_NO_EXPORT))
 			return 1;
 	}
@@ -68,10 +66,11 @@ static int check_permission(snd_seq_port_info_t *pinfo)
 
 #define ADDR_DELIM      ".:"
 
-class MidiDriver_ALSA:public MidiDriver_MPU401 {
+class MidiDriver_ALSA : public MidiDriver_MPU401 {
 public:
 	MidiDriver_ALSA(int client, int port);
 	int open();
+	bool isOpen() const { return _isOpen; }
 	void close();
 	void send(uint32 b);
 	void sysEx(const byte *msg, uint16 length);
@@ -83,11 +82,12 @@ private:
 	snd_seq_t *seq_handle;
 	int seq_client, seq_port;
 	int my_client, my_port;
+	// The volume controller value of the first MIDI channel
+	int8 _channel0Volume;
 };
 
 MidiDriver_ALSA::MidiDriver_ALSA(int client, int port)
- : _isOpen(false), seq_handle(0), seq_client(client), seq_port(port), my_client(0), my_port(0)
-{
+	: _isOpen(false), seq_handle(0), seq_client(client), seq_port(port), my_client(0), my_port(0), _channel0Volume(127) {
 	memset(&ev, 0, sizeof(ev));
 }
 
@@ -114,7 +114,7 @@ int MidiDriver_ALSA::open() {
 	// with those capabilities.
 
 	my_port = snd_seq_create_simple_port(seq_handle, "SCUMMVM port 0", 0,
-		SND_SEQ_PORT_TYPE_MIDI_GENERIC | SND_SEQ_PORT_TYPE_APPLICATION);
+	                                     SND_SEQ_PORT_TYPE_MIDI_GENERIC | SND_SEQ_PORT_TYPE_APPLICATION);
 
 	if (my_port < 0) {
 		snd_seq_close(seq_handle);
@@ -164,7 +164,7 @@ int MidiDriver_ALSA::open() {
 	}
 
 	printf("Connected to Alsa sequencer client [%d:%d]\n", seq_client, seq_port);
-	printf("ALSA client initialised [%d:0]\n", my_client);
+	printf("ALSA client initialized [%d:0]\n", my_client);
 
 	return 0;
 }
@@ -180,6 +180,11 @@ void MidiDriver_ALSA::close() {
 }
 
 void MidiDriver_ALSA::send(uint32 b) {
+	if (!_isOpen) {
+		warning("MidiDriver_ALSA: Got event while not open");
+		return;
+	}
+
 	unsigned int midiCmd[4];
 	ev.type = SND_SEQ_EVENT_OSS;
 
@@ -208,24 +213,41 @@ void MidiDriver_ALSA::send(uint32 b) {
 	case 0xB0:
 		/* is it this simple ? Wow... */
 		snd_seq_ev_set_controller(&ev, chanID, midiCmd[1], midiCmd[2]);
+
+		// We save the volume of the first MIDI channel here to utilize it in
+		// our workaround for broken USB-MIDI cables.
+		if (chanID == 0 && midiCmd[1] == 0x07)
+			_channel0Volume = midiCmd[2];
+
 		send_event(1);
 		break;
 	case 0xC0:
 		snd_seq_ev_set_pgmchange(&ev, chanID, midiCmd[1]);
 		send_event(0);
+
+		// Send a volume change command to work around a firmware bug in common
+		// USB-MIDI cables. If the first MIDI command in a USB packet is a
+		// Cx or Dx command, the second command in the packet is dropped
+		// somewhere.
+		send(0x07B0 | (_channel0Volume << 16));
 		break;
 	case 0xD0:
 		snd_seq_ev_set_chanpress(&ev, chanID, midiCmd[1]);
 		send_event(1);
+
+		// Send a volume change command to work around a firmware bug in common
+		// USB-MIDI cables. If the first MIDI command in a USB packet is a
+		// Cx or Dx command, the second command in the packet is dropped
+		// somewhere.
+		send(0x07B0 | (_channel0Volume << 16));
 		break;
-	case 0xE0:{
-			// long theBend = ((((long)midiCmd[1] + (long)(midiCmd[2] << 7))) - 0x2000) / 4;
-			// snd_seq_ev_set_pitchbend(&ev, chanID, theBend);
-			long theBend = ((long)midiCmd[1] + (long)(midiCmd[2] << 7)) - 0x2000;
-			snd_seq_ev_set_pitchbend(&ev, chanID, theBend);
-			send_event(1);
-		}
-		break;
+	case 0xE0: {
+		// long theBend = ((((long)midiCmd[1] + (long)(midiCmd[2] << 7))) - 0x2000) / 4;
+		// snd_seq_ev_set_pitchbend(&ev, chanID, theBend);
+		long theBend = ((long)midiCmd[1] + (long)(midiCmd[2] << 7)) - 0x2000;
+		snd_seq_ev_set_pitchbend(&ev, chanID, theBend);
+		send_event(1);
+		} break;
 
 	default:
 		warning("Unknown MIDI Command: %08x", (int)b);
@@ -236,6 +258,11 @@ void MidiDriver_ALSA::send(uint32 b) {
 }
 
 void MidiDriver_ALSA::sysEx(const byte *msg, uint16 length) {
+	if (!_isOpen) {
+		warning("MidiDriver_ALSA: Got SysEx while not open");
+		return;
+	}
+
 	unsigned char buf[266];
 
 	assert(length + 2 <= ARRAYSIZE(buf));
@@ -280,6 +307,9 @@ typedef Common::List<AlsaDevice> AlsaDevices;
 
 AlsaDevice::AlsaDevice(Common::String name, MusicType mt, int client)
 	: _name(name), _type(mt), _client(client) {
+	// Make sure we do not get any trailing spaces to avoid problems when
+	// storing the name in the configuration file.
+	_name.trim();
 }
 
 Common::String AlsaDevice::getName() {
@@ -352,7 +382,7 @@ MusicDevices AlsaMusicPlugin::getDevices() const {
 
 	AlsaDevices alsaDevices = getAlsaDevices();
 
-	// Since the default behaviour is to use the first device in the list,
+	// Since the default behavior is to use the first device in the list,
 	// try to put something sensible there. We used to have 17:0 and 65:0
 	// as defaults.
 

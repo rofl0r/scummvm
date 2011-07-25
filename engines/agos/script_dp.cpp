@@ -18,9 +18,6 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
- * $URL$
- * $Id$
- *
  */
 
 
@@ -271,7 +268,7 @@ void AGOSEngine_DIMP::setupOpcodes() {
 		OPCODE(os1_unloadZone),
 		OPCODE(o_invalid),
 		OPCODE(os1_unfreezeZones),
-		OPCODE(off_centreScroll),
+		OPCODE(off_centerScroll),
 		/* 188 */
 		OPCODE(os2_isShortText),
 		OPCODE(os2_clearMarks),
