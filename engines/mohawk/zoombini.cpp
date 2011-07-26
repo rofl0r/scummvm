@@ -29,6 +29,7 @@
 #include "mohawk/sound.h"
 #include "mohawk/video.h"
 
+#include "common/error.h"
 #include "common/events.h"
 #include "common/EventRecorder.h"
 
@@ -2022,7 +2023,7 @@ void Zoombini_Bridge::drawButton(bool redraw, bool pressed, uint button) {
 }
 
 MohawkEngine_Zoombini::MohawkEngine_Zoombini(OSystem *syst, const MohawkGameDescription *gamedesc) : MohawkEngine(syst, gamedesc), View(this) {
-	_rnd = new Common::RandomSource();
+	_rnd = new Common::RandomSource("zoombini");
 	g_eventRec.registerRandomSource(*_rnd, "zoombini");
 
 	_tmpNextLeg = 0;
@@ -2166,7 +2167,7 @@ void MohawkEngine_Zoombini::setTimeOfLastUserAction() {
 
 void MohawkEngine_Zoombini::loadResourceFile(Common::String name) {
 	MohawkArchive *archive = new MohawkArchive();
-	if (!archive->open(name + ".mhk"))
+	if (!archive->openFile(name + ".mhk"))
 		error("failed to open %s.mhk", name.c_str());
 	_mhk.push_back(archive);
 }
