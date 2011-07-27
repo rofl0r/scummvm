@@ -64,6 +64,54 @@ enum {
 	kWatchCursor = 1
 };
 
+// In the original, this is appended to the end of the OldFeature struct
+// for snoids; a plain snoid struct contains FeatureData and SnoidData, and is
+// then copied into the SnoidFeature on creation.
+struct SnoidData {
+	// starts at +236 inside feature, or +188 inside SnoidStruct
+
+	byte part[4]; // +188
+	uint16 drawOrder;
+	uint16 unknown194[16];
+	// 226
+	// 228
+
+	Common::Point dest; // +230/232
+	byte currentNode; // +234
+	byte currentPath; // +235
+	Common::Point stepSize; // +236
+	signed char pathStep; // +240
+
+	byte unknown241;
+	uint16 unknown242;
+	byte mode; // +244 (or +292 inside parent)
+	uint16 unknown245; // +245 (occasionally referenced as a byte, doesn't matter)
+	byte inPartyStatus; // +247
+	byte unknown248;
+	char *name; // yes, at +249
+	// byte 253
+	// 254
+	// 256
+	// byte 258
+};
+
+struct SnoidStruct {
+	FeatureData _data;
+	SnoidData _snoidData;
+};
+
+struct SnoidFeature : public OldFeature {
+	SnoidFeature(MohawkEngine_Zoombini *vm);
+
+	bool nextPointOnPath();
+	void walkSnoidToPoint(Common::Point pos);
+	void setNewSnoidModeAndXY(Common::Point pos, uint mode);
+	uint16 setSnoidBounds(uint16 *something);
+	void setSnoidDrawOrder(uint16 index);
+
+	SnoidData _snoidData;
+};
+
 // 44559 bytes (in v1.1)
 struct ZoombiniGameState {
 	uint16 unknown0;

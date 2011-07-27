@@ -16,6 +16,7 @@ MODULE_OBJS = \
 	video.o \
 	view.o \
 	zoombini.o \
+	zoombini_feature.o
 
 ifdef ENABLE_CSTIME
 MODULE_OBJS += \
