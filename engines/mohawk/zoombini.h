@@ -189,8 +189,10 @@ public:
 	uint _numMovingSnoids, _numIdleSnoids;
 
 	Common::Array<Common::Point> _restAreas;
+
 	Common::Array<Common::Point> _nodes;
 	Common::Array<Common::Array<byte> > _paths;
+	bool _snoidPathUpdatesDisabled;
 
 	Common::Array<uint16> regs100;
 	Common::Array<uint16> regs101;

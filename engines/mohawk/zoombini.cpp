@@ -88,7 +88,7 @@ struct SnoidFeature : public OldFeature {
 bool SnoidFeature::nextPointOnPath() {
 	MohawkEngine_Zoombini *_vm = (MohawkEngine_Zoombini *)_view; // XXX: hack
 
-	if (!_vm->_nodes.empty() && !_vm->_paths.empty() && true /* TODO: some global check */) {
+	if (!_vm->_nodes.empty() && !_vm->_paths.empty() && !_vm->_snoidPathUpdatesDisabled) {
 		Common::Point dest = _snoidData.dest;
 		if (_snoidData.currentNode != 0xff) { // TODO: original checks for < 0x7f
 			uint node = _vm->_paths[_snoidData.currentPath][_snoidData.currentNode];
@@ -178,7 +178,7 @@ bool SnoidFeature::nextPointOnPath() {
 void SnoidFeature::walkSnoidToPoint(Common::Point pos) {
 	MohawkEngine_Zoombini *_vm = (MohawkEngine_Zoombini *)_view; // XXX: hack
 
-	if (_vm->_nodes.empty() || _vm->_paths.empty() || false /* TODO: some global check */) {
+	if (_vm->_nodes.empty() || _vm->_paths.empty() || _vm->_snoidPathUpdatesDisabled) {
 		_data.nextPos = _snoidData.dest;
 		return;
 	}
@@ -1781,6 +1781,8 @@ void Zoombini_PickerScreen::pickerCrowdControl(uint &nextSpareIndex, Common::Poi
 }
 
 void Zoombini_PickerScreen::pickerCrowdControl() {
+	_vm->_snoidPathUpdatesDisabled = true;
+
 	for (uint i = 0; i < 15; i++) {
 		if (_vm->_sortedSnoids[i])
 			continue;
@@ -1836,6 +1838,7 @@ void Zoombini_PickerScreen::pickerCrowdControl() {
 		}
 	}
 	_vm->idleView();
+	_vm->_snoidPathUpdatesDisabled = false;
 }
 
 void Zoombini_PickerScreen::installBoatAndWaves() {
@@ -2270,6 +2273,7 @@ void MohawkEngine_Zoombini::setupView() {
 	}
 
 	// TODO: InitSnoidUt(); with below
+	_snoidPathUpdatesDisabled = false;
 	_draggingSnoid = false;
 	_dropSpotRange = 15;
 
@@ -2470,6 +2474,7 @@ void MohawkEngine_Zoombini::initNormalScripts(uint count, uint max, uint16 resou
 
 void MohawkEngine_Zoombini::freeRejectScripts() {
 	// FIXME
+	_snoidPathUpdatesDisabled = false;
 }
 
 uint16 MohawkEngine_Zoombini::addSnoidToScreen(Common::Point dest, Common::Point pos, uint32 nextTime, SnoidStruct *data) {
