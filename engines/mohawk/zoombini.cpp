@@ -655,15 +655,15 @@ void Zoombini_PickerScreen::drawBigSnoidPart(uint part) {
 
 void Zoombini_PickerScreen::drawBigSnoid() {
 	byte *part = _snoidStruct._snoidData.part;
-	if (part[3])
-		drawBigSnoidPart(part[3] + 16);
+	if (part[kSnoidPartFeet])
+		drawBigSnoidPart(part[kSnoidPartFeet] + 16);
 	drawBigSnoidPart(1);
-	if (part[1])
-		drawBigSnoidPart(part[1] + 6);
-	if (part[2])
-		drawBigSnoidPart(part[2] + 11);
-	if (part[0])
-		drawBigSnoidPart(part[0] + 1);
+	if (part[kSnoidPartEyes])
+		drawBigSnoidPart(part[kSnoidPartEyes] + 6);
+	if (part[kSnoidPartNose])
+		drawBigSnoidPart(part[kSnoidPartNose] + 11);
+	if (part[kSnoidPartHair])
+		drawBigSnoidPart(part[kSnoidPartHair] + 1);
 }
 
 bool Zoombini_PickerScreen::isCurrentSnoidComplete() {
@@ -1598,36 +1598,36 @@ void MohawkEngine_Zoombini::snoidDirectionAfterFall(int direction) {
 }
 
 uint16 MohawkEngine_Zoombini::getSnoidSoundId(uint type, SnoidData *data) {
-	uint16 soundId = 0;
-	bool adjust = true;
-	if (type < 13) {
-		soundId = 100 + type * 25;
-	} else if (type < 16) {
-		soundId = 475 - (25 * (type - 13));
-	} else if (type == 16) {
-		soundId = _rnd->getRandomNumberRng(1800, 1814);
-		adjust = false;
+	if (type == 16) {
+		return _rnd->getRandomNumberRng(1800, 1814);
 	} else if (type == 17) {
-		soundId = 99;
-		adjust = false;
+		return 99;
+	} else if (type > 17) {
+		error("getSnoidSoundId doesn't understand type %d", type);
 	}
-	if (adjust) {
-		switch (data->part[0]) {
-		case 2:
-			soundId += 5;
-			break;
-		case 3:
-			soundId += 20;
-			break;
-		case 4:
-			soundId += 15;
-			break;
-		case 5:
-			soundId += 10;
-			break;
-		}
-		soundId += data->part[2] - 1;
+
+	// snoid sounds are in groups of 5*5 depending on hair and nose style
+	uint16 soundId = 100 + (type * 25);
+
+	// adjust for hair style
+	switch (data->part[kSnoidPartHair]) {
+	case 2:
+		soundId += 5;
+		break;
+	case 3:
+		soundId += 20;
+		break;
+	case 4:
+		soundId += 15;
+		break;
+	case 5:
+		soundId += 10;
+		break;
 	}
+
+	// adjust for nose style
+	soundId += (data->part[kSnoidPartNose] - 1);
+
 	return soundId;
 }
 

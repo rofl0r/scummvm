@@ -61,6 +61,13 @@ enum {
 	kWatchCursor = 1
 };
 
+enum {
+	kSnoidPartHair = 0,
+	kSnoidPartEyes = 1,
+	kSnoidPartNose = 2,
+	kSnoidPartFeet = 3
+};
+
 // In the original, this is appended to the end of the OldFeature struct
 // for snoids; a plain snoid struct contains FeatureData and SnoidData, and is
 // then copied into the SnoidFeature on creation.
