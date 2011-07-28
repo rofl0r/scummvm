@@ -186,8 +186,9 @@ public:
 
 	GUI::Debugger *getDebugger() { return _console; }
 
-	bool _haveNewGame, _wasInTitle;
+	bool _haveNewGame, _wasInTitle, _practiceMode;
 	int _tmpNextModuleId, _previousModuleId, _newModuleId, _currentModuleId;
+	bool _puzzleLevelJustUpdated, _forceDisableXfer;
 
 	bool _inDialog;
 
@@ -224,6 +225,7 @@ public:
 	uint32 _lastTimeout, _lastUserAction;
 
 	// Snoidut
+	void initSnoidUt();
 	void getSnoidParts();
 	void freeSnoidParts();
 	void loadRegistrationData(Common::Array<uint16> &regs, uint16 resourceId);
@@ -251,6 +253,8 @@ public:
 
 	Common::Array<ZoombiniDropSpot> _dropSpots;
 	uint _dropSpotRange;
+	bool _checkSnoidDropSpotsDuringMove;
+	bool _dragShouldCheckDropSpots;
 
 	ZoombiniGameState _state;
 
@@ -258,6 +262,7 @@ public:
 	uint _snoidDirectionAfterFall;
 	uint16 _sortedSnoids[21];
 	uint _numMovingSnoids, _numIdleSnoids;
+	bool _bridgeStaticSnoidHack;
 
 	Common::Array<Common::Point> _restAreas;
 
@@ -271,6 +276,7 @@ public:
 	Common::Array<uint16> regs103;
 
 	uint _dragOneTime;
+	bool _dragDisallowMovement;
 
 	uint _lastMouseDown;
 

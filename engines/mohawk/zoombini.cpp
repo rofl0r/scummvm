@@ -1289,10 +1289,7 @@ void MohawkEngine_Zoombini::setupView() {
 		_syncChannels[i].alternate = false;
 	}
 
-	// TODO: InitSnoidUt(); with below
-	_snoidPathUpdatesDisabled = false;
-	_draggingSnoid = false;
-	_dropSpotRange = 15;
+	initSnoidUt();
 
 	// TODO: reset sound queues
 }
@@ -1399,6 +1396,8 @@ void MohawkEngine_Zoombini::freeViewFeatures() {
 	_dragOneTime = 0;
 	_lastNodeId = 0;
 	_dropSpotRange = 15;
+	_bridgeStaticSnoidHack = false;
+	_dragShouldCheckDropSpots = true;
 	// TODO: SetActiveSortModeOff(1);
 	// TODO: reset sound queues
 	_inDialog = false;
@@ -1420,6 +1419,20 @@ void MohawkEngine_Zoombini::setViewRestAreas(bool assign, const Common::Array<Co
 		snoid->_data.currentPos = _restAreas[i];
 		snoid->_snoidData.mode = 0;
 	}
+}
+
+void MohawkEngine_Zoombini::initSnoidUt() {
+	_puzzleLevelJustUpdated = false;
+	_snoidPathUpdatesDisabled = false;
+	// _snoidWalkCallback = NULL;
+	_practiceMode = false;
+	_draggingSnoid = false;
+	_bridgeStaticSnoidHack = false;
+	_forceDisableXfer = false;
+	_checkSnoidDropSpotsDuringMove = true;
+	_dropSpotRange = 15;
+	_dragShouldCheckDropSpots = true;
+	_dragDisallowMovement = false;
 }
 
 void MohawkEngine_Zoombini::getSnoidParts() {
@@ -1680,7 +1693,11 @@ uint16 MohawkEngine_Zoombini::dragSnoid(SnoidFeature *snoid, Common::Point mouse
 	uint16 foundDropSpotId = 0;
 
 	uint16 snoidId = snoid->_id;
-	// TODO: weird previous feature stuff (see continueToDrag)
+	uint16 prevFeatureId = 0;
+	if (_dragDisallowMovement) {
+		// so we can preserve ordering at end of drag
+		prevFeatureId = snoid->_prev->_id;
+	}
 	removeFeature(snoid, false);
 	_draggingSnoid = true;
 	snoid->_id = 0xfffd;
@@ -1730,7 +1747,7 @@ uint16 MohawkEngine_Zoombini::dragSnoid(SnoidFeature *snoid, Common::Point mouse
 		else if (oldMousePos.x > mousePos.x && !snoid->_snoidData.unknown242)
 			snoid->_snoidData.unknown242 = 1;
 
-		if (false /* TODO: weird previous feature stuff */) {
+		if (_dragDisallowMovement) {
 			moved = true;
 		} else {
 			// Move the snoid.
@@ -1758,9 +1775,8 @@ uint16 MohawkEngine_Zoombini::dragSnoid(SnoidFeature *snoid, Common::Point mouse
 				snoid->_data.currentPos.x + _dropSpotRange,
 				snoid->_data.currentPos.y + _dropSpotRange);
 			bool foundDropSpot = false;
-			if (!_dragOneTime) {
+			if (!_dragOneTime && _dragShouldCheckDropSpots) {
 				for (uint i = 0; i < _dropSpots.size(); i++) {
-					// TODO: check some global (for bridge rejection?), break if set
 					if (_dropSpots[i].snoidId)
 						continue;
 					if (!checkRect.contains(_dropSpots[i].pos))
@@ -1804,7 +1820,7 @@ uint16 MohawkEngine_Zoombini::dragSnoid(SnoidFeature *snoid, Common::Point mouse
 		setTimeOfLastUserAction();
 	}
 
-	if (dropSpotFeatureId && !false /* TODO: weird flag */) {
+	if (dropSpotFeatureId && !_dragDisallowMovement) {
 		_dropSpots[dropSpotId].snoidId = snoidId;
 		_lastDropSpotId = dropSpotId;
 		_lastSnoidId = snoidId;
@@ -1817,7 +1833,7 @@ uint16 MohawkEngine_Zoombini::dragSnoid(SnoidFeature *snoid, Common::Point mouse
 	}
 	// FIXME: deactivateNamePlate()
 	// TODO: or bounds into dirty feature rect
-	if (true /* TODO: weird flag */) {
+	if (!_dragDisallowMovement) {
 		if (dropSpotFeatureId)
 			snoid->_snoidData.dest = _dropSpots[dropSpotId].pos;
 		else if (_currentModuleId == kZoombiniModuleTown)
@@ -1827,7 +1843,7 @@ uint16 MohawkEngine_Zoombini::dragSnoid(SnoidFeature *snoid, Common::Point mouse
 	}
 	snoid->_snoidData.unknown248 = 1;
 	// TODO: or bounds into dirty feature rect
-	if (false /* TODO: weird flag */) {
+	if (_dragDisallowMovement) {
 		snoid->_snoidData.unknown242 = 0;
 		snoid->setNewSnoidModeAndXY(Common::Point(), 0);
 	} else {
@@ -1837,7 +1853,10 @@ uint16 MohawkEngine_Zoombini::dragSnoid(SnoidFeature *snoid, Common::Point mouse
 	snoid->_flags = oldSnoidFlags;
 	snoid->_delayTime = oldSnoidDelayTime;
 	_idleWaitTime = oldIdleWaitTime;
-	// TODO: weird previous feature stuff
+	if (_dragDisallowMovement) {
+		// TODO: fix zorder here
+	}
+	_dragDisallowMovement = false;
 	_dragOneTime = 0;
 	_draggingSnoid = true;
 
@@ -1873,7 +1892,7 @@ bool MohawkEngine_Zoombini::continueToDrag() {
 	}
 
 	bool mouseDown = pdStillDown(_lastMouseDown);
-	if (false /* TODO: weird flag */ && !mouseDown) {
+	if (!_dragDisallowMovement && !mouseDown) {
 		currentlyDragging = false;
 	} else if (beSticky) {
 		if (wasDown && !mouseDown) {
