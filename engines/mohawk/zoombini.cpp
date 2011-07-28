@@ -251,9 +251,7 @@ void Zoombini_PickerScreen::init() {
 	_vm->snoidFadeIn();
 	_pickerScreenActive = true;
 
-	// TODO: add (queue) sound 30001
-	// TODO: this is MIDI (anything >= 30000 is) 
-	_vm->_sound->playMidi(30001);
+	_vm->queueSound(30001);
 
 	if (_vm->_previousLeg == 1) {
 		uint count = _vm->numSnoidsInModule();
@@ -274,7 +272,7 @@ void Zoombini_PickerScreen::init() {
 		}
 	}
 	if (_currSound)
-		_vm->_sound->playSound(_currSound); // TODO: queue
+		_vm->queueSound(_currSound);
 	_vm->_wasInTitle = false;
 }
 
@@ -335,17 +333,17 @@ void Zoombini_PickerScreen::pickerHotspotProc(uint hotspot) {
 	byte part = _snoidStruct._snoidData.part[partType];
 
 	if (part && part == partId + 1) {
-		_vm->_sound->playSound(1004); // TODO: queue
+		_vm->queueSound(1004);
 		drawFeatureButton(false, 5 * partType + partId);
 		_vm->_needsUpdate = true; // TODO: thought
 		_snoidStruct._snoidData.part[partType] = 0;
 	} else if (!canDoFeature(partId, partType)) {
-		_vm->_sound->playSound(1008); // TODO: queue
+		_vm->queueSound(1008);
 	} else {
 		if (part) {
 			drawFeatureButton(false, 5 * partType + part);
 		}
-		_vm->_sound->playSound(1000); // TODO: queue
+		_vm->queueSound(1000);
 		drawFeatureButton(false, 5 * partType + partId);
 		_vm->_needsUpdate = true; // TODO: thought
 		_snoidStruct._snoidData.part[partType] = partId + 1;
@@ -386,7 +384,7 @@ void Zoombini_PickerScreen::moduleHotspotProc(uint hotspot) {
 			// TODO: stuff here
 			_addedSnoid = true;
 			_vm->_numMovingSnoids++;
-			_vm->_sound->playSound(1005); // TODO: queue
+			_vm->queueSound(1005);
 			drawPickerButton(true, true, hotspot);
 			// TODO: wait for 2 ticks?
 			markSnoidAsMade(true);
@@ -406,12 +404,12 @@ void Zoombini_PickerScreen::moduleHotspotProc(uint hotspot) {
 		uint sound, soundId;
 		sound = _vm->_rnd->getRandomNumberRng(0, 12);
 		soundId = _vm->getSnoidSoundId(sound, &_snoidStruct._snoidData);
-		_vm->_sound->playSound(soundId); // TODO: queue
+		_vm->queueSound(soundId);
 		break;
 	case 3:
 		// Clicking on the nametag.
 		if (_snoidComplete) {
-			_vm->_sound->playSound(1000); // TODO: queue
+			_vm->queueSound(1000);
 			// TODO: random name(10)
 			drawPickerButton(true, true, hotspot);
 		}
@@ -419,9 +417,9 @@ void Zoombini_PickerScreen::moduleHotspotProc(uint hotspot) {
 	case 4:
 		// Random snoid.
 		if (false /* already have 625 snoids */) {
-			_vm->_sound->playSound(1008); // "No." TODO: queue
+			_vm->queueSound(1008); // "No."
 		} else {
-			_vm->_sound->playSound(1006); // TODO: queue
+			_vm->queueSound(1006);
 			drawPickerButton(true, true, hotspot);
 			if (_partyOK || !(_vm->getEventManager()->getModifierState() & Common::KBD_SHIFT)) {
 				// TODO: wait for 2 ticks?
@@ -460,7 +458,7 @@ void Zoombini_PickerScreen::moduleHotspotProc(uint hotspot) {
 		break;
 	case 5:
 		// Map screen?
-		_vm->_sound->playSound(999); // TODO: queue
+		_vm->queueSound(999);
 		drawPickerButton(true, true, hotspot);
 		// TODO: wait for 2 ticks?
 		drawPickerButton(true, false, hotspot);
@@ -470,7 +468,7 @@ void Zoombini_PickerScreen::moduleHotspotProc(uint hotspot) {
 	case 6:
 		// Go forth!
 		if (_partyOK) {
-			_vm->_sound->playSound(996); // TODO: queue
+			_vm->queueSound(996);
 			drawPickerButton(true, true, hotspot);
 			// TODO: wait for 2 ticks?
 			drawPickerButton(true, false, hotspot);
@@ -505,12 +503,12 @@ void Zoombini_PickerScreen::moduleHotspotProc(uint hotspot) {
 						_currSound = 20044; // "The adventure begins here! Free the Zoombinis!"
 				}
 				if (_currSound)
-					_vm->_sound->playSound(_currSound); // TODO: queue
+					_vm->queueSound(_currSound);
 			}
 		}
 		break;
 	case 7:
-		_vm->_sound->playSound(999); // TODO: queue
+		_vm->queueSound(999);
 		drawPickerButton(true, true, hotspot);
 		// TODO: wait for 2 ticks?
 		drawPickerButton(true, false, hotspot);
@@ -545,7 +543,7 @@ void Zoombini_PickerScreen::moduleHotspotProc(uint hotspot) {
 
 			// TODO: change global
 			_vm->markNthDropSpot(0, 1);
-			_vm->_sound->playSound(1007); // TODO: add to queue
+			_vm->queueSound(1007);
 			if (_vm->_state.totalSnoidCount > 0)
 				_vm->_state.totalSnoidCount--;
 			// FIXME: copy parts back
@@ -972,7 +970,7 @@ void Zoombini_Bridge::init() {
 	_vm->setSnoidsInPartyStatus(false, 0);
 	_vm->setTimeOfLastUserAction();
 	// FIXME
-	_vm->_sound->playSound(997); // TODO: add to queue
+	_vm->queueSound(997);
 	// FIXME
 }
 
@@ -1077,7 +1075,7 @@ Common::Error MohawkEngine_Zoombini::run() {
 	// this is GetSnoidParts(true);
 	loadResourceFile("midimpc");
 
-	_sound->playSound(99);
+	queueSound(99);
 
 	Common::Event event;
 	while (!shouldQuit()) {
@@ -1168,6 +1166,15 @@ void MohawkEngine_Zoombini::e2FlushEvent(uint types) {
 
 bool MohawkEngine_Zoombini::pdStillDown(uint /*which*/) {
 	return getEventManager()->getButtonState() & 1;
+}
+
+void MohawkEngine_Zoombini::queueSound(uint16 id, bool streaming) {
+	// TODO: music restarting
+	// TODO: actually queue sound
+	if (id < 30000)
+		_sound->playSound(id);
+	else
+		_sound->playMidi(id);
 }
 
 void MohawkEngine_Zoombini::setTimeOfLastUserAction() {

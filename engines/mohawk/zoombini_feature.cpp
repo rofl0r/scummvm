@@ -274,7 +274,7 @@ void SnoidFeature::setNewSnoidModeAndXY(Common::Point pos, uint mode) {
 			uint16 soundId = 4;
 			if (_vm->_rnd->getRandomNumberRng(1, 100) > 50)
 				soundId = 5;
-			_vm->_sound->playSound(_vm->getSnoidSoundId(soundId, &_snoidData)); // TODO: queue
+			_vm->queueSound(_vm->getSnoidSoundId(soundId, &_snoidData));
 		}
 		break;
 	case 7:
@@ -636,7 +636,7 @@ void Zoombini_Module::defaultMoveProc(OldFeature *feature) {
 				if (lastVal < 0xff00) {
 					uint16 resourceId = ourSCRB->readUint16BE();
 					if (!wasDisabledByReset)
-						_vm->_sound->playSound(resourceId); // TODO: add resourceId SND to queue 0
+						_vm->queueSound(resourceId);
 				}
 				// TODO: if we were passed a region and the first byte(?) is set
 				//   then call that weird +16 proc with (that byte)-1
@@ -943,7 +943,7 @@ void Zoombini_Module::snoidMoveProc(SnoidFeature *feature) {
 	uint16 something;
 	uint16 soundId = feature->setSnoidBounds(&something);
 	if (soundId)
-		_vm->_sound->playSound(soundId); // TODO: add to queue
+		_vm->queueSound(soundId);
 	if (something) {
 		something--;
 		if (something < 200 || something > 239) {
@@ -951,7 +951,7 @@ void Zoombini_Module::snoidMoveProc(SnoidFeature *feature) {
 		} else if (something < 218) {
 			static uint16 soundIds[18] = {8,6,7,10,2,12,1,9,0,4,5,3,11,13,14,15,16,17};
 			soundId = _vm->getSnoidSoundId(soundIds[something - 200], &feature->_snoidData);
-			_vm->_sound->playSound(soundId); // TODO: add to queue
+			_vm->queueSound(soundId);
 		}
 	}
 	feature->_dirty = 1;

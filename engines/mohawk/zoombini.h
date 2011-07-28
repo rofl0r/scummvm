@@ -180,6 +180,8 @@ public:
 	void e2FlushEvent(uint types);
 	bool pdStillDown(uint which);
 
+	void queueSound(uint16 id, bool streaming = false);
+
 	void setTimeOfLastUserAction();
 
 	void loadResourceFile(Common::String name);
