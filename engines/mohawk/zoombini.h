@@ -68,6 +68,27 @@ enum {
 	kSnoidPartFeet = 3
 };
 
+enum {
+	kZoombiniModuleTitle = 0,
+	kZoombiniModuleMap = 1,
+	kZoombiniModuleXfer = 2,
+	kZoombiniModulePicker = 3,
+	kZoombiniModuleBaseCamp2 = 4,
+	kZoombiniModuleBaseCamp1 = 5,
+	kZoombiniModuleTown = 6,
+	kZoombiniModuleBridge = 7,
+	kZoombiniModuleTunnels = 8,
+	kZoombiniModulePizza = 9,
+	kZoombiniModuleFerry = 10,
+	kZoombiniModuleLilly = 11,
+	kZoombiniModuleRise = 12,
+	kZoombiniModuleFleens = 13,
+	kZoombiniModuleHotel = 14,
+	kZoombiniModuleMudball = 15,
+	kZoombiniModuleCaves = 16,
+	kZoombiniModuleMirror = 17,
+	kZoombiniModuleMaze = 18
+};
 // In the original, this is appended to the end of the OldFeature struct
 // for snoids; a plain snoid struct contains FeatureData and SnoidData, and is
 // then copied into the SnoidFeature on creation.
@@ -170,7 +191,7 @@ public:
 	GUI::Debugger *getDebugger() { return _console; }
 
 	bool _haveNewGame, _wasInTitle;
-	int _tmpNextLeg, _previousLeg, _newLeg, _currentLeg;
+	int _tmpNextModuleId, _previousModuleId, _newModuleId, _currentModuleId;
 
 	bool _inDialog;
 

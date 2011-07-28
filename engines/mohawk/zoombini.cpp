@@ -70,7 +70,7 @@ void Zoombini_Title::update() {
 		_vm->_cursor->hideCursor();
 	} else {
 		// movie is done
-		_vm->_newLeg = 3; // TODO
+		_vm->_newModuleId = kZoombiniModulePicker; // TODO
 		shutdown();
 	}
 }
@@ -171,7 +171,7 @@ void Zoombini_PickerScreen::initPicker() {
 	_vm->_dropSpotRange = 60;
 	_snoidComplete = false;
 	_partyOK = false; // Not set in original.
-	_vm->_tmpNextLeg = 0;
+	_vm->_tmpNextModuleId = 0;
 	_currSound = 0;
 	for (uint i = 0; i < 4; i++)
 		_snoidStruct._snoidData.part[i] = 0;
@@ -253,7 +253,7 @@ void Zoombini_PickerScreen::init() {
 
 	_vm->queueSound(30001);
 
-	if (_vm->_previousLeg == 1) {
+	if (_vm->_previousModuleId == kZoombiniModuleMap) {
 		uint count = _vm->numSnoidsInModule();
 		if (625 - (_vm->_state.unknown74 + _vm->_state.unknown76 + _vm->_state.unknown78) > (int)count) {
 			if (count < 625) {
@@ -298,7 +298,7 @@ void Zoombini_PickerScreen::update() {
 
 	updateRunning = true;
 	_vm->idleView();
-	if (_vm->_tmpNextLeg) {
+	if (_vm->_tmpNextModuleId) {
 		if (_vm->_sound->isPlaying(996)) {
 			updateRunning = false;
 			return;
@@ -356,10 +356,10 @@ void Zoombini_PickerScreen::pickerHotspotProc(uint hotspot) {
 }
 
 bool Zoombini_PickerScreen::checkModuleToGoto() {
-	if (!_vm->_tmpNextLeg)
+	if (!_vm->_tmpNextModuleId)
 		return false;
-	_vm->_newLeg = _vm->_tmpNextLeg;
-	_vm->_tmpNextLeg = 0;
+	_vm->_newModuleId = _vm->_tmpNextModuleId;
+	_vm->_tmpNextModuleId = 0;
 	shutdown();
 	return true;
 }
@@ -490,7 +490,8 @@ void Zoombini_PickerScreen::moduleHotspotProc(uint hotspot) {
 				_vm->_numMovingSnoids++;
 				break;
 			}
-			_vm->_tmpNextLeg = 7;
+			// next stop, allergic cliffs
+			_vm->_tmpNextModuleId = kZoombiniModuleBridge;
 		} else {
 			// TODO: this code is v.similar to that in the init
 			uint count = _vm->numSnoidsInModule();
@@ -912,7 +913,7 @@ void Zoombini_Bridge::init() {
 	// FIXME
 	_vm->_dropSpotRange = 55;
 	// FIXME
-	_vm->_tmpNextLeg = 0;
+	_vm->_tmpNextModuleId = 0;
 	// FIXME
 	_vm->_numIdleSnoids = 0;
 	_vm->_numMovingSnoids = 0;
@@ -1036,10 +1037,10 @@ MohawkEngine_Zoombini::MohawkEngine_Zoombini(OSystem *syst, const MohawkGameDesc
 	_rnd = new Common::RandomSource("zoombini");
 	g_eventRec.registerRandomSource(*_rnd, "zoombini");
 
-	_tmpNextLeg = 0;
-	_previousLeg = 0xffff;
-	_currentLeg = 0xffff;
-	_newLeg = 0;
+	_tmpNextModuleId = 0;
+	_previousModuleId = 0xffff;
+	_currentModuleId = 0xffff;
+	_newModuleId = kZoombiniModuleTitle;
 
 	_inDialog = false; // TODO: where is this set?
 	_dragOneTime = 0; // TODO: where is this set?
@@ -1079,7 +1080,7 @@ Common::Error MohawkEngine_Zoombini::run() {
 
 	Common::Event event;
 	while (!shouldQuit()) {
-		if (_newLeg != -1)
+		if (_newModuleId != -1)
 			newModule();
 
 		while (_eventMan->pollEvent(event)) {
@@ -1819,7 +1820,7 @@ uint16 MohawkEngine_Zoombini::dragSnoid(SnoidFeature *snoid, Common::Point mouse
 	if (true /* TODO: weird flag */) {
 		if (dropSpotFeatureId)
 			snoid->_snoidData.dest = _dropSpots[dropSpotId].pos;
-		else if (_currentLeg == 6) // TODO: constant (kZoombiniLegTown?)
+		else if (_currentModuleId == kZoombiniModuleTown)
 			snoid->_snoidData.dest = snoidPos;
 		/* FIXME else if (!snoidOnValidTerrain(snoid))
 			snoid->_snoidData.dest = snoidPos; */
@@ -1934,22 +1935,22 @@ void MohawkEngine_Zoombini::newModule() {
 	delete _currentModule;
 	_currentModule = NULL;
 
-	_currentLeg = _newLeg;
-	switch (_newLeg) {
-	case 0:
+	_currentModuleId = _newModuleId;
+	switch (_newModuleId) {
+	case kZoombiniModuleTitle:
 		_currentModule = new Zoombini_Title(this);
 		break;
-	case 3:
+	case kZoombiniModulePicker:
 		_currentModule = new Zoombini_PickerScreen(this);
 		break;
-	case 7:
+	case kZoombiniModuleBridge:
 		_currentModule = new Zoombini_Bridge(this);
 		break;
 	default:
-		error("unknown leg %d", _newLeg);
+		error("unknown leg %d", _newModuleId);
 	}
 
-	_newLeg = -1;
+	_newModuleId = -1;
 	_nextAmbientTime = _system->getMillis() + 900;
 	_currentModule->init();
 }
