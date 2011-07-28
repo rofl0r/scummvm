@@ -175,7 +175,7 @@ void Zoombini_PickerScreen::initPicker() {
 	_currSound = 0;
 	for (uint i = 0; i < 4; i++)
 		_snoidStruct._snoidData.part[i] = 0;
-	_snoidStruct._snoidData.name = NULL;
+	_snoidStruct._snoidData.name[0] = 0;
 	//_vm->randomName(_snoidStruct._snoidData.name);
 	for (uint i = 0; i < 16; i++)
 		_vm->_sortedSnoids[i] = 0;

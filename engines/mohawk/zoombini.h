@@ -113,11 +113,7 @@ struct SnoidData {
 	uint16 unknown245; // +245 (occasionally referenced as a byte, doesn't matter)
 	byte inPartyStatus; // +247
 	byte unknown248;
-	char *name; // yes, at +249
-	// byte 253
-	// 254
-	// 256
-	// byte 258
+	char name[10]; // yes, at +249
 };
 
 struct SnoidStruct {
