@@ -865,9 +865,14 @@ void Zoombini_Module::snoidMoveProc(SnoidFeature *feature) {
 				_vm->_numMovingSnoids--;
 				_vm->_numIdleSnoids++;
 			}
-			// FIXME: global fudging
-			// FIXME: drop area handling
-			// FIXME: rest area handling
+			if (_vm->_bridgeStaticSnoidHack) {
+				if (feature->_snoidData.inPartyStatus == 2)
+					feature->_flags |= kFeatureSortStatic;
+			}
+			if (_vm->_checkSnoidDropSpotsDuringMove) {
+				_vm->checkDropSpotsFor(feature);
+			}
+			_vm->checkRestAreasFor(feature);
 			// FIXME: snoid walk callback
 		} else {
 			int x2 = abs(feature->_snoidData.stepSize.x);

@@ -1138,6 +1138,17 @@ Common::Error MohawkEngine_Zoombini::run() {
 	return Common::kNoError;
 }
 
+uint MohawkEngine_Zoombini::currentLegOfGame(bool &isLastModule) {
+	isLastModule = false;
+	if (_currentModuleId < kZoombiniModuleBridge)
+		return 0;
+	uint leg = _currentModuleId - kZoombiniModuleBridge;
+
+	// there are four legs, each with three modules
+	isLastModule = ((leg % 3) == 2);
+	return (leg / 3) + 1;
+}
+
 uint32 MohawkEngine_Zoombini::getTime() {
 	return _system->getMillis() / 17;
 }
@@ -1432,6 +1443,7 @@ void MohawkEngine_Zoombini::initSnoidUt() {
 	_checkSnoidDropSpotsDuringMove = true;
 	_dropSpotRange = 15;
 	_dragShouldCheckDropSpots = true;
+	snoidDirectionAfterFall(1);
 	_dragDisallowMovement = false;
 }
 
@@ -1542,6 +1554,12 @@ uint16 MohawkEngine_Zoombini::snoidOnThisDropSpot() {
 		return _lastDropSpotId + 1;
 	else
 		return 0;
+}
+
+Common::Point MohawkEngine_Zoombini::getNthRestPoint(uint id) {
+	if (id <= 0 || id > _restAreas.size())
+		return Common::Point();
+	return _restAreas[id - 1];
 }
 
 void MohawkEngine_Zoombini::markNthDropSpot(uint16 snoidId, uint16 dropspotId) {
@@ -1731,7 +1749,8 @@ uint16 MohawkEngine_Zoombini::dragSnoid(SnoidFeature *snoid, Common::Point mouse
 	for (uint i = 0; i < _restAreas.size(); i++) {
 		if (!firstCheckRect.contains(_restAreas[i]))
 			continue;
-		// FIXME: remove snoid from rest area if needed
+		if (_snoidOnRestArea[i] == snoidId)
+			_snoidOnRestArea[i] = 0;
 		break;
 	}
 
@@ -1854,7 +1873,7 @@ uint16 MohawkEngine_Zoombini::dragSnoid(SnoidFeature *snoid, Common::Point mouse
 	snoid->_delayTime = oldSnoidDelayTime;
 	_idleWaitTime = oldIdleWaitTime;
 	if (_dragDisallowMovement) {
-		// TODO: fix zorder here
+		// FIXME: fix zorder here
 	}
 	_dragDisallowMovement = false;
 	_dragOneTime = 0;
@@ -1920,6 +1939,40 @@ bool MohawkEngine_Zoombini::continueToDrag() {
 		e2FlushEvent(3);
 
 	return currentlyDragging;
+}
+
+// helper function to avoid code duplication
+void MohawkEngine_Zoombini::checkDropSpotsFor(SnoidFeature *snoid) {
+	// TODO: share these rect instances
+	Common::Rect firstCheckRect(snoid->_data.currentPos.x - _dropSpotRange,
+		snoid->_data.currentPos.y - _dropSpotRange,
+		snoid->_data.currentPos.x + _dropSpotRange,
+		snoid->_data.currentPos.y + _dropSpotRange);
+	for (uint i = 0; i < _dropSpots.size(); i++) {
+		if (_dropSpots[i].snoidId)
+			continue;
+		if (!firstCheckRect.contains(_dropSpots[i].pos))
+			continue;
+		_dropSpots[i].snoidId = snoid->_id;
+		break;
+	}
+}
+
+// helper function to avoid code duplication
+void MohawkEngine_Zoombini::checkRestAreasFor(SnoidFeature *snoid) {
+	// TODO: share these rect instances
+	Common::Rect firstCheckRect(snoid->_data.currentPos.x - _dropSpotRange,
+		snoid->_data.currentPos.y - _dropSpotRange,
+		snoid->_data.currentPos.x + _dropSpotRange,
+		snoid->_data.currentPos.y + _dropSpotRange);
+	for (uint i = 0; i < _restAreas.size(); i++) {
+		if (_snoidOnRestArea[i])
+			continue;
+		if (!firstCheckRect.contains(_restAreas[i]))
+			continue;
+		_snoidOnRestArea[i] = snoid->_id;
+		break;
+	}
 }
 
 void MohawkEngine_Zoombini::handleMouseDown(Common::Point pos) {

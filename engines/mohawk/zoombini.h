@@ -73,8 +73,8 @@ enum {
 	kZoombiniModuleMap = 1,
 	kZoombiniModuleXfer = 2,
 	kZoombiniModulePicker = 3,
-	kZoombiniModuleBaseCamp2 = 4,
-	kZoombiniModuleBaseCamp1 = 5,
+	kZoombiniModuleBaseCamp1 = 4,
+	kZoombiniModuleBaseCamp2 = 5,
 	kZoombiniModuleTown = 6,
 	kZoombiniModuleBridge = 7,
 	kZoombiniModuleTunnels = 8,
@@ -89,6 +89,7 @@ enum {
 	kZoombiniModuleMirror = 17,
 	kZoombiniModuleMaze = 18
 };
+
 // In the original, this is appended to the end of the OldFeature struct
 // for snoids; a plain snoid struct contains FeatureData and SnoidData, and is
 // then copied into the SnoidFeature on creation.
@@ -98,8 +99,7 @@ struct SnoidData {
 	byte part[4]; // +188
 	uint16 drawOrder;
 	uint16 unknown194[16];
-	// 226
-	// 228
+	Common::Point unknown226;
 
 	Common::Point dest; // +230/232
 	byte currentNode; // +234
@@ -153,8 +153,8 @@ struct ZoombiniGameState {
 	uint16 unknown76;
 	uint16 unknown78;
 	// +80..
-	uint16 previousLeg; // +202
-	uint16 currentLeg; // +204
+	uint16 previousModule; // +202
+	uint16 currentModule; // +204
 	// +206..
 	// data for snoids (starting with count?):
 	// at +41468: 612 bytes plus word
@@ -189,6 +189,7 @@ public:
 	bool _haveNewGame, _wasInTitle, _practiceMode;
 	int _tmpNextModuleId, _previousModuleId, _newModuleId, _currentModuleId;
 	bool _puzzleLevelJustUpdated, _forceDisableXfer;
+	uint currentLegOfGame(bool &isLastModule);
 
 	bool _inDialog;
 
@@ -240,6 +241,7 @@ public:
 	uint16 addSnoidToScreen(Common::Point dest, Common::Point pos, uint32 nextTime, struct SnoidStruct *data);
 	uint16 installOneSnoid(bool enable, struct SnoidStruct *data);
 	uint16 snoidOnThisDropSpot();
+	Common::Point getNthRestPoint(uint id);
 	void markNthDropSpot(uint16 snoidId, uint16 dropspotId);
 	void installNodesAndPaths(uint16 id);
 	void freeNodesAndPaths();
@@ -250,6 +252,9 @@ public:
 
 	uint16 dragSnoid(SnoidFeature *snoid, Common::Point mousePos, Common::Rect rect = Common::Rect());
 	bool continueToDrag();
+
+	void checkDropSpotsFor(SnoidFeature *snoid);
+	void checkRestAreasFor(SnoidFeature *snoid);
 
 	Common::Array<ZoombiniDropSpot> _dropSpots;
 	uint _dropSpotRange;
