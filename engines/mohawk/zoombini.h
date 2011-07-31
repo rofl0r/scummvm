@@ -133,6 +133,13 @@ struct SnoidFeature : public OldFeature {
 	SnoidData _snoidData;
 };
 
+struct StoredSnoid {
+	byte part[4];
+	byte inPartyStatus;
+	Common::Point storedPos;
+	char name[10];
+};
+
 // 44559 bytes (in v1.1)
 struct ZoombiniGameState {
 	uint16 unknown0;
@@ -156,10 +163,16 @@ struct ZoombiniGameState {
 	uint16 previousModule; // +202
 	uint16 currentModule; // +204
 	// +206..
-	// data for snoids (starting with count?):
+
+	// data for pending snoids in the picker:
 	// at +41468: 612 bytes plus word
+	Common::Array<StoredSnoid> pickerSnoids;
 	// (at +42082: 614*2)?
 	// at +43310: 612 bytes plus word
+	Common::Array<StoredSnoid> currentSnoids;
+	bool forceIgnoreCondensed;
+	bool forceIgnoreNotCondensed;
+
 	byte snoidCount[5][5][5][5]; // 625 bytes at +43924
 	// ** end of saved data **
 	uint16 unknown44549[5];
@@ -239,12 +252,17 @@ public:
 	void initNormalScripts(uint count, uint max, uint16 resourceBase);
 	void freeRejectScripts();
 	uint16 addSnoidToScreen(Common::Point dest, Common::Point pos, uint32 nextTime, struct SnoidStruct *data);
-	uint16 installOneSnoid(bool enable, struct SnoidStruct *data);
+	void installSnoids(bool all = false);
+	uint16 installOneSnoid(bool walking, struct SnoidStruct *data);
 	uint16 snoidOnThisDropSpot();
 	Common::Point getNthRestPoint(uint id);
 	void markNthDropSpot(uint16 snoidId, uint16 dropspotId);
+	void prepSnoidsToWalkToRestPoints(int yAdjust);
+	void adjustSnoidWalkTimes(uint32 startTime, uint32 delay);
+	void sortSnoidsByXPos(bool all);
 	void installNodesAndPaths(uint16 id);
 	void freeNodesAndPaths();
+	void compactSnoidParty(bool saving, bool deleteAll);
 	void setSnoidsInPartyStatus(bool unknown, byte status);
 	void snoidDirectionAfterFall(int direction);
 	uint16 getSnoidSoundId(uint type, struct SnoidData *data);
@@ -314,6 +332,9 @@ private:
 
 	Common::Array<Common::Array<Common::Rect>*> _hotspotRects;
 	Common::Array<Zoombini_Module::HotspotProc> _hotspotProcs;
+
+	bool _staggerSnoids;
+	uint _numSortedSnoids;
 };
 
 } // End of namespace Mohawk

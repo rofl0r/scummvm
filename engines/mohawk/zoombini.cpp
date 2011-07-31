@@ -227,7 +227,7 @@ void Zoombini_PickerScreen::init() {
 	_vm->setViewRestAreas(true, _restAreas);
 
 	// TODO: snoid loading?
-	//_vm->installSnoids(false);
+	_vm->installSnoids();
 	// TODO: snoid setup: sort snoids into the right order based on the rest areas
 	_vm->setSnoidsInPartyStatus(false, 1);
 	_vm->idleView();
@@ -960,10 +960,10 @@ void Zoombini_Bridge::init() {
 	_vm->installViewFeature(0, 0, NULL, 0, 0, (FeatureProc)&Zoombini_Bridge::moveBttnProc, (FeatureProc)&Zoombini_Bridge::drawBttnProc, 0x1000);
 
 	_vm->setViewRestAreas(true, _restAreas);
-	// _vm->installSnoids(false);
-	// _vm->prepSnoidsToWalkToRestPts(0);
+	_vm->installSnoids();
+	_vm->prepSnoidsToWalkToRestPoints(0);
 	_vm->idleView();
-	// _vm->adjustSnoidWalkTimes(0, 45);
+	_vm->adjustSnoidWalkTimes(0, 45);
 	// setupBridgePuzzle();
 	_vm->addHotspots(&_hotspots, (HotspotProc)&Zoombini_Bridge::hotspotProc);
 	// FIXME
@@ -1377,7 +1377,11 @@ Feature *MohawkEngine_Zoombini::installViewFeature(uint16 unknown1, uint16 unkno
 void MohawkEngine_Zoombini::freeViewFeatures() {
 	// TODO: sound priorities
 
-	// TODO: snoid party management
+	if (_practiceMode) {
+		// TODO: snoid party management
+	} else {
+		compactSnoidParty(false, true);
+	}
 
 	for (Feature *node = _rootNode; node;) {
 		Feature *currNode = node;
@@ -1536,7 +1540,39 @@ uint16 MohawkEngine_Zoombini::addSnoidToScreen(Common::Point dest, Common::Point
 	return id;
 }
 
-uint16 MohawkEngine_Zoombini::installOneSnoid(bool unknown, SnoidStruct *data) {
+void MohawkEngine_Zoombini::installSnoids(bool all) {
+	uint nextRestPoint = 1;
+	_numMovingSnoids = 0;
+	_numIdleSnoids = 0;
+	uint numSnoids = 0; // FIXME: numSnoidsInModule()
+	for (uint i = 0; i < _state.currentSnoids.size(); i++) {
+		const StoredSnoid &storedSnoid = _state.currentSnoids[i];
+		// FIXME: incomplete
+		SnoidStruct snoid;
+		memcpy(snoid._snoidData.part, storedSnoid.part, 4);
+		snoid._snoidData.inPartyStatus = storedSnoid.inPartyStatus;
+		if (snoid._snoidData.inPartyStatus) {
+			snoid._data.currentPos = getNthRestPoint(nextRestPoint++);
+		} else {
+			snoid._data.currentPos = storedSnoid.storedPos;
+		}
+		snoid._snoidData.unknown241 = 1;
+		snoid._snoidData.unknown242 = 0;
+		memcpy(snoid._snoidData.name, storedSnoid.name, sizeof(snoid._snoidData.name));
+		snoid._snoidData.unknown226 = snoid._data.currentPos;
+		snoid._data.nextPos = snoid._data.currentPos;
+		snoid._snoidData.dest = snoid._data.currentPos;
+		snoid._snoidData.currentNode = 0;
+		snoid._snoidData.currentPath = 0;
+		snoid._snoidData.stepSize = Common::Point();
+		snoid._snoidData.pathStep = 0;
+		snoid._snoidData.unknown248 = _rnd->getRandomNumberRng(0, 64);
+		// FIXME: store feature id?
+		installOneSnoid(false, &snoid);
+	}
+}
+
+uint16 MohawkEngine_Zoombini::installOneSnoid(bool walking, SnoidStruct *data) {
 	if (!data->_snoidData.unknown241)
 		return 0;
 
@@ -1544,7 +1580,7 @@ uint16 MohawkEngine_Zoombini::installOneSnoid(bool unknown, SnoidStruct *data) {
 		data->_snoidData.unknown194[i] = 0;
 
 	SnoidFeature *snoid = (SnoidFeature *)installViewFeature(0, 0, data, 6, 0, (Module::FeatureProc)&Zoombini_Module::snoidMoveProc, (Module::FeatureProc)&Zoombini_Module::snoidDrawProc, 1);
-	snoid->setNewSnoidModeAndXY(Common::Point(), (unknown ? 7 : 0));
+	snoid->setNewSnoidModeAndXY(Common::Point(), (walking ? 7 : 0));
 	snoid->_nextTime = 0;
 	return snoid->_id;
 }
@@ -1569,6 +1605,102 @@ void MohawkEngine_Zoombini::markNthDropSpot(uint16 snoidId, uint16 dropspotId) {
 	if (dropspotId >= _dropSpots.size())
 		error("markNthDropSpot tried to mark dropspot %d of %d", dropspotId + 1, _dropSpots.size());
 	_dropSpots[dropspotId].snoidId = snoidId;
+}
+
+void MohawkEngine_Zoombini::prepSnoidsToWalkToRestPoints(int yAdjust) {
+	int xAdjust = -50;
+	_numMovingSnoids = 1;
+	_numIdleSnoids = 0;
+	if (_forceDisableXfer || false /* TODO: slow mode */) {
+		_forceDisableXfer = false;
+		_staggerSnoids = false;
+	} else {
+		_staggerSnoids = true;
+	}
+
+	uint numSnoids = numSnoidsInParty();
+	if (!numSnoids)
+		return;
+	uint restBase = 0;
+	uint restOff = (3 * numSnoids) / 4;
+	uint currSnoidNum = 0;
+
+	SnoidFeature *snoid = findNextSnoid(true);
+	while (snoid) {
+		if (snoid->_snoidData.inPartyStatus) {
+			if (_staggerSnoids && currSnoidNum >= restOff) {
+				// these are walking on from the edge of the screen
+				if (restBase + restOff < _restAreas.size()) {
+					snoid->_data.currentPos.x = xAdjust;
+					snoid->_data.currentPos.y = yAdjust + _restAreas[restBase + restOff].y;
+					snoid->_snoidData.dest = _restAreas[restBase + restOff];
+					snoid->setNewSnoidModeAndXY(Common::Point(), 7);
+					snoid->_nextTime = 0;
+					_numMovingSnoids++;
+					restBase++;
+				}
+			} else {
+				// these are already on the screen
+				checkDropSpotsFor(snoid);
+				checkRestAreasFor(snoid);
+			}
+		}
+		currSnoidNum++;
+		snoid = findNextSnoid(false);
+	}
+}
+
+void MohawkEngine_Zoombini::adjustSnoidWalkTimes(uint32 startTime, uint32 delay) {
+	sortSnoidsByXPos(0);
+	if (!_numSortedSnoids)
+		return;
+	if (!_staggerSnoids)
+		return;
+	_staggerSnoids = false;
+	uint32 currTime = getTime() + startTime;
+	for (int i = _numSortedSnoids - 1; i >= 0; i--) {
+		uint16 snoidId = _sortedSnoids[i];
+		SnoidFeature *snoid = getSnoidPtrFromId(false, snoidId);
+		if (snoid->_snoidData.mode != 7 && snoid->_snoidData.mode != 112)
+			continue;
+		if (!snoid->_snoidData.inPartyStatus)
+			continue;
+		snoid->_nextTime = currTime;
+		currTime += delay;
+	}
+}
+
+void MohawkEngine_Zoombini::sortSnoidsByXPos(bool all) {
+	_numSortedSnoids = 0;
+
+	Common::Array<int16> dests;
+	SnoidFeature *snoid = findNextSnoid(true);
+	while (snoid) {
+		if (snoid->_snoidData.inPartyStatus || (all && snoid->_data.enabled)) {
+			bool found = false;
+			for (uint i = 0; i < _numSortedSnoids; i++) {
+				if (dests[i] > snoid->_snoidData.dest.x) {
+					// add before this one
+					dests.insert_at(i, snoid->_snoidData.dest.x);
+					uint n = _numSortedSnoids;
+					while (i < n) {
+						_sortedSnoids[n] = _sortedSnoids[n - 1];
+						n--;
+					}
+					_sortedSnoids[i] = snoid->_id;
+					found = true;
+					break;
+				}
+			}
+			if (!found) {
+				// add to the end
+				dests.push_back(snoid->_snoidData.dest.x);
+				_sortedSnoids[_numSortedSnoids] = snoid->_id;
+			}
+			_numSortedSnoids++;
+		}
+		snoid = findNextSnoid(false);
+	}
 }
 
 void MohawkEngine_Zoombini::installNodesAndPaths(uint16 id) {
@@ -1601,6 +1733,107 @@ void MohawkEngine_Zoombini::installNodesAndPaths(uint16 id) {
 void MohawkEngine_Zoombini::freeNodesAndPaths() {
 	_nodes.clear();
 	_paths.clear();
+}
+
+void MohawkEngine_Zoombini::compactSnoidParty(bool saving, bool deleteAll) {
+	// moving to new snoid screen, reset some stuff here
+	if (!saving) {
+		_checkSnoidDropSpotsDuringMove = true;
+		snoidDirectionAfterFall(1);
+	}
+
+	// new game starting? if so, no need to do any of this
+	if (_haveNewGame)
+		return;
+
+	// in practice mode, we just delete all snoids if asked to
+	if (_practiceMode && deleteAll) {
+		_state.currentSnoids.clear();
+		_state.forceIgnoreCondensed = true;
+		_state.forceIgnoreNotCondensed = true;
+		return;
+	}
+
+	_state.forceIgnoreCondensed = false;
+	_state.forceIgnoreNotCondensed = false;
+
+	if (!saving) {
+		// moving to a new module, fix up the snoid features to be sane
+		for (Feature *node = _rootNode; node; node = node->_next) {
+			if (!(node->_flags & 1))
+				continue;
+
+			SnoidFeature *snoid = (SnoidFeature *)node;
+			// re-enable all snoids, but no disabled snoids should be in the party
+			if (!snoid->_data.enabled) {
+				snoid->_data.enabled = 1;
+				snoid->_snoidData.inPartyStatus = 0;
+			}
+			// force any special per-module status back to 1
+			if (snoid->_snoidData.inPartyStatus)
+				snoid->_snoidData.inPartyStatus = 1;
+		}
+	}
+
+	if (shouldQuit()) {
+		// we're quitting, force everyone into the party if they're not safely at a camp
+		if (_currentModuleId != kZoombiniModuleBaseCamp1 &&
+			_currentModuleId != kZoombiniModuleBaseCamp2
+			&& _currentModuleId != kZoombiniModuleTown) {
+			setSnoidsInPartyStatus(true, 1);
+		}
+	}
+
+	// if we're saving, we want to store *all* the available snoids, in the party or not
+	bool storeWholeParty = saving;
+	// .. but we always want to keep the 'stored away' and 'in the party' split for the camps
+	if (_currentModuleId == kZoombiniModuleBaseCamp1 || _currentModuleId == kZoombiniModuleBaseCamp2)
+		storeWholeParty = false;
+
+	// now we iterate through each snoid feature, and store
+	// the important bits in the list of current snoids
+	_state.currentSnoids.clear();
+	for (uint n = 0; n < 2; n++) {
+		SnoidFeature *snoid = findNextSnoid(true);
+		while (snoid) {
+			// first we check for snoids which should be in the party,
+			// then again for snoids which are not
+			bool forThisCycle = true;
+			if (!storeWholeParty) {
+				if ((n == 0) && !snoid->_snoidData.inPartyStatus)
+					forThisCycle = false;
+				if ((n == 1) && snoid->_snoidData.inPartyStatus)
+					forThisCycle = false;
+			}
+
+			if (forThisCycle) {
+				StoredSnoid storedSnoid;
+				memcpy(storedSnoid.part, snoid->_snoidData.part, 4);
+				storedSnoid.storedPos = snoid->_data.currentPos;
+				memcpy(storedSnoid.name, snoid->_snoidData.name, sizeof(storedSnoid.name));
+				bool shouldBeInParty = storeWholeParty || (n == 0);
+				storedSnoid.inPartyStatus = shouldBeInParty ? 1 : 0;
+				_state.currentSnoids.push_back(storedSnoid);
+			}
+
+			snoid = findNextSnoid(false);
+		}
+		if (storeWholeParty)
+			break;
+	}
+
+	_puzzleLevelJustUpdated = false;
+
+	if (saving)
+		return;
+
+	bool isLastModule;
+	uint currLeg = currentLegOfGame(isLastModule);
+	if (!currLeg)
+		return;
+
+	uint moduleId = _currentModuleId - kZoombiniModuleBridge;
+	// FIXME: incomplete
 }
 
 void MohawkEngine_Zoombini::setSnoidsInPartyStatus(bool enable, byte status) {
