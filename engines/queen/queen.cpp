@@ -73,6 +73,7 @@ public:
 	virtual GameDescriptor findGame(const char *gameid) const;
 	virtual GameList detectGames(const Common::FSList &fslist) const;
 	virtual SaveStateList listSaves(const char *target) const;
+	virtual int getMaximumSaveSlot() const;
 	virtual void removeSaveState(const char *target, int slot) const;
 
 	virtual Common::Error createInstance(OSystem *syst, Engine **engine) const;
@@ -96,6 +97,8 @@ bool QueenMetaEngine::hasFeature(MetaEngineFeature f) const {
 bool Queen::QueenEngine::hasFeature(EngineFeature f) const {
 	return
 		(f == kSupportsRTL) ||
+		(f == kSupportsLoadingDuringRuntime) ||
+		(f == kSupportsSavingDuringRuntime) ||
 		(f == kSupportsSubtitleOptions);
 }
 
@@ -105,14 +108,22 @@ GameList QueenMetaEngine::getSupportedGames() const {
 	return games;
 }
 
+int QueenMetaEngine::getMaximumSaveSlot() const { return 99; }
+
 const ExtraGuiOptions QueenMetaEngine::getExtraGuiOptions(const Common::String &target) const {
 	Common::String guiOptions;
+	ExtraGuiOptions options;
+	
+	if (target.empty()) {
+		options.push_back(queenExtraGuiOption);
+		return options;
+	}
+	
 	if (ConfMan.hasKey("guioptions", target)) {
 		guiOptions = ConfMan.get("guioptions", target);
 		guiOptions = parseGameGUIOptions(guiOptions);
 	}
 
-	ExtraGuiOptions options;
 	if (!guiOptions.contains(GUIO_NOSPEECH))
 		options.push_back(queenExtraGuiOption);
 	return options;
@@ -336,6 +347,14 @@ void QueenEngine::update(bool checkPlayerInput) {
 
 bool QueenEngine::canLoadOrSave() const {
 	return !_input->cutawayRunning() && !(_resource->isDemo() || _resource->isInterview());
+}
+
+bool QueenEngine::canLoadGameStateCurrently() {
+	return canLoadOrSave();
+}
+
+bool QueenEngine::canSaveGameStateCurrently() {
+	return canLoadOrSave();
 }
 
 Common::Error QueenEngine::saveGameState(int slot, const Common::String &desc) {

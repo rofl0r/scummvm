@@ -1621,8 +1621,7 @@ void DreamWebEngine::animPointer() {
 			if (_pointerCount == 16)
 				_pointerCount = 0;
 		}
-		static const uint8 flashMouseTab[] = { 1,1,1,1,1,1,1,1,1,2,2,2,2,2,2,2,2 };
-		_pointerFrame = flashMouseTab[_pointerCount];
+		_pointerFrame = (_pointerCount <= 8) ? 1 : 2;
 		return;
 	}
 	if (_vars._watchingTime != 0) {
@@ -2091,8 +2090,8 @@ void DreamWebEngine::getRidOfAll() {
 void DreamWebEngine::loadRoomData(const Room &room, bool skipDat) {
 	processEvents();
 	Common::File file;
-	if (!file.open(room.name))
-		error("cannot open file %s", room.name);
+	if (!file.open(modifyFileName(room.name)))
+		error("cannot open file %s", modifyFileName(room.name).c_str());
 
 	FileHeader header;
 	file.read((uint8 *)&header, sizeof(FileHeader));
@@ -2177,8 +2176,8 @@ void DreamWebEngine::restoreReels() {
 
 	processEvents();
 	Common::File file;
-	if (!file.open(room.name))
-		error("cannot open file %s", room.name);
+	if (!file.open(modifyFileName(room.name)))
+		error("cannot open file %s", modifyFileName(room.name).c_str());
 
 	FileHeader header;
 	file.read((uint8 *)&header, sizeof(FileHeader));

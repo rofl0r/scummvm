@@ -890,6 +890,9 @@ public:
 	int saveGameSimple();
 	int loadGameDialog();
 	int loadGameSimple();
+	int doSave(int slot, const Common::String &desc);
+	int doLoad(int slot, bool showMessages);
+	int scummVMSaveLoadDialog(bool isSave);
 
 	uint8 *_intobj;
 	InputMode _oldMode;
@@ -1085,7 +1088,6 @@ private:
 	void printText2(int l, const char *msg, int foff, int xoff, int yoff, int len, int fg, int bg, bool checkerboard = false);
 	void blitTextbox(const char *p, int y, int x, int len);
 	void eraseTextbox();
-	void loadDict();
 	bool matchWord();
 
 public:

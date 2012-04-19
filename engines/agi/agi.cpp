@@ -411,7 +411,9 @@ int AgiEngine::agiInit() {
 #ifdef __DS__
 	// Normally, the engine loads the predictive text dictionary when the predictive dialog
 	// is shown.  On the DS version, the word completion feature needs the dictionary too.
-	loadDict();
+
+	// FIXME - loadDict() no long exists in AGI as this has been moved to within the
+	// GUI Predictive Dialog, but DS Word Completion is probably broken due to this...
 #endif
 
 	_egoHoldKey = false;
@@ -496,6 +498,9 @@ static const GameSettings agiSettings[] = {
 };
 
 AgiBase::AgiBase(OSystem *syst, const AGIGameDescription *gameDesc) : Engine(syst), _gameDescription(gameDesc) {
+	// Assign default values to the config manager, in case settings are missing
+	ConfMan.registerDefault("originalsaveload", "false");
+
 	_noSaveLoadAllowed = false;
 
 	_rnd = new Common::RandomSource("agi");
@@ -697,6 +702,7 @@ Common::Error AgiBase::init() {
 
 Common::Error AgiEngine::go() {
 	CursorMan.showMouse(true);
+	setTotalPlayTime(0);
 
 	if (_game.state < STATE_LOADED) {
 		do {
