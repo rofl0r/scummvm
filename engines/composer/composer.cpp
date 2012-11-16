@@ -20,7 +20,7 @@
  *
  */
 #include "common/scummsys.h"
- 
+
 #include "common/config-manager.h"
 #include "common/events.h"
 #include "common/file.h"
@@ -102,13 +102,14 @@ Common::Error ComposerEngine::run() {
 	if (_bookIni.hasKey("Height", "Common"))
 		height = atoi(getStringFromConfig("Common", "Height").c_str());
 	initGraphics(width, height, true);
-	_surface.create(width, height, Graphics::PixelFormat::createFormatCLUT8());
+	_screen.create(width, height, Graphics::PixelFormat::createFormatCLUT8());
 	_needsUpdate = true;
 
 	Graphics::Cursor *cursor = Graphics::makeDefaultWinCursor();
 	CursorMan.replaceCursor(cursor->getSurface(), cursor->getWidth(), cursor->getHeight(), cursor->getHotspotX(),
 		cursor->getHotspotY(), cursor->getKeyColor());
 	CursorMan.replaceCursorPalette(cursor->getPalette(), cursor->getPaletteStartIndex(), cursor->getPaletteCount());
+	delete cursor;
 
 	loadLibrary(0);
 
@@ -212,6 +213,8 @@ Common::Error ComposerEngine::run() {
 
 		_system->delayMillis(20);
 	}
+
+	_screen.free();
 
 	return Common::kNoError;
 }
@@ -381,11 +384,17 @@ void ComposerEngine::loadLibrary(uint id) {
 			filename = getStringFromConfig(_bookGroup, Common::String::format("%d", id));
 		filename = mangleFilename(filename);
 
+		// bookGroup is the basename of the path.
+		// TODO: tidy this up.
 		_bookGroup.clear();
 		for (uint i = 0; i < filename.size(); i++) {
-			if (filename[i] == '\\' || filename[i] == ':')
+			if (filename[i] == '~' || filename[i] == '/' || filename[i] == ':')
 				continue;
 			for (uint j = 0; j < filename.size(); j++) {
+				if (filename[j] == '/') {
+					_bookGroup.clear();
+					continue;
+				}
 				if (filename[j] == '.')
 					break;
 				_bookGroup += filename[j];

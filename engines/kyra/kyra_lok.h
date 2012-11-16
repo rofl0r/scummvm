@@ -643,14 +643,6 @@ protected:
 
 	const uint8 * const *_specialPalettes;
 
-	const char * const *_soundFiles;
-	int _soundFilesSize;
-	const char * const *_soundFilesIntro;
-	int _soundFilesIntroSize;
-	const int32 *_cdaTrackTable;
-	int _cdaTrackTableSize;
-	AudioDataStruct _soundData[3];
-
 	// positions of the inventory
 	static const uint16 _itemPosX[];
 	static const uint8 _itemPosY[];

@@ -235,13 +235,18 @@ AGOS Games by Adventuresoft/Horrorsoft:
      The Feeble Files                            [feeble]
 
 GOB Games by Coktel Vision:
+     Bambou le sauveur de la jungle              [bambou]
      Bargon Attack                               [bargon]
+     Fascination                                 [fascination]
+     Geisha                                      [geisha]
      Gobliiins                                   [gob1]
      Gobliins 2                                  [gob2]
      Goblins 3                                   [gob3]
      Lost in Time                                [lostintime]
+     Once Upon A Time: Little Red Riding Hood    [littlered]
      The Bizarre Adventures of Woodruff
          and the Schnibble                       [woodruff]
+     Urban Runner                                [urban]
      Ween: The Prophecy                          [ween]
 
 MADE Games by Activision:
@@ -272,6 +277,7 @@ Other Games:
 SCUMM Games by Humongous Entertainment:
      Backyard Baseball                           [baseball]
      Backyard Baseball 2001                      [baseball2001]
+     Backyard Baseball 2003                      [baseball2003]
      Backyard Football                           [football]
      Big Thinkers First Grade                    [thinker1]
      Big Thinkers Kindergarten                   [thinkerk]
@@ -342,7 +348,6 @@ these at your own risk, and please do not file bug reports about them.
 If you want the latest updates on game compatibility, visit our web site
 and view the compatibility chart.
 
-     Backyard Baseball 2003                      [baseball2003]
      Backyard Football 2002                      [football2002]
      Backyard Soccer                             [soccer]
      Backyard Soccer MLS                         [soccermls]
@@ -379,21 +384,24 @@ entering any answer. Chances are that it will work.
 
 ScummVM will skip copy protection in the following games:
 
-  * Maniac Mansion
-  * Zak McKracken and the Alien Mindbenders
-  * Loom (EGA)
-  * The Secret of Monkey Island (VGA)
-  * Monkey Island 2: LeChuck's Revenge
   * Beneath a Steel Sky
       -- bypassed with kind permission from Revolution Software.
+  * Dreamweb
+      -- a list of available commands in the in-game terminals is now shown
+         when the player uses the 'help' command
   * Inherit the Earth: Quest for the Orb (Floppy version)
       -- bypassed with kind permission from Wyrmkeep Entertainment,
          since it was bypassed in all CD releases of the game.
+  * Loom (EGA DOS)
+  * Maniac Mansion
+  * Monkey Island 2: LeChuck's Revenge
   * Simon the Sorcerer 1 (Floppy version)
   * Simon the Sorcerer 2 (Floppy version)
       -- bypassed with kind permission from Adventure Soft,
          since it was bypassed in all CD releases of the game.
+  * The Secret of Monkey Island (VGA)
   * Waxworks
+  * Zak McKracken and the Alien Mindbenders
 
 
 3.2) Commodore64 games notes:
@@ -2028,9 +2036,10 @@ The following keywords are recognized:
                                 super2xsai, supereagle, advmame2x, advmame3x,
                                 hq2x, hq3x, tv2x, dotmatrix)
 
-    confirm_exit       bool     Ask for confirmation by the user before quitting
-                                (SDL backend only).
-    console            bool     Enable the console window (default: enabled) (Windows only).
+    confirm_exit       bool     Ask for confirmation by the user before
+                                quitting (SDL backend only).
+    console            bool     Enable the console window (default: enabled)
+                                (Windows only).
     cdrom              number   Number of CD-ROM unit to use for audio. If
                                 negative, don't even try to access the CD-ROM.
     joystick_num       number   Number of joystick device to use for input
@@ -2058,7 +2067,8 @@ The following keywords are recognized:
                                 supported by some MIDI drivers.)
 
     copy_protection    bool     Enable copy protection in certain games, in
-                                those cases where ScummVM disables it by default.
+                                those cases where ScummVM disables it by
+                                default.
     demo_mode          bool     Start demo in Maniac Mansion
     alt_intro          bool     Use alternative intro for CD versions of
                                 Beneath a Steel Sky and Flight of the Amazon
@@ -2079,7 +2089,7 @@ Sierra games using the SCI engine add the following non-standard keywords:
     originalsaveload   bool     If true, the original save/load screens are
                                 used instead of the enhanced ScummVM ones
     native_fb01        bool     If true, the music driver for an IBM Music
-                                Feature card or a Yahama FB-01 FM synth module
+                                Feature card or a Yamaha FB-01 FM synth module
                                 is used for MIDI output
 
 Broken Sword II adds the following non-standard keywords:
@@ -2119,8 +2129,9 @@ Lands of Lore: The Throne of Chaos adds the following non-standard keywords:
 
 Space Quest IV CD adds the following non-standard keyword:
 
-     silver_cursors    bool     If true, an alternate set of silver mouse cursors
-	                            is used instead of the original golden ones
+     silver_cursors    bool     If true, an alternate set of silver mouse
+                                cursors is used instead of the original golden
+                                ones
 
 Simon the Sorcerer 1 and 2 add the following non-standard keywords:
 
@@ -2129,19 +2140,29 @@ Simon the Sorcerer 1 and 2 add the following non-standard keywords:
 
 The Legend of Kyrandia adds the following non-standard keyword:
 
-    walkspeed          int      The walk speed (0-4)
+    walkspeed          number   The walk speed (0-4)
+
+The Legend of Kyrandia: The Hand of Fate adds the following non-standard
+keyword:
+
+    walkspeed          number   The walk speed (3 or 5, resp. fast or
+                                slow)
 
 The Legend of Kyrandia: Malcolm's Revenge adds the following non-standard
 keywords:
 
+    walkspeed          number   The walk speed (3 or 5, resp. fast or
+                                slow)
     studio_audience    bool     If true, applause and cheering sounds are heard
                                 whenever Malcolm makes a joke
     skip_support       bool     If true, the player can skip text and cutscenes
-    helium_mode        bool     If true, people sound like they've inhaled Helium
+    helium_mode        bool     If true, people sound like they've inhaled
+                                Helium
 
 The 7th Guest adds the following non-standard keyword:
 
-    t7g_speed          string   Video playback speed (normal, tweaked, im_an_ios)
+    t7g_speed          string   Video playback speed (normal, tweaked,
+                                im_an_ios)
 
 
 8.2) Custom game options that can be toggled via the GUI

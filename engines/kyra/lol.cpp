@@ -499,6 +499,11 @@ void LoLEngine::initKeymap() {
 #endif
 }
 
+void LoLEngine::pauseEngineIntern(bool pause) {
+	KyraEngine_v1::pauseEngineIntern(pause);
+	pauseDemoPlayer(pause);
+}
+
 Common::Error LoLEngine::go() {
 	int action = -1;
 
@@ -529,7 +534,7 @@ Common::Error LoLEngine::go() {
 	if (_flags.platform == Common::kPlatformPC98)
 		_sound->loadSoundFile("sound.dat");
 
-	_sound->setSoundList(&_soundData[kMusicIngame]);
+	_sound->selectAudioResourceSet(kMusicIngame);
 	if (_flags.platform != Common::kPlatformPC)
 		_sound->loadSoundFile(0);
 
@@ -1436,7 +1441,7 @@ void LoLEngine::increaseExperience(int charNum, int skill, uint32 points) {
 
 	bool loop = true;
 	while (loop) {
-		if (_characters[charNum].experiencePts[skill] <= _expRequirements[_characters[charNum].skillLevels[skill]])
+		if (_characters[charNum].experiencePts[skill] < _expRequirements[_characters[charNum].skillLevels[skill]])
 			break;
 
 		_characters[charNum].skillLevels[skill]++;
@@ -2361,7 +2366,7 @@ int LoLEngine::processMagicIce(int charNum, int spellLevel) {
 
 	playSpellAnimation(0, 0, 0, 2, 0, 0, 0, s.getData(), tpal.getData(), 40, false);
 
-	_screen->fadePaletteStep(s.getData(), tpal.getData(), _system->getMillis(), _tickLength);
+	_screen->timedPaletteFadeStep(s.getData(), tpal.getData(), _system->getMillis(), _tickLength);
 	if (mov->opened()) {
 		int r = true;
 		if (spellLevel > 2) {
@@ -2430,7 +2435,7 @@ int LoLEngine::processMagicIce(int charNum, int spellLevel) {
 
 	playSpellAnimation(0, 0, 0, 2, 0, 0, 0, tpal.getData(), swampCol.getData(), 40, 0);
 
-	_screen->fadePaletteStep(tpal.getData(), swampCol.getData(), _system->getMillis(), _tickLength);
+	_screen->timedPaletteFadeStep(tpal.getData(), swampCol.getData(), _system->getMillis(), _tickLength);
 
 	if (breakWall)
 		breakIceWall(tpal.getData(), swampCol.getData());
@@ -2886,7 +2891,7 @@ int LoLEngine::processMagicVaelansCube() {
 	uint32 endTime = _system->getMillis() + 70 * _tickLength;
 
 	while (_system->getMillis() < endTime) {
-		_screen->fadePaletteStep(tmpPal1, tmpPal2, _system->getMillis() - ctime, 70 * _tickLength);
+		_screen->timedPaletteFadeStep(tmpPal1, tmpPal2, _system->getMillis() - ctime, 70 * _tickLength);
 		updateInput();
 	}
 
@@ -2894,11 +2899,11 @@ int LoLEngine::processMagicVaelansCube() {
 	uint8 s = _levelBlockProperties[bl].walls[_currentDirection ^ 2];
 	uint8 flg = _wllWallFlags[s];
 
-	int v = (s == 47 && (_currentLevel == 17 || _currentLevel == 24)) ? 1 : 0;
-	if ((_wllVmpMap[s] == 1 || _wllVmpMap[s] == 2) && (flg & 1) && (_currentLevel == 22)) {
+	int res = (s == 47 && (_currentLevel == 17 || _currentLevel == 24)) ? 1 : 0;
+	if ((_wllVmpMap[s] == 1 || _wllVmpMap[s] == 2) && (!(flg & 1)) && (_currentLevel != 22)) {
 		memset(_levelBlockProperties[bl].walls, 0, 4);
 		gui_drawScene(0);
-		v = 1;
+		res = 1;
 	}
 
 	uint16 o = _levelBlockProperties[bl].assignedObjects;
@@ -2906,7 +2911,7 @@ int LoLEngine::processMagicVaelansCube() {
 		LoLMonster *m = &_monsters[o & 0x7fff];
 		if (m->properties->flags & 0x1000) {
 			inflictDamage(o, 100, 0xffff, 0, 0x80);
-			v = 1;
+			res = 1;
 		}
 		o = m->nextAssignedObject;
 	}
@@ -2915,14 +2920,14 @@ int LoLEngine::processMagicVaelansCube() {
 	endTime = _system->getMillis() + 70 * _tickLength;
 
 	while (_system->getMillis() < endTime) {
-		_screen->fadePaletteStep(tmpPal2, tmpPal1, _system->getMillis() - ctime, 70 * _tickLength);
+		_screen->timedPaletteFadeStep(tmpPal2, tmpPal1, _system->getMillis() - ctime, 70 * _tickLength);
 		updateInput();
 	}
 
 	delete[] tmpPal1;
 	delete[] tmpPal2;
 
-	return v;
+	return res;
 }
 
 int LoLEngine::processMagicGuardian(int charNum) {
@@ -3244,7 +3249,7 @@ void LoLEngine::playSpellAnimation(WSAMovie_v2 *mov, int firstFrame, int lastFra
 				continue;
 			}
 
-			if (!_screen->fadePaletteStep(pal1, pal2, _system->getMillis() - startTime, _tickLength * fadeDelay) && !mov)
+			if (!_screen->timedPaletteFadeStep(pal1, pal2, _system->getMillis() - startTime, _tickLength * fadeDelay) && !mov)
 				return;
 
 			if (del) {

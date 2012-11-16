@@ -4,6 +4,7 @@ MODULE_OBJS := \
 	archive.o \
 	config-file.o \
 	config-manager.o \
+	coroutines.o \
 	dcl.o \
 	debug.o \
 	error.o \
@@ -15,6 +16,7 @@ MODULE_OBJS := \
 	gui_options.o \
 	hashmap.o \
 	iff_container.o \
+	installshield_cab.o \
 	language.o \
 	localization.o \
 	macresman.o \

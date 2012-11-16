@@ -140,14 +140,6 @@ enum {
 	GI_EOB2 = 6
 };
 
-struct AudioDataStruct {
-	const char *const *fileList;
-	int fileListLen;
-	const void *cdaTracks;
-	int cdaNumTracks;
-	int extraOffset;
-};
-
 // TODO: this is just the start of makeing the debug output of the kyra engine a bit more useable
 // in the future we maybe merge some flags  and/or create new ones
 enum DebugLevels {
@@ -164,7 +156,7 @@ enum DebugLevels {
 	kDebugLevelTimer       = 1 << 10  ///< debug level for "TimerManager" functions
 };
 
-enum MusicDataID {
+enum AudioResourceSet {
 	kMusicIntro = 0,
 	kMusicIngame,
 	kMusicFinale
@@ -188,6 +180,7 @@ friend class GUI;
 friend class GUI_v1;
 friend class GUI_EoB;
 friend class SoundMidiPC;    // For _eventMan
+friend class SeqPlayer_HOF; // For skipFlag()
 friend class TransferPartyWiz; // For save state API
 public:
 	KyraEngine_v1(OSystem *system, const GameFlags &flags);
