@@ -25,8 +25,10 @@
  */
 
 #include "engines/ags/scripting/scripting.h"
+#include "engines/ags/audio.h"
 #include "engines/ags/constants.h"
 #include "engines/ags/drawingsurface.h"
+#include "engines/ags/dynamicsprite.h"
 #include "engines/ags/gamestate.h"
 #include "engines/ags/graphics.h"
 #include "engines/ags/room.h"
@@ -63,7 +65,7 @@ RuntimeValue Script_ViewFrame_set_Graphic(AGSEngine *vm, ViewFrame *self, const 
 	UNUSED(value);
 
 	// FIXME
-	error("ViewFrame::set_Graphic unimplemented");
+	warning("ViewFrame::set_Graphic unimplemented");
 
 	return RuntimeValue();
 }
@@ -86,7 +88,7 @@ RuntimeValue Script_ViewFrame_set_LinkedAudio(AGSEngine *vm, ViewFrame *self, co
 	UNUSED(value);
 
 	// FIXME
-	error("ViewFrame::set_LinkedAudio unimplemented");
+	warning("ViewFrame::set_LinkedAudio unimplemented");
 
 	return RuntimeValue();
 }
@@ -113,10 +115,18 @@ RuntimeValue Script_ViewFrame_get_Sound(AGSEngine *vm, ViewFrame *self, const Co
 // Gets/sets the sound that is played when this frame comes around.
 RuntimeValue Script_ViewFrame_set_Sound(AGSEngine *vm, ViewFrame *self, const Common::Array<RuntimeValue> &params) {
 	int value = params[0]._signedValue;
-	UNUSED(value);
 
-	// FIXME
-	error("ViewFrame::set_Sound unimplemented");
+	if (value < 1) {
+		self->_sound = -1;
+	} else {
+		AudioClip *clip = vm->_audio->getClipByIndex(false, value);
+		if (!clip)
+			error("ViewFrame::set_Sound: no such clip %d", value);
+		self->_sound = clip->_id;
+
+		if (vm->getGameFileVersion() >= kAGSVer321)
+			self->_sound += 0x10000000;
+	}
 
 	return RuntimeValue();
 }
@@ -124,10 +134,7 @@ RuntimeValue Script_ViewFrame_set_Sound(AGSEngine *vm, ViewFrame *self, const Co
 // ViewFrame: readonly import attribute int Speed
 // Gets the delay of this frame.
 RuntimeValue Script_ViewFrame_get_Speed(AGSEngine *vm, ViewFrame *self, const Common::Array<RuntimeValue> &params) {
-	// FIXME
-	error("ViewFrame::get_Speed unimplemented");
-
-	return RuntimeValue();
+	return self->_speed;
 }
 
 // ViewFrame: readonly import attribute int View
@@ -243,7 +250,7 @@ RuntimeValue Script_DrawingSurface_DrawLine(AGSEngine *vm, DrawingSurface *self,
 	UNUSED(thickness);
 
 	// FIXME
-	error("DrawingSurface::DrawLine unimplemented");
+	warning("DrawingSurface::DrawLine unimplemented");
 
 	return RuntimeValue();
 }
@@ -263,7 +270,7 @@ RuntimeValue Script_DrawingSurface_DrawMessageWrapped(AGSEngine *vm, DrawingSurf
 	UNUSED(messageNumber);
 
 	// FIXME
-	error("DrawingSurface::DrawMessageWrapped unimplemented");
+	warning("DrawingSurface::DrawMessageWrapped unimplemented");
 
 	return RuntimeValue();
 }
@@ -277,7 +284,7 @@ RuntimeValue Script_DrawingSurface_DrawPixel(AGSEngine *vm, DrawingSurface *self
 	UNUSED(y);
 
 	// FIXME
-	error("DrawingSurface::DrawPixel unimplemented");
+	//warning("DrawingSurface::DrawPixel unimplemented");
 
 	return RuntimeValue();
 }
@@ -295,7 +302,7 @@ RuntimeValue Script_DrawingSurface_DrawRectangle(AGSEngine *vm, DrawingSurface *
 	UNUSED(y2);
 
 	// FIXME
-	error("DrawingSurface::DrawRectangle unimplemented");
+	warning("DrawingSurface::DrawRectangle unimplemented");
 
 	return RuntimeValue();
 }
@@ -313,7 +320,7 @@ RuntimeValue Script_DrawingSurface_DrawString(AGSEngine *vm, DrawingSurface *sel
 	UNUSED(text);
 
 	// FIXME
-	error("DrawingSurface::DrawString unimplemented");
+	warning("DrawingSurface::DrawString unimplemented");
 
 	return RuntimeValue();
 }
@@ -335,7 +342,7 @@ RuntimeValue Script_DrawingSurface_DrawStringWrapped(AGSEngine *vm, DrawingSurfa
 	UNUSED(text);
 
 	// FIXME
-	error("DrawingSurface::DrawStringWrapped unimplemented");
+	warning("DrawingSurface::DrawStringWrapped unimplemented");
 
 	return RuntimeValue();
 }
@@ -393,7 +400,7 @@ RuntimeValue Script_DrawingSurface_DrawTriangle(AGSEngine *vm, DrawingSurface *s
 	UNUSED(y3);
 
 	// FIXME
-	error("DrawingSurface::DrawTriangle unimplemented");
+	warning("DrawingSurface::DrawTriangle unimplemented");
 
 	return RuntimeValue();
 }
@@ -436,7 +443,7 @@ RuntimeValue Script_DrawingSurface_set_DrawingColor(AGSEngine *vm, DrawingSurfac
 	UNUSED(value);
 
 	// FIXME
-	error("DrawingSurface::set_DrawingColor unimplemented");
+	//warning("DrawingSurface::set_DrawingColor unimplemented");
 
 	return RuntimeValue();
 }
@@ -532,7 +539,7 @@ RuntimeValue Script_DisplayMessage(AGSEngine *vm, ScriptObject *, const Common::
 	UNUSED(messageNumber);
 
 	// FIXME
-	error("DisplayMessage unimplemented");
+	warning("DisplayMessage unimplemented");
 
 	return RuntimeValue();
 }
@@ -786,7 +793,7 @@ RuntimeValue Script_RawClearScreen(AGSEngine *vm, ScriptObject *, const Common::
 	UNUSED(colour);
 
 	// FIXME
-	error("RawClearScreen unimplemented");
+	warning("RawClearScreen unimplemented");
 
 	return RuntimeValue();
 }
@@ -802,7 +809,7 @@ RuntimeValue Script_RawDrawCircle(AGSEngine *vm, ScriptObject *, const Common::A
 	UNUSED(radius);
 
 	// FIXME
-	error("RawDrawCircle unimplemented");
+	warning("RawDrawCircle unimplemented");
 
 	return RuntimeValue();
 }
@@ -811,14 +818,19 @@ RuntimeValue Script_RawDrawCircle(AGSEngine *vm, ScriptObject *, const Common::A
 // Obsolete raw draw stuff.
 RuntimeValue Script_RawDrawImage(AGSEngine *vm, ScriptObject *, const Common::Array<RuntimeValue> &params) {
 	int x = params[0]._signedValue;
-	UNUSED(x);
 	int y = params[1]._signedValue;
-	UNUSED(y);
-	int spriteSlot = params[2]._signedValue;
-	UNUSED(spriteSlot);
+	uint spriteSlot = params[2]._value;
+
+	x = vm->multiplyUpCoordinate(x);
+	y = vm->multiplyUpCoordinate(y);
+
+	Sprite *sprite = vm->getSprites()->getSprite(spriteSlot);
+	Graphics::Surface *surface = &vm->getCurrentRoom()->_backgroundScenes[vm->_state->_bgFrame]._scene;
 
 	// FIXME
-	error("RawDrawImage unimplemented");
+	warning("RawDrawImage unimplemented");
+	vm->_graphics->blit(sprite->_surface, surface, Common::Point(x, y), 0);
+	vm->invalidateBackground();
 
 	return RuntimeValue();
 }
@@ -834,7 +846,7 @@ RuntimeValue Script_RawDrawImageOffset(AGSEngine *vm, ScriptObject *, const Comm
 	UNUSED(spriteSlot);
 
 	// FIXME
-	error("RawDrawImageOffset unimplemented");
+	warning("RawDrawImageOffset unimplemented");
 
 	return RuntimeValue();
 }
@@ -854,7 +866,7 @@ RuntimeValue Script_RawDrawImageResized(AGSEngine *vm, ScriptObject *, const Com
 	UNUSED(height);
 
 	// FIXME
-	error("RawDrawImageResized unimplemented");
+	warning("RawDrawImageResized unimplemented");
 
 	return RuntimeValue();
 }
@@ -872,7 +884,7 @@ RuntimeValue Script_RawDrawImageTransparent(AGSEngine *vm, ScriptObject *, const
 	UNUSED(transparency);
 
 	// FIXME
-	error("RawDrawImageTransparent unimplemented");
+	warning("RawDrawImageTransparent unimplemented");
 
 	return RuntimeValue();
 }
@@ -890,7 +902,7 @@ RuntimeValue Script_RawDrawLine(AGSEngine *vm, ScriptObject *, const Common::Arr
 	UNUSED(y2);
 
 	// FIXME
-	error("RawDrawLine unimplemented");
+	warning("RawDrawLine unimplemented");
 
 	return RuntimeValue();
 }
@@ -908,7 +920,7 @@ RuntimeValue Script_RawDrawRectangle(AGSEngine *vm, ScriptObject *, const Common
 	UNUSED(y2);
 
 	// FIXME
-	error("RawDrawRectangle unimplemented");
+	warning("RawDrawRectangle unimplemented");
 
 	return RuntimeValue();
 }
@@ -930,7 +942,7 @@ RuntimeValue Script_RawDrawTriangle(AGSEngine *vm, ScriptObject *, const Common:
 	UNUSED(y3);
 
 	// FIXME
-	error("RawDrawTriangle unimplemented");
+	warning("RawDrawTriangle unimplemented");
 
 	return RuntimeValue();
 }
@@ -946,7 +958,7 @@ RuntimeValue Script_RawPrint(AGSEngine *vm, ScriptObject *, const Common::Array<
 	UNUSED(message);
 
 	// FIXME
-	error("RawPrint unimplemented");
+	warning("RawPrint unimplemented");
 
 	return RuntimeValue();
 }
@@ -966,7 +978,7 @@ RuntimeValue Script_RawPrintMessageWrapped(AGSEngine *vm, ScriptObject *, const 
 	UNUSED(messageNumber);
 
 	// FIXME
-	error("RawPrintMessageWrapped unimplemented");
+	warning("RawPrintMessageWrapped unimplemented");
 
 	return RuntimeValue();
 }
@@ -978,7 +990,7 @@ RuntimeValue Script_RawSetColor(AGSEngine *vm, ScriptObject *, const Common::Arr
 	UNUSED(colour);
 
 	// FIXME
-	error("RawSetColor unimplemented");
+	warning("RawSetColor unimplemented");
 
 	return RuntimeValue();
 }
@@ -994,7 +1006,7 @@ RuntimeValue Script_RawSetColorRGB(AGSEngine *vm, ScriptObject *, const Common::
 	UNUSED(blue);
 
 	// FIXME
-	error("RawSetColorRGB unimplemented");
+	warning("RawSetColorRGB unimplemented");
 
 	return RuntimeValue();
 }
@@ -1008,7 +1020,7 @@ RuntimeValue Script_RawDrawFrameTransparent(AGSEngine *vm, ScriptObject *, const
 	UNUSED(transparency);
 
 	// FIXME
-	error("RawDrawFrameTransparent unimplemented");
+	warning("RawDrawFrameTransparent unimplemented");
 
 	return RuntimeValue();
 }
@@ -1017,7 +1029,7 @@ RuntimeValue Script_RawDrawFrameTransparent(AGSEngine *vm, ScriptObject *, const
 // Obsolete raw draw stuff.
 RuntimeValue Script_RawSaveScreen(AGSEngine *vm, ScriptObject *, const Common::Array<RuntimeValue> &params) {
 	// FIXME
-	error("RawSaveScreen unimplemented");
+	warning("RawSaveScreen unimplemented");
 
 	return RuntimeValue();
 }
@@ -1026,7 +1038,7 @@ RuntimeValue Script_RawSaveScreen(AGSEngine *vm, ScriptObject *, const Common::A
 // Obsolete raw draw stuff.
 RuntimeValue Script_RawRestoreScreen(AGSEngine *vm, ScriptObject *, const Common::Array<RuntimeValue> &params) {
 	// FIXME
-	error("RawRestoreScreen unimplemented");
+	warning("RawRestoreScreen unimplemented");
 
 	return RuntimeValue();
 }
@@ -1044,7 +1056,7 @@ RuntimeValue Script_RawRestoreScreenTinted(AGSEngine *vm, ScriptObject *, const 
 	UNUSED(opacity);
 
 	// FIXME
-	error("RawRestoreScreenTinted unimplemented");
+	warning("RawRestoreScreenTinted unimplemented");
 
 	return RuntimeValue();
 }
@@ -1208,9 +1220,8 @@ RuntimeValue Script_DynamicSprite_Create(AGSEngine *vm, ScriptObject *, const Co
 	UNUSED(hasAlphaChannel);
 
 	// FIXME
-	error("DynamicSprite::Create unimplemented");
-
-	return RuntimeValue();
+	warning("DynamicSprite::Create unimplemented");
+	return new DynamicSprite(vm);
 }
 
 // DynamicSprite: import static DynamicSprite* CreateFromBackground(int frame=SCR_NO_VALUE, int x=SCR_NO_VALUE, int y=SCR_NO_VALUE, int width=SCR_NO_VALUE, int height=SCR_NO_VALUE)
@@ -1228,9 +1239,8 @@ RuntimeValue Script_DynamicSprite_CreateFromBackground(AGSEngine *vm, ScriptObje
 	UNUSED(height);
 
 	// FIXME
-	error("DynamicSprite::CreateFromBackground unimplemented");
-
-	return RuntimeValue();
+	warning("DynamicSprite::CreateFromBackground unimplemented");
+	return new DynamicSprite(vm);
 }
 
 // DynamicSprite: import static DynamicSprite* CreateFromDrawingSurface(DrawingSurface* surface, int x, int y, int width, int height)
@@ -1250,9 +1260,8 @@ RuntimeValue Script_DynamicSprite_CreateFromDrawingSurface(AGSEngine *vm, Script
 	UNUSED(height);
 
 	// FIXME
-	error("DynamicSprite::CreateFromDrawingSurface unimplemented");
-
-	return RuntimeValue();
+	warning("DynamicSprite::CreateFromDrawingSurface unimplemented");
+	return new DynamicSprite(vm);
 }
 
 // DynamicSprite: import static DynamicSprite* CreateFromExistingSprite(int slot)
@@ -1276,9 +1285,8 @@ RuntimeValue Script_DynamicSprite_CreateFromExistingSprite(AGSEngine *vm, Script
 	UNUSED(preserveAlphaChannel);
 
 	// FIXME
-	error("DynamicSprite::CreateFromExistingSprite unimplemented");
-
-	return RuntimeValue();
+	warning("DynamicSprite::CreateFromExistingSprite unimplemented");
+	return new DynamicSprite(vm);
 }
 
 // DynamicSprite: import static DynamicSprite* CreateFromFile(const string filename)
@@ -1375,7 +1383,7 @@ RuntimeValue Script_DynamicSprite_Crop(AGSEngine *vm, DynamicSprite *self, const
 // Deletes the dynamic sprite from memory when you no longer need it.
 RuntimeValue Script_DynamicSprite_Delete(AGSEngine *vm, DynamicSprite *self, const Common::Array<RuntimeValue> &params) {
 	// FIXME
-	error("DynamicSprite::Delete unimplemented");
+	warning("DynamicSprite::Delete unimplemented");
 
 	return RuntimeValue();
 }
@@ -1396,9 +1404,9 @@ RuntimeValue Script_DynamicSprite_Flip(AGSEngine *vm, DynamicSprite *self, const
 // Gets a drawing surface that can be used to manually draw onto the sprite.
 RuntimeValue Script_DynamicSprite_GetDrawingSurface(AGSEngine *vm, DynamicSprite *self, const Common::Array<RuntimeValue> &params) {
 	// FIXME
-	error("DynamicSprite::GetDrawingSurface unimplemented");
+	warning("DynamicSprite::GetDrawingSurface unimplemented");
 
-	return RuntimeValue();
+	return new DrawingSurface(vm);
 }
 
 // DynamicSprite: import void Resize(int width, int height)
@@ -1476,7 +1484,7 @@ RuntimeValue Script_DynamicSprite_get_ColorDepth(AGSEngine *vm, DynamicSprite *s
 // Gets the sprite number of this dynamic sprite, which you can use to display it in the game.
 RuntimeValue Script_DynamicSprite_get_Graphic(AGSEngine *vm, DynamicSprite *self, const Common::Array<RuntimeValue> &params) {
 	// FIXME
-	error("DynamicSprite::get_Graphic unimplemented");
+	warning("DynamicSprite::get_Graphic unimplemented");
 
 	return RuntimeValue();
 }
@@ -1506,7 +1514,7 @@ RuntimeValue Script_FadeIn(AGSEngine *vm, ScriptObject *, const Common::Array<Ru
 	UNUSED(speed);
 
 	// FIXME
-	error("FadeIn unimplemented");
+	warning("FadeIn unimplemented");
 
 	return RuntimeValue();
 }
@@ -1518,7 +1526,7 @@ RuntimeValue Script_FadeOut(AGSEngine *vm, ScriptObject *, const Common::Array<R
 	UNUSED(speed);
 
 	// FIXME
-	error("FadeOut unimplemented");
+	warning("FadeOut unimplemented");
 
 	return RuntimeValue();
 }
@@ -1595,7 +1603,7 @@ RuntimeValue Script_SetAmbientTint(AGSEngine *vm, ScriptObject *, const Common::
 	UNUSED(luminance);
 
 	// FIXME
-	error("SetAmbientTint unimplemented");
+	warning("SetAmbientTint unimplemented");
 
 	return RuntimeValue();
 }
@@ -1699,7 +1707,7 @@ RuntimeValue Script_SetFadeColor(AGSEngine *vm, ScriptObject *, const Common::Ar
 	UNUSED(blue);
 
 	// FIXME
-	error("SetFadeColor unimplemented");
+	warning("SetFadeColor unimplemented");
 
 	return RuntimeValue();
 }
@@ -1741,7 +1749,7 @@ RuntimeValue Script_SetFrameSound(AGSEngine *vm, ScriptObject *, const Common::A
 	UNUSED(sound);
 
 	// FIXME
-	error("SetFrameSound unimplemented");
+	warning("SetFrameSound unimplemented");
 
 	return RuntimeValue();
 }

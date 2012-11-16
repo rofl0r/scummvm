@@ -123,7 +123,7 @@ RuntimeValue Script_Mouse_ChangeModeHotspot(AGSEngine *vm, ScriptObject *, const
 	UNUSED(y);
 
 	// FIXME
-	error("Mouse::ChangeModeHotspot unimplemented");
+	warning("Mouse::ChangeModeHotspot unimplemented");
 
 	return RuntimeValue();
 }
@@ -137,7 +137,7 @@ RuntimeValue Script_Mouse_ChangeModeView(AGSEngine *vm, ScriptObject *, const Co
 	UNUSED(view);
 
 	// FIXME
-	error("Mouse::ChangeModeView unimplemented");
+	warning("Mouse::ChangeModeView unimplemented");
 
 	return RuntimeValue();
 }
@@ -224,7 +224,7 @@ RuntimeValue Script_Mouse_SetBounds(AGSEngine *vm, ScriptObject *, const Common:
 	UNUSED(bottom);
 
 	// FIXME
-	error("Mouse::SetBounds unimplemented");
+	warning("Mouse::SetBounds unimplemented");
 
 	return RuntimeValue();
 }
@@ -238,7 +238,7 @@ RuntimeValue Script_Mouse_SetPosition(AGSEngine *vm, ScriptObject *, const Commo
 	UNUSED(y);
 
 	// FIXME
-	error("Mouse::SetPosition unimplemented");
+	warning("Mouse::SetPosition unimplemented");
 
 	return RuntimeValue();
 }
@@ -246,8 +246,7 @@ RuntimeValue Script_Mouse_SetPosition(AGSEngine *vm, ScriptObject *, const Commo
 // Mouse: import static void Update()
 // Updates the X and Y co-ordinates to match the current mouse position.
 RuntimeValue Script_Mouse_Update(AGSEngine *vm, ScriptObject *, const Common::Array<RuntimeValue> &params) {
-	// FIXME
-	error("Mouse::Update unimplemented");
+	// Do nothing.
 
 	return RuntimeValue();
 }
@@ -267,7 +266,7 @@ RuntimeValue Script_Mouse_UseModeGraphic(AGSEngine *vm, ScriptObject *, const Co
 	UNUSED(cursormode);
 
 	// FIXME
-	error("Mouse::UseModeGraphic unimplemented");
+	warning("Mouse::UseModeGraphic unimplemented");
 
 	return RuntimeValue();
 }
@@ -276,8 +275,6 @@ RuntimeValue Script_Mouse_UseModeGraphic(AGSEngine *vm, ScriptObject *, const Co
 // Gets/sets the current mouse cursor mode.
 RuntimeValue Script_Mouse_get_Mode(AGSEngine *vm, ScriptObject *, const Common::Array<RuntimeValue> &params) {
 	return vm->getCursorMode();
-
-	return RuntimeValue();
 }
 
 // Mouse: import static attribute CursorMode Mode
@@ -315,7 +312,7 @@ RuntimeValue Script_ChangeCursorGraphic(AGSEngine *vm, ScriptObject *, const Com
 	UNUSED(slot);
 
 	// FIXME
-	error("ChangeCursorGraphic unimplemented");
+	warning("ChangeCursorGraphic unimplemented");
 
 	return RuntimeValue();
 }
@@ -405,7 +402,7 @@ RuntimeValue Script_SetMousePosition(AGSEngine *vm, ScriptObject *, const Common
 	UNUSED(y);
 
 	// FIXME
-	error("SetMousePosition unimplemented");
+	warning("SetMousePosition unimplemented");
 
 	return RuntimeValue();
 }
@@ -413,8 +410,7 @@ RuntimeValue Script_SetMousePosition(AGSEngine *vm, ScriptObject *, const Common
 // import void ShowMouseCursor()
 // Mouse function.
 RuntimeValue Script_ShowMouseCursor(AGSEngine *vm, ScriptObject *, const Common::Array<RuntimeValue> &params) {
-	// FIXME
-	error("ShowMouseCursor unimplemented");
+	vm->_state->_mouseCursorHidden = 0;
 
 	return RuntimeValue();
 }
@@ -422,8 +418,7 @@ RuntimeValue Script_ShowMouseCursor(AGSEngine *vm, ScriptObject *, const Common:
 // import void HideMouseCursor()
 // Mouse function.
 RuntimeValue Script_HideMouseCursor(AGSEngine *vm, ScriptObject *, const Common::Array<RuntimeValue> &params) {
-	// FIXME
-	error("HideMouseCursor unimplemented");
+	vm->_state->_mouseCursorHidden = 1;
 
 	return RuntimeValue();
 }
@@ -506,7 +501,7 @@ RuntimeValue Script_WaitMouseKey(AGSEngine *vm, ScriptObject *, const Common::Ar
 	UNUSED(waitLoops);
 
 	// FIXME
-	error("WaitMouseKey unimplemented");
+	warning("WaitMouseKey unimplemented");
 
 	return RuntimeValue();
 }
@@ -514,13 +509,12 @@ RuntimeValue Script_WaitMouseKey(AGSEngine *vm, ScriptObject *, const Common::Ar
 // import bool IsKeyPressed(eKeyCode)
 // Checks whether the specified key is currently held down.
 RuntimeValue Script_IsKeyPressed(AGSEngine *vm, ScriptObject *, const Common::Array<RuntimeValue> &params) {
-	uint32 ekeycode = params[0]._value;
-	UNUSED(ekeycode);
+	uint32 keycode = params[0]._value;
 
-	// FIXME
-	error("IsKeyPressed unimplemented");
+	if (keycode >= MAX_AGS_KEYCODE)
+		return 0;
 
-	return RuntimeValue();
+	return vm->_keysPressed[keycode] ? 1 : 0;
 }
 
 static const ScriptSystemFunctionInfo ourFunctionList[] = {

@@ -187,6 +187,8 @@ struct GameEvent {
 #define LOCTYPE_CHAR 2
 #define LOCTYPE_OBJ  3
 
+#define MAX_AGS_KEYCODE 435
+
 class AGSEngine : public Engine {
 public:
 	AGSEngine(OSystem *syst, const AGSGameDescription *gameDesc);
@@ -323,8 +325,6 @@ public:
 	Character *getPlayerChar() { return _playerChar; }
 	Common::Array<Character *> _characters;
 
-	/** Prepend 'TARGET-' to the given filename. */
-	Common::String wrapFilename(const Common::String &name) const { return _targetName + "-" + name; };
 	Graphics::Surface *getWalkableMaskFor(uint charId);
 
 	void addInventory(uint itemId);
@@ -332,6 +332,9 @@ public:
 	void setActiveInventory(uint itemId);
 
 	Common::String formatString(const Common::String &string, const Common::Array<RuntimeValue> &values);
+
+	/** Prepend 'TARGET-' to the given filename, and expand any variables. */
+	Common::String wrapFilename(const Common::String &name) const;
 
 	int32 _newRoomPos;
 	int32 _newRoomX;
@@ -355,6 +358,8 @@ public:
 	bool runHotspotInteraction(uint hotspotId, uint mode, bool checkOnly = false);
 	bool runObjectInteraction(uint objectId, uint mode, bool checkOnly = false);
 	void runRegionInteraction(uint regionId, uint mode);
+
+	bool _keysPressed[MAX_AGS_KEYCODE];
 
 private:
 	const AGSGameDescription *_gameDescription;

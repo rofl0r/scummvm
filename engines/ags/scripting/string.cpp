@@ -269,7 +269,8 @@ RuntimeValue Script_String_geti_Chars(AGSEngine *vm, ScriptString *self, const C
 
 	Common::String string = self->getString();
 	if (index >= string.size())
-		error("String::geti_Chars: char %d is too high (only have %d chars)", index, string.size());
+		// error("String::geti_Chars: char %d is too high (only have %d chars)", index, string.size());
+		return 0;
 
 	return (uint)(byte)string[index];
 }

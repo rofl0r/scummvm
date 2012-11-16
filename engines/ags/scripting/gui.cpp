@@ -522,7 +522,7 @@ RuntimeValue Script_AnimateButton(AGSEngine *vm, ScriptObject *, const Common::A
 
 	// FIXME
 	UNUSED(button);
-	error("AnimateButton unimplemented");
+	warning("AnimateButton unimplemented");
 
 	return RuntimeValue();
 }
@@ -538,7 +538,7 @@ RuntimeValue Script_SetSliderValue(AGSEngine *vm, ScriptObject *, const Common::
 	UNUSED(value);
 
 	// FIXME
-	error("SetSliderValue unimplemented");
+	warning("SetSliderValue unimplemented");
 
 	return RuntimeValue();
 }
@@ -552,7 +552,7 @@ RuntimeValue Script_GetSliderValue(AGSEngine *vm, ScriptObject *, const Common::
 	UNUSED(object);
 
 	// FIXME
-	error("GetSliderValue unimplemented");
+	warning("GetSliderValue unimplemented");
 
 	return RuntimeValue();
 }
@@ -615,13 +615,15 @@ RuntimeValue Script_SetTextBoxText(AGSEngine *vm, ScriptObject *, const Common::
 // import void ListBoxClear(int gui, int object)
 // Undocumented.
 RuntimeValue Script_ListBoxClear(AGSEngine *vm, ScriptObject *, const Common::Array<RuntimeValue> &params) {
-	int gui = params[0]._signedValue;
-	UNUSED(gui);
-	int object = params[1]._signedValue;
-	UNUSED(object);
+	uint gui = params[0]._value;
+	uint object = params[1]._value;
 
-	// FIXME
-	error("ListBoxClear unimplemented");
+	GUIControl *control = getGUIControl("ListBoxClear", vm, gui, object);
+	if (!control->isOfType(sotGUIListBox))
+		error("ListBoxClear: Control %d isn't a listbox.", object);
+	GUIListBox *textbox = (GUIListBox *)control;
+
+	textbox->clear();
 
 	return RuntimeValue();
 }
@@ -629,15 +631,16 @@ RuntimeValue Script_ListBoxClear(AGSEngine *vm, ScriptObject *, const Common::Ar
 // import void ListBoxAdd(int gui, int object, const string text)
 // Undocumented.
 RuntimeValue Script_ListBoxAdd(AGSEngine *vm, ScriptObject *, const Common::Array<RuntimeValue> &params) {
-	int gui = params[0]._signedValue;
-	UNUSED(gui);
-	int object = params[1]._signedValue;
-	UNUSED(object);
+	uint gui = params[0]._value;
+	uint object = params[1]._value;
 	ScriptString *text = (ScriptString *)params[2]._object;
-	UNUSED(text);
 
-	// FIXME
-	error("ListBoxAdd unimplemented");
+	GUIControl *control = getGUIControl("ListBoxAdd", vm, gui, object);
+	if (!control->isOfType(sotGUIListBox))
+		error("ListBoxAdd: Control %d isn't a listbox.", object);
+	GUIListBox *textbox = (GUIListBox *)control;
+
+	textbox->addItem(text->getString());
 
 	return RuntimeValue();
 }

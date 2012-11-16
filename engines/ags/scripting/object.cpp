@@ -567,7 +567,7 @@ RuntimeValue Script_Object_IsCollidingWithObject(AGSEngine *vm, RoomObject *self
 // Merges the object's image into the room background, and disables the object.
 RuntimeValue Script_Object_MergeIntoBackground(AGSEngine *vm, RoomObject *self, const Common::Array<RuntimeValue> &params) {
 	// FIXME
-	error("Object::MergeIntoBackground unimplemented");
+	warning("Object::MergeIntoBackground unimplemented");
 
 	return RuntimeValue();
 }
@@ -684,7 +684,7 @@ RuntimeValue Script_Object_Tint(AGSEngine *vm, RoomObject *self, const Common::A
 	UNUSED(luminance);
 
 	// FIXME
-	error("Object::Tint unimplemented");
+	warning("Object::Tint unimplemented");
 
 	return RuntimeValue();
 }
@@ -827,7 +827,7 @@ RuntimeValue Script_Object_set_IgnoreScaling(AGSEngine *vm, RoomObject *self, co
 	UNUSED(value);
 
 	// FIXME
-	error("Object::set_IgnoreScaling unimplemented");
+	warning("Object::set_IgnoreScaling unimplemented");
 
 	return RuntimeValue();
 }

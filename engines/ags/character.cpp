@@ -677,10 +677,14 @@ bool Character::update() {
 			// an always-on-top follow
 
 			isSheep = true;
+
+			// FIXME
+			error("following unimplemented");
 		} else if (doingNothing) {
 			// not moving, but should be following another character
 
 			// FIXME
+			error("following unimplemented");
 		}
 	}
 

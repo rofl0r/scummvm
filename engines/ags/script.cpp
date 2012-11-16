@@ -605,7 +605,6 @@ void ccInstance::runCodeFrom(uint32 start) {
 		ScriptString *tempStr1, *tempStr2;
 		uint32 *fixup;
 		ccScript *instScript;
-		Common::Array<RuntimeValue> params;
 
 		switch (instruction) {
 		case SCMD_LINENUM:
@@ -767,13 +766,16 @@ void ccInstance::runCodeFrom(uint32 start) {
 			break;
 		case SCMD_MULREG:
 			// reg1 *= reg2
+			assert(_registers[int1]._type == rvtInteger && _registers[int2]._type == rvtInteger);
 			_registers[int1]._signedValue *= _registers[int2]._signedValue;
+			_registers[int1]._type = rvtInteger;
 			break;
 		case SCMD_DIVREG:
 			// reg1 /= reg2
 			if (_registers[int2]._signedValue == 0)
 				error("script tried to divide by zero on line %d", _lineNumber);
 			_registers[int1]._signedValue /= _registers[int2]._signedValue;
+			_registers[int1]._type = rvtInteger;
 			break;
 		case SCMD_ADDREG:
 			// reg1 += reg2
@@ -785,11 +787,15 @@ void ccInstance::runCodeFrom(uint32 start) {
 			break;
 		case SCMD_BITAND:
 			// reg1 &= reg2
-			_registers[int1]._value &= _registers[int2]._value;
+			assert(_registers[int1]._type == rvtInteger && _registers[int2]._type == rvtInteger);
+			_registers[int1]._signedValue &= _registers[int2]._signedValue;
+			_registers[int1]._type = rvtInteger;
 			break;
 		case SCMD_BITOR:
 			// reg1 |= reg2
-			_registers[int1]._value |= _registers[int2]._value;
+			assert(_registers[int1]._type == rvtInteger && _registers[int2]._type == rvtInteger);
+			_registers[int1]._signedValue |= _registers[int2]._signedValue;
+			_registers[int1]._type = rvtInteger;
 			break;
 		case SCMD_ISEQUAL:
 			// reg1 == reg2   reg1=1 if true, =0 if not
@@ -801,41 +807,51 @@ void ccInstance::runCodeFrom(uint32 start) {
 			break;
 		case SCMD_GREATER:
 			// reg1 > reg2
+			assert(_registers[int1]._type == rvtInteger && _registers[int2]._type == rvtInteger);
 			_registers[int1] = (_registers[int1]._signedValue > _registers[int2]._signedValue) ? 1 : 0;
 			break;
 		case SCMD_LESSTHAN:
 			// reg1 < reg2
+			assert(_registers[int1]._type == rvtInteger && _registers[int2]._type == rvtInteger);
 			_registers[int1] = (_registers[int1]._signedValue < _registers[int2]._signedValue) ? 1 : 0;
 			break;
 		case SCMD_GTE:
 			// reg1 >= reg2
+			assert(_registers[int1]._type == rvtInteger && _registers[int2]._type == rvtInteger);
 			_registers[int1] = (_registers[int1]._signedValue >= _registers[int2]._signedValue) ? 1 : 0;
 			break;
 		case SCMD_LTE:
 			// reg1 <= reg2
+			assert(_registers[int1]._type == rvtInteger && _registers[int2]._type == rvtInteger);
 			_registers[int1] = (_registers[int1]._signedValue <= _registers[int2]._signedValue) ? 1 : 0;
 			break;
 		case SCMD_AND:
 			// (reg1!=0) && (reg2!=0) -> reg1
-			_registers[int1] = (_registers[int1]._value && _registers[int2]._value) ? 1 : 0;
+			_registers[int1] = (_registers[int1]._signedValue && _registers[int2]._signedValue) ? 1 : 0;
 			break;
 		case SCMD_OR:
 			// (reg1!=0) || (reg2!=0) -> reg1
-			_registers[int1] = (_registers[int1]._value || _registers[int2]._value) ? 1 : 0;
+			_registers[int1] = (_registers[int1]._signedValue || _registers[int2]._signedValue) ? 1 : 0;
 			break;
 		case SCMD_XORREG:
 			// reg1 ^= reg2
-			_registers[int1]._value ^= _registers[int2]._value;
+			assert(_registers[int1]._type == rvtInteger && _registers[int2]._type == rvtInteger);
+			_registers[int1]._signedValue ^= _registers[int2]._signedValue;
+			_registers[int1]._type = rvtInteger;
 			break;
 		case SCMD_MODREG:
 			// reg1 %= reg2
 			if (_registers[int2]._value == 0)
 				error("script tried to divide (modulo) by zero on line %d", _lineNumber);
-			_registers[int1]._value %= _registers[int2]._value;
+			assert(_registers[int1]._type == rvtInteger && _registers[int2]._type == rvtInteger);
+			_registers[int1]._signedValue %= _registers[int2]._signedValue;
+			_registers[int1]._type = rvtInteger;
 			break;
 		case SCMD_NOTREG:
 			// reg1 = !reg1
-			_registers[int1]._value = !_registers[int1]._value;
+			assert(_registers[int1]._type == rvtInteger && _registers[int2]._type == rvtInteger);
+			_registers[int1]._signedValue = !_registers[int1]._signedValue;
+			_registers[int1]._type = rvtInteger;
 			break;
 		case SCMD_CALL:
 			// jump to subroutine at reg1
@@ -924,7 +940,7 @@ void ccInstance::runCodeFrom(uint32 start) {
 				if (_stack[tempVal._value]._type != rvtInteger)
 					error("script tried to MEMREADW from invalid stack@%d on line %d",
 						tempVal._value, _lineNumber);
-				_registers[int1] = (int16)_stack[tempVal._value]._value;
+				_registers[int1] = (int16)_stack[tempVal._value]._signedValue;
 				break;
 			default:
 				error("script tried to MEMREADW from runtime value of type %d (value %d) on line %d",
@@ -981,10 +997,10 @@ void ccInstance::runCodeFrom(uint32 start) {
 					error("script tried MEMWRITEW on fixup on %d", _lineNumber);
 				if (tempVal._instance->_globalObjects->contains(tempVal._value))
 					tempVal._instance->_globalObjects->erase(tempVal._value);
-				WRITE_LE_UINT16(&(*tempVal._instance->_globalData)[tempVal._value], (int16)_registers[int1]._value);
+				WRITE_LE_UINT16(&(*tempVal._instance->_globalData)[tempVal._value], (int16)_registers[int1]._signedValue);
 				break;
 			case rvtSystemObject:
-				if (!tempVal._object->writeUint16(tempVal._value, (int16)_registers[int1]._value))
+				if (!tempVal._object->writeUint16(tempVal._value, (int16)_registers[int1]._signedValue))
 					error("script failed to write uint16 to offset %d of a %s on line %d",
 						tempVal._value, tempVal._object->getObjectTypeName(), _lineNumber);
 				break;
@@ -992,7 +1008,7 @@ void ccInstance::runCodeFrom(uint32 start) {
 				if (tempVal._value + 2 >= _stack.size())
 					error("script tried to MEMWRITEW to out-of-bounds stack@%d on line %d",
 						tempVal._value, _lineNumber);
-				_stack[tempVal._value] = (int16)_registers[int1]._value;
+				_stack[tempVal._value] = (int16)_registers[int1]._signedValue;
 				_stack[tempVal._value + 1].invalidate();
 				break;
 			default:
@@ -1037,7 +1053,9 @@ void ccInstance::runCodeFrom(uint32 start) {
 			break;
 		case SCMD_MUL:
 			// reg1 *= arg2
+			assert(_registers[int1]._type == rvtInteger);
 			_registers[int1]._signedValue *= int2;
+			_registers[int1]._type = rvtInteger;
 			break;
 		case SCMD_CHECKBOUNDS:
 			// check reg1 is between 0 and arg2
@@ -1149,6 +1167,7 @@ void ccInstance::runCodeFrom(uint32 start) {
 			}
 			break;
 		case SCMD_CALLEXT:
+			{
 			// farcall: call external (imported) function reg1
 			if (_registers[int1]._type != rvtSystemFunction)
 				error("script tried to CALLEXT non-system-function runtime value of type %d (value %d) on line %d",
@@ -1159,6 +1178,7 @@ void ccInstance::runCodeFrom(uint32 start) {
 			if (funcArgumentCount == (uint)-1)
 				funcArgumentCount = externalStack.size();
 
+			Common::Array<RuntimeValue> params;
 			// construct the parameter list (in reverse order)
 			params.resize(funcArgumentCount);
 			for (uint i = 0; i < funcArgumentCount; ++i)
@@ -1182,6 +1202,7 @@ void ccInstance::runCodeFrom(uint32 start) {
 			// TODO: unfinished
 			funcArgumentCount = (uint)-1;
 			nextCallNeedsObject = false;
+			}
 			break;
 		case SCMD_PUSHREAL:
 			// farpush: push reg1 onto real stack
@@ -1210,11 +1231,15 @@ void ccInstance::runCodeFrom(uint32 start) {
 			break;
 		case SCMD_SHIFTLEFT:
 			// reg1 = reg1 << reg2
+			assert(_registers[int1]._type == rvtInteger && _registers[int2]._type == rvtInteger);
 			_registers[int1]._signedValue <<= _registers[int2]._signedValue;
+			_registers[int1]._type = rvtInteger;
 			break;
 		case SCMD_SHIFTRIGHT:
 			// reg1 = reg1 >> reg2
+			assert(_registers[int1]._type == rvtInteger && _registers[int2]._type == rvtInteger);
 			_registers[int1]._signedValue >>= _registers[int2]._signedValue;
+			_registers[int1]._type = rvtInteger;
 			break;
 		case SCMD_THISBASE:
 			// thisaddr: current relative address
@@ -1228,44 +1253,68 @@ void ccInstance::runCodeFrom(uint32 start) {
 			break;
 		case SCMD_FADD:
 			// reg1 += arg2 (float,int)
+			assert(_registers[int1]._type == rvtInteger || _registers[int1]._type == rvtFloat);
 			_registers[int1]._floatValue += int2;
+			_registers[int1]._type = rvtFloat;
 			break;
 		case SCMD_FSUB:
 			// reg1 -= arg2 (float,int)
+			assert(_registers[int1]._type == rvtInteger || _registers[int1]._type == rvtFloat);
 			_registers[int1]._floatValue -= int2;
+			_registers[int1]._type = rvtFloat;
 			break;
 		case SCMD_FMULREG:
 			// reg1 *= reg2 (float)
+			assert(_registers[int1]._type == rvtInteger || _registers[int1]._type == rvtFloat);
+			assert(_registers[int2]._type == rvtInteger || _registers[int2]._type == rvtFloat);
 			_registers[int1]._floatValue *= _registers[int2]._floatValue;
+			_registers[int1]._type = rvtFloat;
 			break;
 		case SCMD_FDIVREG:
 			// reg1 /= reg2 (float)
+			assert(_registers[int1]._type == rvtInteger || _registers[int1]._type == rvtFloat);
+			assert(_registers[int2]._type == rvtInteger || _registers[int2]._type == rvtFloat);
 			if (_registers[int2]._floatValue == 0.0)
 				error("script tried to divide by fp zero on line %d", _lineNumber);
 			_registers[int1]._floatValue /= _registers[int2]._floatValue;
+			_registers[int1]._type = rvtFloat;
 			break;
 		case SCMD_FADDREG:
 			// reg1 += reg2 (float)
+			assert(_registers[int1]._type == rvtInteger || _registers[int1]._type == rvtFloat);
+			assert(_registers[int2]._type == rvtInteger || _registers[int2]._type == rvtFloat);
 			_registers[int1]._floatValue += _registers[int2]._floatValue;
+			_registers[int1]._type = rvtFloat;
 			break;
 		case SCMD_FSUBREG:
 			// reg1 -= reg2 (float)
+			assert(_registers[int1]._type == rvtInteger || _registers[int1]._type == rvtFloat);
+			assert(_registers[int2]._type == rvtInteger || _registers[int2]._type == rvtFloat);
 			_registers[int1]._floatValue -= _registers[int2]._floatValue;
+			_registers[int1]._type = rvtFloat;
 			break;
 		case SCMD_FGREATER:
 			// reg1 > reg2 (float)
+			assert(_registers[int1]._type == rvtInteger || _registers[int1]._type == rvtFloat);
+			assert(_registers[int2]._type == rvtInteger || _registers[int2]._type == rvtFloat);
 			_registers[int1] = (_registers[int1]._floatValue > _registers[int2]._floatValue) ? 1.0f : 0.0f;
 			break;
 		case SCMD_FLESSTHAN:
 			// reg1 < reg2 (float)
+			assert(_registers[int1]._type == rvtInteger || _registers[int1]._type == rvtFloat);
+			assert(_registers[int2]._type == rvtInteger || _registers[int2]._type == rvtFloat);
 			_registers[int1] = (_registers[int1]._floatValue < _registers[int2]._floatValue) ? 1.0f : 0.0f;
 			break;
 		case SCMD_FGTE:
 			// reg1 >= reg2 (float)
+			assert(_registers[int1]._type == rvtInteger || _registers[int1]._type == rvtFloat);
+			assert(_registers[int2]._type == rvtInteger || _registers[int2]._type == rvtFloat);
 			_registers[int1] = (_registers[int1]._floatValue >= _registers[int2]._floatValue) ? 1.0f : 0.0f;
 			break;
 		case SCMD_FLTE:
 			// reg1 <= reg2 (float)
+			assert(_registers[int1]._type == rvtInteger || _registers[int1]._type == rvtFloat);
+			assert(_registers[int2]._type == rvtInteger || _registers[int2]._type == rvtFloat);
 			_registers[int1] = (_registers[int1]._floatValue <= _registers[int2]._floatValue) ? 1.0f : 0.0f;
 			break;
 		case SCMD_ZEROMEMORY:

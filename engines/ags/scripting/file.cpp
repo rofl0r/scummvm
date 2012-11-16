@@ -220,7 +220,7 @@ RuntimeValue Script_File_Exists(AGSEngine *vm, ScriptObject *, const Common::Arr
 	UNUSED(filename);
 
 	// FIXME
-	error("File::Exists unimplemented");
+	warning("File::Exists unimplemented");
 
 	return RuntimeValue();
 }

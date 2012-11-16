@@ -75,8 +75,12 @@ protected:
 
 	// id->sprite mapping
 	Common::HashMap<uint, Sprite *> _sprites;
+	// unused sprites, in order of last use
+	Common::List<Sprite *> _lruSprites;
 
 	bool loadSpriteIndexFile(uint32 spriteFileID);
+
+	void getNewSizeForSprite(uint id);
 };
 
 } // End of namespace AGS

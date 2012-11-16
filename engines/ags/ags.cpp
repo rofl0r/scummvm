@@ -50,6 +50,63 @@
 #include "ags/scripting/scripting.h"
 #include "ags/sprites.h"
 
+namespace Common {
+
+static uint mapKeycodeToAGS(Common::KeyCode key) {
+	// First, the trivial mappings.
+	if (key >= 0 && key <= KEYCODE_AT)
+		return (uint)key;
+	if (key >= KEYCODE_LEFTBRACKET && key <= KEYCODE_BACKQUOTE)
+		return (uint)key;
+	if (key >= KEYCODE_a && key <= KEYCODE_z)
+		return (uint)key - 32;
+	if (key >= KEYCODE_F1 && key <= KEYCODE_F10)
+		return (uint)key + 77;
+
+	// Then, the rest.
+	switch (key) {
+	case KEYCODE_DELETE:
+		return 383;
+	case KEYCODE_UP:
+		return 372;
+	case KEYCODE_DOWN:
+		return 380;
+	case KEYCODE_RIGHT:
+		return 377;
+	case KEYCODE_LEFT:
+		return 375;
+	case KEYCODE_INSERT:
+		return 382;
+	case KEYCODE_HOME:
+		return 371;
+	case KEYCODE_END:
+		return 379;
+	case KEYCODE_PAGEUP:
+		return 373;
+	case KEYCODE_PAGEDOWN:
+		return 381;
+	case KEYCODE_F11:
+		return 433;
+	case KEYCODE_F12:
+		return 434;
+	case KEYCODE_LSHIFT:
+		return 403;
+	case KEYCODE_RSHIFT:
+		return 404;
+	case KEYCODE_LCTRL:
+		return 405;
+	case KEYCODE_RCTRL:
+		return 406;
+	case KEYCODE_RALT:
+	case KEYCODE_LALT:
+		return 407;
+	default:
+		return 0;
+	}
+}
+
+}
+
 namespace AGS {
 
 #define REP_EXEC_NAME "repeatedly_execute"
@@ -99,6 +156,9 @@ AGSEngine::AGSEngine(OSystem *syst, const AGSGameDescription *gameDesc) :
 	_rnd = new Common::RandomSource("ags");
 	_scriptState = new GlobalScriptState();
 	_state = new GameState(this);
+
+	for (uint i = 0; i < MAX_AGS_KEYCODE; ++i)
+		_keysPressed[i] = false;
 }
 
 // plugins
@@ -435,7 +495,16 @@ void AGSEngine::updateEvents(bool checkControls) {
 			break;
 
 		case Common::EVENT_KEYDOWN:
+			_keysPressed[Common::mapKeycodeToAGS(event.kbd.keycode)] = true;
+			// FIXME: bad mapping
+			queueGameEvent(kEventTextScript, kTextScriptOnKeyPress, Common::mapKeycodeToAGS(event.kbd.keycode));
+
 			// FIXME: keypresses
+			if (_state->_inCutscene > 0)
+				startSkippingCutscene();
+			break;
+		case Common::EVENT_KEYUP:
+			_keysPressed[Common::mapKeycodeToAGS(event.kbd.keycode)] = false;
 			break;
 
 		default:
@@ -733,8 +802,8 @@ void AGSEngine::updateStuff() {
 // 'start_game' in original
 void AGSEngine::startNewGame() {
 	setCursorMode(MODE_WALK);
-	// FIXME: filter->setMousePosition(160, 100);
-	// FIXME: newMusic(0);
+	// TODO: filter->setMousePosition(160, 100);
+	_audio->playNewMusic(0);
 
 	// run startup scripts
 	for (uint i = 0; i < _scriptModules.size(); ++i)
@@ -759,6 +828,7 @@ void AGSEngine::setupPlayerCharacter(uint32 charId) {
 	_playerChar = _characters[charId];
 }
 
+// FIXME: This doesn't reproduce the original behaviour if you take a copy of the pointer.
 class ScriptPlayerObject : public ScriptObject {
 public:
 	ScriptPlayerObject(AGSEngine *vm) : _vm(vm) { }
@@ -1455,6 +1525,21 @@ Common::String AGSEngine::formatString(const Common::String &string, const Commo
 	return out;
 }
 
+Common::String AGSEngine::wrapFilename(const Common::String &name) const {
+	Common::String out = name;
+
+	if (out.hasPrefix("$SAVEGAMEDIR$/") || out.hasPrefix("$SAVEGAMEDIR\\")) {
+		// These are just normal save files.
+		out = name.c_str() + 14;
+	} else if (out.hasPrefix("$APPDATADIR$/") || out.hasPrefix("$APPDATADIR\\")) {
+		// Mark these with a different name.
+		out = "appdata-";
+		out += name.c_str() + 13;
+	}
+
+	return _targetName + "-" + out;
+}
+
 // for CallRoomScript
 void AGSEngine::queueCustomRoomScript(uint32 param) {
 	assert(!_runningScripts.empty());
@@ -1812,54 +1897,71 @@ bool AGSEngine::runInteractionCommandList(NewInteractionEvent &event, NewInterac
 			// fallthrough
 		case kActionAddScore:
 			// FIXME
+			error("runInteractionEvent: unimplemented action %d", commands[i]._type);
 			break;
 		case kActionDisplayMessage:
 			// FIXME
+			error("runInteractionEvent: unimplemented action %d", commands[i]._type);
 			break;
 		case kActionPlayMusic:
 			// FIXME
+			error("runInteractionEvent: unimplemented action %d", commands[i]._type);
 			break;
 		case kActionStopMusic:
 			// FIXME
+			error("runInteractionEvent: unimplemented action %d", commands[i]._type);
 			break;
 		case kActionPlaySound:
 			// FIXME
+			error("runInteractionEvent: unimplemented action %d", commands[i]._type);
 			break;
 		case kActionPlayFlic:
 			// FIXME
+			error("runInteractionEvent: unimplemented action %d", commands[i]._type);
 			break;
 		case kActionRunDialog:
 			// FIXME
+			error("runInteractionEvent: unimplemented action %d", commands[i]._type);
 			break;
 		case kActionEnableDialogOption:
 			// FIXME
+			error("runInteractionEvent: unimplemented action %d", commands[i]._type);
 			break;
 		case kActionDisableDialogOption:
 			// FIXME
+			error("runInteractionEvent: unimplemented action %d", commands[i]._type);
 			break;
 		case kActionGoToScreen:
 			// FIXME
+			error("runInteractionEvent: unimplemented action %d", commands[i]._type);
 			break;
 		case kActionAddInventory:
 			// FIXME
+			error("runInteractionEvent: unimplemented action %d", commands[i]._type);
 			break;
 		case kActionMoveObject:
 			// FIXME
+			error("runInteractionEvent: unimplemented action %d", commands[i]._type);
 			break;
 		case kActionObjectOff:
 			// FIXME
+			error("runInteractionEvent: unimplemented action %d", commands[i]._type);
 			break;
 		case kActionObjectOn:
 			// FIXME
+			error("runInteractionEvent: unimplemented action %d", commands[i]._type);
 			break;
 		case kActionSetObjectView:
 			// FIXME
+			error("runInteractionEvent: unimplemented action %d", commands[i]._type);
 			break;
 		case kActionAnimateObject:
 			// FIXME
+			error("runInteractionEvent: unimplemented action %d", commands[i]._type);
 			break;
 		case kActionMoveCharacter:
 			// FIXME
+			error("runInteractionEvent: unimplemented action %d", commands[i]._type);
 			break;
 		case kActionIfInventoryItemUsed:
 			if (_state->_usedInv != getInteractionValue(command._args[0])) {
@@ -1891,74 +1993,97 @@ bool AGSEngine::runInteractionCommandList(NewInteractionEvent &event, NewInterac
 			break;
 		case kActionStopCharacterWalking:
 			// FIXME
+			error("runInteractionEvent: unimplemented action %d", commands[i]._type);
 			break;
 		case kActionGoToScreenAtCoordinates:
 			// FIXME
+			error("runInteractionEvent: unimplemented action %d", commands[i]._type);
 			break;
 		case kActionMoveNPCToRoom:
 			// FIXME
+			error("runInteractionEvent: unimplemented action %d", commands[i]._type);
 			break;
 		case kActionSetCharacterView:
 			// FIXME
+			error("runInteractionEvent: unimplemented action %d", commands[i]._type);
 			break;
 		case kActionReleaseCharacterView:
 			// FIXME
+			error("runInteractionEvent: unimplemented action %d", commands[i]._type);
 			break;
 		case kActionFollowCharacter:
 			// FIXME
+			error("runInteractionEvent: unimplemented action %d", commands[i]._type);
 			break;
 		case kActionStopFollowing:
 			// FIXME
+			error("runInteractionEvent: unimplemented action %d", commands[i]._type);
 			break;
 		case kActionDisableHotspot:
 			// FIXME
+			error("runInteractionEvent: unimplemented action %d", commands[i]._type);
 			break;
 		case kActionEnableHotspot:
 			// FIXME
+			error("runInteractionEvent: unimplemented action %d", commands[i]._type);
 			break;
 		case kActionSetVariableValue:
 			// FIXME
+			error("runInteractionEvent: unimplemented action %d", commands[i]._type);
 			break;
 		case kActionRunAnimation:
 			// FIXME
+			error("runInteractionEvent: unimplemented action %d", commands[i]._type);
 			break;
 		case kActionQuickAnimation:
 			// FIXME
+			error("runInteractionEvent: unimplemented action %d", commands[i]._type);
 			break;
 		case kActionSetIdleAnimation:
 			// FIXME
+			error("runInteractionEvent: unimplemented action %d", commands[i]._type);
 			break;
 		case kActionDisableIdleAnimation:
 			// FIXME
+			error("runInteractionEvent: unimplemented action %d", commands[i]._type);
 			break;
 		case kActionLoseInventoryItem:
 			// FIXME
+			error("runInteractionEvent: unimplemented action %d", commands[i]._type);
 			break;
 		case kActionShowGUI:
 			// FIXME
+			error("runInteractionEvent: unimplemented action %d", commands[i]._type);
 			break;
 		case kActionHideGUI:
 			// FIXME
+			error("runInteractionEvent: unimplemented action %d", commands[i]._type);
 			break;
 		case kActionStopRunningCommands:
 			return true;
 		case kActionFaceLocation:
 			// FIXME
+			error("runInteractionEvent: unimplemented action %d", commands[i]._type);
 			break;
 		case kActionPauseCommands:
 			// FIXME
+			error("runInteractionEvent: unimplemented action %d", commands[i]._type);
 			break;
 		case kActionChangeCharacterView:
 			// FIXME
+			error("runInteractionEvent: unimplemented action %d", commands[i]._type);
 			break;
 		case kActionIfPlayerCharacterIs:
 			// FIXME
+			error("runInteractionEvent: unimplemented action %d", commands[i]._type);
 			break;
 		case kActionIfCursorModeIs:
 			// FIXME
+			error("runInteractionEvent: unimplemented action %d", commands[i]._type);
 			break;
 		case kActionIfPlayerHasBeenToRoom:
 			// FIXME
+			error("runInteractionEvent: unimplemented action %d", commands[i]._type);
 			break;
 		default:
 			error("runInteractionEvent: unknown action %d", commands[i]._type);
@@ -2959,7 +3084,36 @@ ViewFrame *AGSEngine::getViewFrame(uint view, uint loop, uint frame) {
 }
 
 void AGSEngine::checkViewFrame(uint view, uint loop, uint frame) {
-	// FIXME: check sounds for new frames
+	// new frame displayed - check for audio to be played (e.g. footsteps)
+
+	ViewFrame *viewFrame = getViewFrame(view, loop, frame);
+
+	if (getGameFileVersion() >= kAGSVer321) {
+		// nice new 3.21+ audio clip system
+
+		if (viewFrame->_sound >= 0)
+			_audio->playAudioClipByIndex(viewFrame->_sound);
+
+		return;
+	}
+
+	// old pre-3.21 audio system
+	if (viewFrame->_sound <= 0)
+		return;
+
+	// did we cache the clip id yet?
+	if (viewFrame->_sound < 0x10000000) {
+		AudioClip *clip = _audio->getClipByIndex(false, viewFrame->_sound);
+		if (!clip) {
+			// mark it invalid
+			viewFrame->_sound = 0;
+			return;
+		}
+		// cache the id
+		viewFrame->_sound = clip->_id + 0x10000000;
+	}
+
+	_audio->playAudioClipByIndex(viewFrame->_sound);
 }
 
 void AGSEngine::queueOrRunTextScript(ccInstance *instance, const Common::String &name, uint32 p1) {
@@ -3369,8 +3523,8 @@ void AGSEngine::stopFastForwarding() {
 	// FIXME: setpal
 
 
-	/* FIXME if (_state->_endCutsceneMusic != (uint)-1)
-		newMusic(_state->_endCutsceneMusic); */
+	if (_state->_endCutsceneMusic != (uint)-1)
+		_audio->playNewMusic(_state->_endCutsceneMusic);
 	// FIXME: restore actual volume of sounds
 	_audio->updateMusicVolume();
 }

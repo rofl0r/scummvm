@@ -79,6 +79,8 @@ void AGSAudio::init() {
 
 	if (_audioResources)
 		addAudioResourcesFrom(_audioResources, false);
+	if (_musicResources)
+		addAudioResourcesFrom(_musicResources, false);
 	addAudioResourcesFrom(_vm->getResourceManager(), true);
 }
 
@@ -140,6 +142,13 @@ void AGSAudio::addAudioResourcesFrom(ResourceManager *manager, bool isExecutable
 	}
 }
 
+Common::SeekableReadStream *AGSAudio::getAudioResource(const Common::String &filename) {
+	if (_vm->getGameFileVersion() < kAGSVer321)
+		return _musicResources->getFile(filename);
+	else
+		return _audioResources->getFile(filename);
+}
+
 // 3.1+ stores the audio information in the game data file
 void AGSAudio::initFrom(Common::SeekableReadStream *stream) {
 	uint32 audioClipTypeCount = stream->readUint32LE();
@@ -178,6 +187,15 @@ void AGSAudio::initFrom(Common::SeekableReadStream *stream) {
 	}
 }
 
+uint AGSAudio::findFreeAudioChannel(AudioClip &clip, uint priority, bool interruptEqualPriority) {
+	return 0; // FIXME
+	return (uint)-1; // FIXME
+}
+
+void AGSAudio::queueAudioClipToPlay(AudioClip &clip, uint priority, bool repeat) {
+	// FIXME
+}
+
 AudioClip *AGSAudio::getClipByIndex(bool isMusic, uint index) {
 	// TODO: this is from PSP code, checks using script name..
 	// 'get_audio_clip_for_old_style_number'
@@ -189,10 +207,50 @@ AudioClip *AGSAudio::getClipByIndex(bool isMusic, uint index) {
 		scriptName = Common::String::format("aSound%d", index);
 
 	for (uint i = 0; i < _audioClips.size(); ++i)
-		if (_audioClips[i]._scriptName == scriptName)
+		if (_audioClips[i]._scriptName.equalsIgnoreCase(scriptName))
 			return &_audioClips[i];
 
 	return NULL;
+}
+
+void AGSAudio::playAudioClipByIndex(uint index) {
+	if (index < _audioClips.size())
+		playAudioClip(_audioClips[index], SCR_NO_VALUE, SCR_NO_VALUE);
+}
+
+uint AGSAudio::playAudioClip(AudioClip &clip, uint priority, uint repeat, uint fromOffset, bool queueIfNoChannel) {
+	if (!queueIfNoChannel)
+		{ } // FIXME: removeClipsOfTypeFromQueue(clip._type);
+
+	bool doRepeat = (bool)repeat;
+	if (repeat == SCR_NO_VALUE)
+		doRepeat = clip._defaultRepeat;
+
+	if (priority == SCR_NO_VALUE)
+		priority = clip._defaultPriority;
+
+	uint channel = findFreeAudioChannel(clip, priority, !queueIfNoChannel);
+	if (channel != (uint)-1)
+		return playAudioClipOnChannel(channel, clip, priority, doRepeat, fromOffset);
+
+	if (queueIfNoChannel)
+		queueAudioClipToPlay(clip, priority, repeat);
+	else
+		debugC(kDebugLevelGame, "playAudioClip: no channels available for clip of priority %d", priority);
+
+	return channel;
+}
+
+uint AGSAudio::playAudioClipOnChannel(uint channelId, AudioClip &clip, uint priority, bool repeat, uint fromOffset) {
+	AudioChannel *channel = _channels[channelId];
+
+	channel->playSound(&clip, repeat);
+	channel->setPriority(priority);
+	// FIXME
+	// channel->setVolume(_vm->_state->_soundVolume);
+
+	// FIXME: everything else
+	return channelId;
 }
 
 uint AGSAudio::playSound(uint soundId, uint priority) {
@@ -258,6 +316,67 @@ bool AGSAudio::playSoundOnChannel(uint soundId, uint channelId) {
 	// channel->setVolume(_vm->_state->_soundVolume);
 
 	return true;
+}
+
+void AGSAudio::playNewMusic(uint musicId) {
+	// don't play the music if it's already playing
+	if (_vm->_state->_curMusicNumber == musicId)
+		return;
+
+	debugC(kDebugLevelGame, "playNewMusic: playing music %d", musicId);
+
+	if (musicId == (uint)-1) {
+		stopMusic();
+		return;
+	}
+
+	if (_vm->_state->_fastForward) {
+		// while skipping cutscene, don't change the music
+		_vm->_state->_endCutsceneMusic = musicId;
+		return;
+	}
+
+	uint useChannel = SCHAN_MUSIC;
+	// FIXME: useChannel = prepareForNewMusic();
+	stopMusic();
+
+	_vm->_state->_curMusicNumber = musicId;
+	// FIXME: current_music_type = 0;
+
+	// FIXME: kill channel contents
+
+	_vm->_state->_currentMusicRepeating = _vm->_state->_musicRepeat;
+
+	// TODO: consolidate (load_music_from_disk)
+	bool repeat = (bool)_vm->_state->_musicRepeat;
+	// FIXME: QUEUED_MUSIC_REPEAT hack
+	AudioClip *clip = getClipByIndex(true, musicId);
+
+	if (clip) {
+		_channels[useChannel]->playSound(clip);
+
+		// FIXME: set current_music_type
+	} else if (musicId != 0)
+		warning("failed to load music #%d", musicId);
+
+	// FIXME: post_new_music_check(useChannel);
+	updateMusicVolume();
+}
+
+void AGSAudio::stopMusic() {
+	// FIXME: everything
+	_channels[SCHAN_MUSIC]->stop();
+
+	_vm->_state->_curMusicNumber = (uint)-1;
+	// FIXME: current_music_type = 0;
+}
+
+bool AGSAudio::isMusicPlaying() {
+	if (_vm->_state->_fastForward && _vm->_state->_skipUntilCharStops == (uint)-1)
+		return false;
+
+	// FIXME: implement
+	return _channels[SCHAN_MUSIC]->isPlaying();
 }
 
 bool AGSAudio::playSpeech(const Common::String &filename) {
@@ -405,7 +524,17 @@ AudioChannel::AudioChannel(AGSEngine *vm, uint id) : _vm(vm), _id(id), _valid(fa
 }
 
 bool AudioChannel::playSound(AudioClip *clip, bool repeat) {
-	bool ret = playSound(_vm->getFile(clip->_filename), clip->_fileType, repeat);
+	Common::SeekableReadStream *stream;
+	if (clip->_bundledInExecutable)
+		stream = _vm->getFile(clip->_filename);
+	else
+		stream = _vm->_audio->getAudioResource(clip->_filename);
+	if (!stream) {
+		warning("AudioChannel::playSound: failed to open file '%s'", clip->_filename.c_str());
+		return false;
+	}
+
+	bool ret = playSound(stream, clip->_fileType, repeat);
 	_clip = clip;
 	return ret;
 }

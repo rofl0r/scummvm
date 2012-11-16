@@ -173,7 +173,7 @@ RuntimeValue Script_DisplaySpeech(AGSEngine *vm, ScriptObject *, const Common::A
 	values.remove_at(0);
 	string = vm->formatString(string, values);
 
-	vm->displaySpeech(string, charId);
+	vm->displaySpeechCore(string, charId);
 
 	return RuntimeValue();
 }
@@ -695,7 +695,7 @@ RuntimeValue Script_AreCharactersColliding(AGSEngine *vm, ScriptObject *, const 
 	UNUSED(charid2);
 
 	// FIXME
-	error("AreCharactersColliding unimplemented");
+	warning("AreCharactersColliding unimplemented");
 
 	return RuntimeValue();
 }
@@ -1368,7 +1368,7 @@ RuntimeValue Script_Character_Tint(AGSEngine *vm, Character *self, const Common:
 	UNUSED(luminance);
 
 	// FIXME
-	error("Character::Tint unimplemented");
+	warning("Character::Tint unimplemented");
 
 	return RuntimeValue();
 }
@@ -1934,7 +1934,7 @@ RuntimeValue Script_Character_set_Solid(AGSEngine *vm, Character *self, const Co
 // Gets whether the character is currently in the middle of a Say command.
 RuntimeValue Script_Character_get_Speaking(AGSEngine *vm, Character *self, const Common::Array<RuntimeValue> &params) {
 	// FIXME
-	error("Character::get_Speaking unimplemented");
+	warning("Character::get_Speaking unimplemented");
 
 	return RuntimeValue();
 }

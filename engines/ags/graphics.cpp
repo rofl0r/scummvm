@@ -183,10 +183,14 @@ public:
 	}
 
 	void setCursorGraphic(uint32 spriteId) {
-		_cursorSprite = _vm->getSprites()->getSprite(spriteId);
+		// TODO: free
+		_cursorSprite = NULL;
+		if (spriteId && spriteId < _vm->getSprites()->getSpriteCount())
+			_cursorSprite = _vm->getSprites()->getSprite(spriteId);
 
 		if (!spriteId || !_cursorSprite) {
-			// FIXME
+			// FIXME: hack
+			_cursorSprite = _vm->getSprites()->getSprite(0);
 		}
 
 		_alphaBlendCursor = (bool)(_vm->_gameFile->_spriteFlags[spriteId] & SPF_ALPHACHANNEL);

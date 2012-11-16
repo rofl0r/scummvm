@@ -67,8 +67,9 @@ public:
 	virtual ~ScriptObject() { }
 
 	// reference counting
-	void IncRef() { _refCount++; }
+	void IncRef() { assert(_refCount); _refCount++; }
 	void DecRef() {
+		assert(_refCount);
 		_refCount--;
 		if (_refCount == 0)
 			delete this;

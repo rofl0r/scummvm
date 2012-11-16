@@ -157,7 +157,7 @@ RuntimeValue Script_ResetRoom(AGSEngine *vm, ScriptObject *, const Common::Array
 	UNUSED(roomNumber);
 
 	// FIXME
-	error("ResetRoom unimplemented");
+	warning("ResetRoom unimplemented");
 
 	return RuntimeValue();
 }
@@ -488,7 +488,7 @@ RuntimeValue Script_SetRegionTint(AGSEngine *vm, ScriptObject *, const Common::A
 	UNUSED(amount);
 
 	// FIXME
-	error("SetRegionTint unimplemented");
+	warning("SetRegionTint unimplemented");
 
 	return RuntimeValue();
 }
@@ -755,7 +755,7 @@ RuntimeValue Script_Region_get_ID(AGSEngine *vm, RoomRegion *self, const Common:
 // Gets/sets the light level for this region.
 RuntimeValue Script_Region_get_LightLevel(AGSEngine *vm, RoomRegion *self, const Common::Array<RuntimeValue> &params) {
 	// FIXME
-	error("Region::get_LightLevel unimplemented");
+	warning("Region::get_LightLevel unimplemented");
 
 	return RuntimeValue();
 }
@@ -767,7 +767,7 @@ RuntimeValue Script_Region_set_LightLevel(AGSEngine *vm, RoomRegion *self, const
 	UNUSED(value);
 
 	// FIXME
-	error("Region::set_LightLevel unimplemented");
+	warning("Region::set_LightLevel unimplemented");
 
 	return RuntimeValue();
 }

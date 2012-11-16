@@ -72,7 +72,7 @@ RuntimeValue Script_GetFlashlightTintBlue(AGSEngine *vm, ScriptObject *, const C
 // Get the darkest light level of the flashlight.
 RuntimeValue Script_GetFlashlightMinLightLevel(AGSEngine *vm, ScriptObject *, const Common::Array<RuntimeValue> &params) {
 	// FIXME
-	error("GetFlashlightMinLightLevel unimplemented");
+	warning("GetFlashlightMinLightLevel unimplemented");
 
 	return RuntimeValue();
 }
@@ -81,7 +81,7 @@ RuntimeValue Script_GetFlashlightMinLightLevel(AGSEngine *vm, ScriptObject *, co
 // Get the brightest light level of the flashlight.
 RuntimeValue Script_GetFlashlightMaxLightLevel(AGSEngine *vm, ScriptObject *, const Common::Array<RuntimeValue> &params) {
 	// FIXME
-	error("GetFlashlightMaxLightLevel unimplemented");
+	warning("GetFlashlightMaxLightLevel unimplemented");
 
 	return RuntimeValue();
 }
@@ -93,7 +93,7 @@ RuntimeValue Script_SetFlashlightDarkness(AGSEngine *vm, ScriptObject *, const C
 	UNUSED(lightLevel);
 
 	// FIXME
-	error("SetFlashlightDarkness unimplemented");
+	warning("SetFlashlightDarkness unimplemented");
 
 	return RuntimeValue();
 }
@@ -135,7 +135,7 @@ RuntimeValue Script_SetFlashlightBrightness(AGSEngine *vm, ScriptObject *, const
 	UNUSED(lightLevel);
 
 	// FIXME
-	error("SetFlashlightBrightness unimplemented");
+	warning("SetFlashlightBrightness unimplemented");
 
 	return RuntimeValue();
 }

@@ -79,6 +79,10 @@ SpriteSet::SpriteSet(AGSEngine *vm, Common::SeekableReadStream *stream) : _vm(vm
 		spriteCount = 200;
 	_spriteInfo.resize(spriteCount + 1);
 
+	if (spriteCount > _vm->_gameFile->_spriteFlags.size())
+		error("sprite set has %d sprites, but game file only has %d sprite flags",
+			spriteCount, _vm->_gameFile->_spriteFlags.size());
+
 	debug(2, "sprite set has %d sprites (version %d, %s)", spriteCount, version, _spritesAreCompressed ? "compressed" : "uncompressed");
 
 	// try and load the sprite index file first
@@ -102,6 +106,9 @@ SpriteSet::SpriteSet(AGSEngine *vm, Common::SeekableReadStream *stream) : _vm(vm
 			dataSize = _stream->readUint32LE();
 		_stream->skip(dataSize);
 	}
+
+	//for (uint i = 0; i < spriteCount; ++i)
+	//	getNewSizeForSprite(i);
 
 	if (_stream->eos())
 		error("failed to read sprite file");
@@ -160,6 +167,8 @@ bool SpriteSet::loadSpriteIndexFile(uint32 spriteFileID) {
 		_spriteInfo[i]._width = idxStream->readUint16LE();
 	for (uint i = 0; i < spriteCount; ++i)
 		_spriteInfo[i]._height = idxStream->readUint16LE();
+	//for (uint i = 0; i < spriteCount; ++i)
+	//	getNewSizeForSprite(i);
 	for (uint i = 0; i < spriteCount; ++i) {
 		_spriteInfo[i]._offset = idxStream->readUint32LE();
 		if (_spriteInfo[i]._offset >= (uint32)_stream->size())
@@ -206,6 +215,8 @@ Sprite *SpriteSet::getSprite(uint32 spriteId) {
 
 	_spriteInfo[spriteId]._width = _stream->readUint16LE();
 	_spriteInfo[spriteId]._height = _stream->readUint16LE();
+	// TODO: no getNewSizeForSprite call here, so why bother at all?
+	// FIXME: aha, it's in initialize_sprite in original
 
 	Graphics::Surface *surface = new Graphics::Surface;
 	surface->create(_spriteInfo[spriteId]._width, _spriteInfo[spriteId]._height, format);
@@ -272,6 +283,26 @@ Sprite *SpriteSet::getSprite(uint32 spriteId) {
 	Sprite *sprite = new Sprite(spriteId, surface);
 	_sprites[spriteId] = sprite;
 	return sprite;
+}
+
+void SpriteSet::getNewSizeForSprite(uint id) {
+	SpriteInfo &i = _spriteInfo[id];
+
+	uint resMult = _vm->_graphics->_screenResolutionMultiplier;
+
+	if ((_vm->_gameFile->_spriteFlags[id] & SPF_640x400) && resMult != 2) {
+		i._width = (i._width / 2) * resMult;
+		i._height = (i._height / 2) * resMult;
+
+		// just make sure - could crash if wid or hit is 0
+		if (i._width < 1)
+			i._width = 1;
+		if (i._height < 1)
+			i._height = 1;
+	} else {
+		i._width *= resMult;
+		i._height *= resMult;
+	}
 }
 
 void unpackSpriteBits(Common::SeekableReadStream *stream, byte *dest, uint32 size) {

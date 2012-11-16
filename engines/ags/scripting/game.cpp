@@ -149,9 +149,15 @@ RuntimeValue Script_Game_GetSaveSlotDescription(AGSEngine *vm, ScriptObject *, c
 	UNUSED(saveSlot);
 
 	// FIXME
-	error("Game::GetSaveSlotDescription unimplemented");
+	warning("Game::GetSaveSlotDescription unimplemented");
 
-	return RuntimeValue();
+	return 0;
+
+	Common::String string = Common::String::format("INVALID SLOT %d", saveSlot);
+
+	RuntimeValue ret = new ScriptMutableString(string);
+	ret._object->DecRef();
+	return ret;
 }
 
 // Game: import static ViewFrame* GetViewFrame(int view, int loop, int frame)
@@ -222,7 +228,7 @@ RuntimeValue Script_Game_SetAudioTypeVolume(AGSEngine *vm, ScriptObject *, const
 	UNUSED(changevolumetype);
 
 	// FIXME
-	error("Game::SetAudioTypeVolume unimplemented");
+	warning("Game::SetAudioTypeVolume unimplemented");
 
 	return RuntimeValue();
 }
@@ -247,7 +253,7 @@ RuntimeValue Script_Game_StopAudio(AGSEngine *vm, ScriptObject *, const Common::
 	UNUSED(audioType);
 
 	// FIXME
-	error("Game::StopAudio unimplemented");
+	warning("Game::StopAudio unimplemented");
 
 	return RuntimeValue();
 }
@@ -308,25 +314,26 @@ RuntimeValue Script_Game_geti_GlobalMessages(AGSEngine *vm, ScriptObject *, cons
 // Game: import static attribute String GlobalStrings[]
 // Accesses the global strings collection. This is obsolete.
 RuntimeValue Script_Game_geti_GlobalStrings(AGSEngine *vm, ScriptObject *, const Common::Array<RuntimeValue> &params) {
-	int index = params[0]._signedValue;
-	UNUSED(index);
+	uint index = params[0]._value;
 
-	// FIXME
-	error("Game::geti_GlobalStrings unimplemented");
+	if (index >= vm->_state->_globalStrings.size())
+		error("Game::geti_GlobalStrings: invalid string id %d (only %d present)", index, vm->_state->_globalStrings.size());
 
-	return RuntimeValue();
+	RuntimeValue ret = new ScriptMutableString(vm->_state->_globalStrings[index]);
+	ret._object->DecRef();
+	return ret;
 }
 
 // Game: import static attribute String GlobalStrings[]
 // Accesses the global strings collection. This is obsolete.
 RuntimeValue Script_Game_seti_GlobalStrings(AGSEngine *vm, ScriptObject *, const Common::Array<RuntimeValue> &params) {
-	int index = params[0]._signedValue;
-	UNUSED(index);
+	uint index = params[0]._value;
 	ScriptString *value = (ScriptString *)params[1]._object;
-	UNUSED(value);
 
-	// FIXME
-	error("Game::seti_GlobalStrings unimplemented");
+	if (index >= vm->_state->_globalStrings.size())
+		error("Game::seti_GlobalStrings: invalid string id %d (only %d present)", index, vm->_state->_globalStrings.size());
+
+	vm->_state->_globalStrings[index] = value->getString();
 
 	return RuntimeValue();
 }
@@ -455,7 +462,8 @@ RuntimeValue Script_Game_geti_SpriteHeight(AGSEngine *vm, ScriptObject *, const 
 	if (index >= vm->getSprites()->getSpriteCount())
 		return 0;
 
-	return vm->getSprites()->getSpriteHeight(index);
+	// TODO: check existance
+	return vm->divideDownCoordinate(vm->getSprites()->getSpriteHeight(index));
 }
 
 // Game: readonly import static attribute int SpriteWidth[]
@@ -466,7 +474,8 @@ RuntimeValue Script_Game_geti_SpriteWidth(AGSEngine *vm, ScriptObject *, const C
 	if (index >= vm->getSprites()->getSpriteCount())
 		return 0;
 
-	return vm->getSprites()->getSpriteWidth(index);
+	// TODO: check existance
+	return vm->divideDownCoordinate(vm->getSprites()->getSpriteWidth(index));
 }
 
 // Game: import static attribute int TextReadingSpeed
@@ -566,7 +575,7 @@ RuntimeValue Script_SetGameOption(AGSEngine *vm, ScriptObject *, const Common::A
 	UNUSED(value);
 
 	// FIXME
-	error("SetGameOption unimplemented");
+	warning("SetGameOption unimplemented (%d, %d)", option, value);
 
 	return RuntimeValue();
 }
@@ -596,7 +605,7 @@ RuntimeValue Script_GetTranslation(AGSEngine *vm, ScriptObject *, const Common::
 // Checks if a translation is currently in use.
 RuntimeValue Script_IsTranslationAvailable(AGSEngine *vm, ScriptObject *, const Common::Array<RuntimeValue> &params) {
 	// FIXME
-	error("IsTranslationAvailable unimplemented");
+	warning("IsTranslationAvailable unimplemented");
 
 	return RuntimeValue();
 }
@@ -670,7 +679,7 @@ RuntimeValue Script_DeleteSaveSlot(AGSEngine *vm, ScriptObject *, const Common::
 // Sets this as the point at which the game will be restarted.
 RuntimeValue Script_SetRestartPoint(AGSEngine *vm, ScriptObject *, const Common::Array<RuntimeValue> &params) {
 	// FIXME
-	error("SetRestartPoint unimplemented");
+	warning("SetRestartPoint unimplemented");
 
 	return RuntimeValue();
 }
@@ -756,7 +765,7 @@ RuntimeValue Script_GetTranslationName(AGSEngine *vm, ScriptObject *, const Comm
 	UNUSED(buffer);
 
 	// FIXME
-	error("GetTranslationName unimplemented");
+	warning("GetTranslationName unimplemented");
 
 	return RuntimeValue();
 }
@@ -863,7 +872,7 @@ RuntimeValue Script_GiveScore(AGSEngine *vm, ScriptObject *, const Common::Array
 	UNUSED(points);
 
 	// FIXME
-	error("GiveScore unimplemented");
+	warning("GiveScore unimplemented");
 
 	return RuntimeValue();
 }

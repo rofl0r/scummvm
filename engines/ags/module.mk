@@ -7,6 +7,7 @@ MODULE_OBJS := \
 	detection.o \
 	dialog.o \
 	drawingsurface.o \
+	dynamicsprite.o \
 	gamefile.o \
 	gamestate.o \
 	graphics.o \

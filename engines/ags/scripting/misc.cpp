@@ -40,7 +40,7 @@ RuntimeValue Script_Debug(AGSEngine *vm, ScriptObject *, const Common::Array<Run
 	UNUSED(data);
 
 	// FIXME
-	error("Debug unimplemented");
+	warning("Debug unimplemented");
 
 	return RuntimeValue();
 }
@@ -125,7 +125,7 @@ RuntimeValue Script_SetMultitaskingMode(AGSEngine *vm, ScriptObject *, const Com
 	UNUSED(mode);
 
 	// FIXME
-	error("SetMultitaskingMode unimplemented");
+	warning("SetMultitaskingMode unimplemented");
 
 	return RuntimeValue();
 }
@@ -372,7 +372,7 @@ RuntimeValue Script_System_get_ViewportWidth(AGSEngine *vm, ScriptObject *, cons
 // Gets/sets the audio output volume, from 0-100.
 RuntimeValue Script_System_get_Volume(AGSEngine *vm, ScriptObject *, const Common::Array<RuntimeValue> &params) {
 	// FIXME
-	error("System::get_Volume unimplemented");
+	warning("System::get_Volume unimplemented");
 
 	return RuntimeValue();
 }
@@ -384,7 +384,7 @@ RuntimeValue Script_System_set_Volume(AGSEngine *vm, ScriptObject *, const Commo
 	UNUSED(value);
 
 	// FIXME
-	error("System::set_Volume unimplemented");
+	warning("System::set_Volume unimplemented");
 
 	return RuntimeValue();
 }

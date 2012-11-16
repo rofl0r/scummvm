@@ -138,8 +138,19 @@ public:
 
 	AudioClip *getClipByIndex(bool isMusic, uint index);
 
+	uint findFreeAudioChannel(AudioClip &clip, uint priority, bool interruptEqualPriority);
+
+	void queueAudioClipToPlay(AudioClip &clip, uint priority, bool repeat);
+	void playAudioClipByIndex(uint index);
+	uint playAudioClip(AudioClip &clip, uint priority, uint repeat, uint fromOffset = 0, bool queueIfNoChannel = false);
+	uint playAudioClipOnChannel(uint channelId, AudioClip &clip, uint priority, bool repeat, uint fromOffset = 0);
+
 	uint playSound(uint soundId, uint priority = 10);
 	bool playSoundOnChannel(uint soundId, uint channelId);
+
+	void playNewMusic(uint musicId);
+	void stopMusic();
+	bool isMusicPlaying();
 
 	bool playSpeech(const Common::String &filename);
 
@@ -161,6 +172,8 @@ public:
 	Common::Array<AudioClipType> _audioClipTypes;
 	Common::Array<AudioChannel *> _channels;
 	Common::Array<AmbientSound> _ambients;
+
+	Common::SeekableReadStream *getAudioResource(const Common::String &filename);
 
 protected:
 	AGSEngine *_vm;

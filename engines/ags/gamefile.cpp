@@ -925,8 +925,15 @@ void GameFile::readPlugins(Common::SeekableReadStream *dta) {
 
 	for (uint i = 0; i < pluginsCount; ++i) {
 		Common::String name = readString(dta);
-		warning("ignoring plugin '%s'", name.c_str());
 		uint32 pluginSize = dta->readUint32LE();
+
+		if (name.equalsIgnoreCase("ags_snowrain.dll")) {
+			// implemented
+		} else if (name.equalsIgnoreCase("ags_shell.dll")) {
+			// ignored
+		} else {
+			warning("ignoring unknown plugin '%s'", name.c_str());
+		}
 		dta->skip(pluginSize);
 	}
 }
