@@ -117,11 +117,20 @@ static AGS::AGSGameDescription s_fallbackDesc = {
 };
 static char s_fallbackFilenameBuffer[51];
 static char s_fallbackTitleBuffer[51];
-
+/*
+engines/ags/detection.cpp: In member function ‘virtual const 
+ADGameDescription* AGSMetaEngine::fallbackDetect(const AdvancedMetaEngine::FileMap&, const Common::FSList&) const’:
+engines/ags/detection.cpp:122:75: 
+error: no matching function for call to 
+‘AGSMetaEngine::detectGameFilebased(const AdvancedMetaEngine::FileMap&, const ADFileBasedFallback [2]) const’
+./engines/advancedDetector.h:309:27: note: candidate is: 
+const ADGameDescription* AdvancedMetaEngine::detectGameFilebased(const AdvancedMetaEngine::FileMap&, const Common::FSList&, const ADFileBasedFallback*, ADFilePropertiesMap*) const
+*/
 const ADGameDescription *AGSMetaEngine::fallbackDetect(const FileMap &allFiles, const Common::FSList &fslist) const {
+	/*
 	const ADGameDescription *d = detectGameFilebased(allFiles, AGS::fileBased);
 	if (d)
-		return d;
+		return d; */
 
 	// reset fallback description
 	AGS::AGSGameDescription *desc = &s_fallbackDesc;
