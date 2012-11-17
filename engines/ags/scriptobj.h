@@ -58,6 +58,7 @@ enum ScriptObjectType {
 	sotRegion,
 	sotRoomObject,
 	sotString,
+	sotDynamicArray,
 	sotViewFrame
 };
 

@@ -26,6 +26,7 @@
 
 #include "engines/ags/ags.h"
 #include "engines/ags/script.h"
+#include "engines/ags/dynamicarray.h"
 #include "engines/ags/scripting/scripting.h"
 #include "engines/ags/util.h"
 #include "engines/ags/vm.h"
@@ -509,6 +510,7 @@ void ccInstance::runCodeFrom(uint32 start) {
 
 		ScriptCodeEntry arg[2];
 		RuntimeValue argVal[2];
+
 		for (uint v = 0; v < neededArgs && v < 2; ++v) {
 			arg[v] = code[_pc + 1 + v];
 
@@ -598,6 +600,7 @@ void ccInstance::runCodeFrom(uint32 start) {
 
 		const RuntimeValue &val2 = argVal[1];
 		int32 int1 = (int)argVal[0]._value, int2 = (int)argVal[1]._value;
+		uint32 tempuint;
 
 		// temporary variables
 		RuntimeValue tempVal;
@@ -1065,9 +1068,18 @@ void ccInstance::runCodeFrom(uint32 start) {
 				error("script error: checkbounds value %d was not in range 0 to %d", _registers[int1]._value, int2);
 			break;
 		case SCMD_DYNAMICBOUNDS:
+			// this is a bounds check, it returns -1 in failure case or
+			// the previous content of the register (i.e. the offset)
 			// check reg1 is between 0 and m[MAR-4]
-			// FIXME
-			error("unimplemented %s", info.name);
+			tempObj = getObjectFrom(_registers[SREG_MAR]);
+			assert(tempObj->isOfType(sotDynamicArray));
+			{
+				ScriptDynamicArray* da = (ScriptDynamicArray*) tempObj;
+				// offset
+				tempuint = _registers[int1]._value;
+				if((int32)tempuint < 0 || tempuint > da->_elementCount * da->_elementSize)
+					_registers[int1]._signedValue = -1;
+			}
 			break;
 		case SCMD_MEMREADPTR:
 			// reg1 = m[MAR] (adjust ptr addr)
@@ -1248,8 +1260,15 @@ void ccInstance::runCodeFrom(uint32 start) {
 			break;
 		case SCMD_NEWARRAY:
 			// reg1 = new array of reg1 elements, each of size arg2 (arg3=managed type?)
-			// FIXME
-			error("unimplemented %s", info.name);
+			tempuint = code[_pc + 3]._data;
+			{
+				uint32 elemSize = int2;
+				uint32 elemCount = _registers[int1]._value;
+				tempObj = new ScriptDynamicArray(elemSize, elemCount, tempuint == 1);
+				
+			}
+			_registers[int1] = tempObj;
+			warning("ScriptDynamicArray untested, %s", info.name);
 			break;
 		case SCMD_FADD:
 			// reg1 += arg2 (float,int)
