@@ -209,14 +209,16 @@ bool ResourceManager::openArchives(MasterArchive &master,
 bool ResourceManager::readArchiveList_v06(MasterArchive &master) {
 	// Oldest Format
 
-	warning("UNTESTED: ResourceManager::readArchiveList_v06()");
-
 	uint8 password = master.file.readByte(); // "Encryption" password
 
 	master.file.skip(1); // Unused
 
 	uint16 fileCount = master.file.readUint16LE();
 	_files.resize(fileCount);
+	
+	Common::Array<Common::String> archives;
+	archives.resize(1);
+	archives[0] = "no_name";
 
 	master.file.skip(13); // "password dooberry", whatever that's supposed to mean
 
@@ -256,15 +258,12 @@ bool ResourceManager::readArchiveList_v06(MasterArchive &master) {
 		return false;
 
 	master.file.close();
-
-	// Open the master.file archive as a normal archive file
-	_archives.resize(1);
-	_archives[0] = new Common::File;
-	if (!_archives[0]->open(master.name))
+	
+	if (!openArchives(master, archives))
 		return false;
-
+	
 	createFileMap();
-
+	
 	return true;
 }
 
