@@ -189,6 +189,8 @@ struct GameEvent {
 
 #define MAX_AGS_KEYCODE 435
 
+struct CustomPropertySchemaProperty;
+
 class AGSEngine : public Engine {
 public:
 	AGSEngine(OSystem *syst, const AGSGameDescription *gameDesc);
@@ -349,7 +351,7 @@ public:
 
 	bool playSpeech(uint charId, uint speechId);
 	void stopSpeech();
-
+	const CustomPropertySchemaProperty* getProperty(const Common::String &name);
 	int getIntProperty(const Common::String &name, const Common::StringMap &properties);
 	Common::String getStringProperty(const Common::String &name, const Common::StringMap &properties);
 
