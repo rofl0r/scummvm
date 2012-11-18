@@ -1604,10 +1604,13 @@ void Character::loseInventory(uint itemId) {
 		_vm->runOnEvent(GE_LOSE_INV, itemId);
 }
 
-void Character::setActiveInventory(uint itemId) {
-	_vm->invalidateGUI();
+void Character::setActiveInventory(uint uitemId) {
+	int32 itemId = (int32) uitemId;
+	_vm->invalidateGUI(); // original code does: _guiNeedsUpdate = true;
 
-	if (itemId == 0) {
+	if (itemId == -1) { /* original code tests for NULL here. 
+		that's because the code that calls it passes a pointer, 
+		which is set to NULL when itemid was -1. */
 		_activeInv = (uint)-1;
 
 		if (_vm->getPlayerChar() == this && _vm->getCursorMode() == MODE_USE)
@@ -1621,11 +1624,11 @@ void Character::setActiveInventory(uint itemId) {
 	if (_inventory[itemId] < 1)
 		error("setActiveInventory: character doesn't have any items with id %d", itemId);
 
-	_activeInv = itemId;
+	_activeInv = uitemId;
 
 	if (_vm->getPlayerChar() == this) {
 		// if it's the player character, update mouse cursor
-		_vm->updateInvCursor(itemId);
+		_vm->updateInvCursor(uitemId);
 		_vm->setCursorMode(MODE_USE);
 	}
 }
