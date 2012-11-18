@@ -216,7 +216,7 @@ RuntimeValue Script_DrawingSurface_DrawImage(AGSEngine *vm, DrawingSurface *self
 
 		// FIXME
 		UNUSED(height);
-		error("DrawingSurface::DrawImage: resizing unimplemented");
+		warning("DrawingSurface::DrawImage: resizing unimplemented");
 	}
 
 	// FIXME: adjust coordinates
@@ -676,7 +676,7 @@ RuntimeValue Script_CreateTextOverlay(AGSEngine *vm, ScriptObject *, const Commo
 	UNUSED(text);
 
 	// FIXME
-	error("CreateTextOverlay unimplemented");
+	warning("CreateTextOverlay unimplemented");
 
 	return RuntimeValue();
 }
@@ -700,7 +700,7 @@ RuntimeValue Script_SetTextOverlay(AGSEngine *vm, ScriptObject *, const Common::
 	UNUSED(text);
 
 	// FIXME
-	error("SetTextOverlay unimplemented");
+	warning("SetTextOverlay unimplemented");
 
 	return RuntimeValue();
 }
@@ -712,7 +712,7 @@ RuntimeValue Script_RemoveOverlay(AGSEngine *vm, ScriptObject *, const Common::A
 	UNUSED(overlayID);
 
 	// FIXME
-	error("RemoveOverlay unimplemented");
+	warning("RemoveOverlay unimplemented");
 
 	return RuntimeValue();
 }
@@ -1493,18 +1493,18 @@ RuntimeValue Script_DynamicSprite_get_Graphic(AGSEngine *vm, DynamicSprite *self
 // Gets the height of this sprite.
 RuntimeValue Script_DynamicSprite_get_Height(AGSEngine *vm, DynamicSprite *self, const Common::Array<RuntimeValue> &params) {
 	// FIXME
-	error("DynamicSprite::get_Height unimplemented");
+	warning("DynamicSprite::get_Height unimplemented");
 
-	return RuntimeValue();
+	return RuntimeValue(0);
 }
 
 // DynamicSprite: readonly import attribute int Width
 // Gets the width of this sprite.
 RuntimeValue Script_DynamicSprite_get_Width(AGSEngine *vm, DynamicSprite *self, const Common::Array<RuntimeValue> &params) {
 	// FIXME
-	error("DynamicSprite::get_Width unimplemented");
+	warning("DynamicSprite::get_Width unimplemented");
 
-	return RuntimeValue();
+	return RuntimeValue(0);
 }
 
 // import void FadeIn(int speed)

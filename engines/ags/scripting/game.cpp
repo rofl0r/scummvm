@@ -42,10 +42,10 @@ namespace AGS {
 // Changes the active translation.
 RuntimeValue Script_Game_ChangeTranslation(AGSEngine *vm, ScriptObject *, const Common::Array<RuntimeValue> &params) {
 	ScriptString *newTranslationFileName = (ScriptString *)params[0]._object;
-	UNUSED(newTranslationFileName);
+	Common::String string = newTranslationFileName->getString();
 
 	// FIXME
-	error("Game::ChangeTranslation unimplemented");
+	warning("Game::ChangeTranslation unimplemented: %s", string.c_str());
 
 	return RuntimeValue();
 }
@@ -500,10 +500,10 @@ RuntimeValue Script_Game_set_TextReadingSpeed(AGSEngine *vm, ScriptObject *, con
 // Game: readonly import static attribute String TranslationFilename
 // Gets name of the currently active translation.
 RuntimeValue Script_Game_get_TranslationFilename(AGSEngine *vm, ScriptObject *, const Common::Array<RuntimeValue> &params) {
-	// FIXME
-	error("Game::get_TranslationFilename unimplemented");
-
-	return RuntimeValue();
+	warning("Script_Game_get_TranslationFilename, returning default translation");
+	RuntimeValue ret = new ScriptMutableString("default.tra");
+	ret._object->DecRef();
+	return ret;
 }
 
 // Game: readonly import static attribute bool UseNativeCoordinates
@@ -646,7 +646,7 @@ RuntimeValue Script_SaveGameSlot(AGSEngine *vm, ScriptObject *, const Common::Ar
 	UNUSED(description);
 
 	// FIXME
-	error("SaveGameSlot unimplemented");
+	warning("SaveGameSlot unimplemented");
 
 	return RuntimeValue();
 }

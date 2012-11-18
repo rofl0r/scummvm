@@ -229,7 +229,7 @@ RuntimeValue Script_SetDigitalMasterVolume(AGSEngine *vm, ScriptObject *, const 
 	UNUSED(volume);
 
 	// FIXME
-	error("SetDigitalMasterVolume unimplemented");
+	warning("SetDigitalMasterVolume unimplemented");
 
 	return RuntimeValue();
 }

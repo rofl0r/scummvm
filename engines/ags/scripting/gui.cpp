@@ -1303,7 +1303,7 @@ RuntimeValue Script_Slider_set_HandleGraphic(AGSEngine *vm, GUISlider *self, con
 	UNUSED(value);
 
 	// FIXME
-	error("Slider::set_HandleGraphic unimplemented");
+	warning("Slider::set_HandleGraphic unimplemented");
 
 	return RuntimeValue();
 }

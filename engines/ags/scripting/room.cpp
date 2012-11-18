@@ -223,7 +223,7 @@ RuntimeValue Script_GetScalingAt(AGSEngine *vm, ScriptObject *, const Common::Ar
 	UNUSED(y);
 
 	// FIXME
-	error("GetScalingAt unimplemented");
+	warning("GetScalingAt unimplemented");
 
 	return RuntimeValue();
 }
