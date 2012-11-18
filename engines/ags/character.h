@@ -151,6 +151,8 @@ public:
 	byte _on;
 
 	Common::StringMap _properties;
+	
+	void SetOption(int flag, bool value);
 
 	// CharacterExtras
 	Common::Array<uint16> _invOrder;
