@@ -919,9 +919,10 @@ RuntimeValue Script_Object_set_Transparency(AGSEngine *vm, RoomObject *self, con
 // Gets the current view number during an animation.
 RuntimeValue Script_Object_get_View(AGSEngine *vm, RoomObject *self, const Common::Array<RuntimeValue> &params) {
 	// FIXME
-	error("Object::get_View unimplemented");
-
-	return RuntimeValue();
+	
+	//return self->setObjectView();
+	warning("Object::get_View untested, possibly bogus");
+	return self->_view + 1;
 }
 
 // Object: import attribute bool Visible
