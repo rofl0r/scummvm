@@ -429,22 +429,51 @@ bool GameFile::init() {
 			Common::String dialogTextScript = decryptString(dta);
 			debug(9, "dialog script text was %s", dialogTextScript.c_str());
 		}
+		
+		if(_version < kAGSVer261) {
+			size_t len;
+			unsigned char buf[1000];
+			bool done = false;
+			while(1) {
+				len = 0;
+				while(1) {
+					buf[len] = dta->readByte();
+					if (dta->eos())
+						error("corrupt data file while reading speech lines 1");
+					if(!buf[len]) break;
+					if(buf[len] == 0xEF) {
+						dta->seek(-1, SEEK_CUR);
+						done = true;
+						break;
+					}
+					len++;
+					if(len >= sizeof(buf)) error("tried to read more than 1000 chars");
+				}
+				if(done) break;
+				_speechLines.push_back(Common::String((char *)buf));
+				debug(5, "speech line '%s'", _speechLines.back().c_str());
+			}
+			uint32 magic = dta->readUint32LE();
+			if (magic != 0xcafebeef)
+				error("bad magic %x for GUI 1", magic);
+		} else {
 
-		while (true) {
-			uint32 stringLen = dta->readUint32LE();
-			if (dta->eos())
-				error("corrupt data file while reading speech lines");
-			if (stringLen == 0xcafebeef)
-				break;
+			while (true) {
+				uint32 stringLen = dta->readUint32LE();
+				if (dta->eos())
+					error("corrupt data file while reading speech lines");
+				if (stringLen == 0xcafebeef)
+					break;
 
-			byte *string = new byte[stringLen + 1];
-			dta->read(string, stringLen);
-			string[stringLen] = 0;
-			decryptText(string, stringLen);
-			_speechLines.push_back(Common::String((char *)string));
-			delete[] string;
+				byte *string = new byte[stringLen + 1];
+				dta->read(string, stringLen);
+				string[stringLen] = 0;
+				decryptText(string, stringLen);
+				_speechLines.push_back(Common::String((char *)string));
+				delete[] string;
 
-			debug(5, "speech line '%s'", _speechLines.back().c_str());
+				debug(5, "speech line '%s'", _speechLines.back().c_str());
+			}
 		}
 	} else {
 		uint32 magic = dta->readUint32LE();
