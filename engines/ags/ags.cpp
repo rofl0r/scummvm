@@ -1670,9 +1670,148 @@ void AGSEngine::processGameEvent(const GameEvent &event) {
 			_state->_nextScreenTransition = (uint)-1;
 		}
 
+		/* if (platform->RunPluginHooks(AGSE_TRANSITIONIN, 0))
+			return; */
 		if (_state->_fastForward)
 			return;
+		
+#if 0
+		if((ourTransition == FADE_CROSSFADE || ourTransition == FADE_DISSOLVE) /* && (!temp_virtual) */) {
+			
+		}
+		
+		if(...) {
+			// if they change the transition type before the fadein, make
+			// sure the screen doesn't freeze up
+			play.screen_is_faded_out = 0;
 
+			// determine the transition style
+			int theTransition = play.fade_effect;
+
+			if (play.next_screen_transition >= 0) {
+				// a one-off transition was selected, so use it
+				theTransition = play.next_screen_transition;
+				play.next_screen_transition = -1;
+			}
+
+			if (platform->RunPluginHooks(AGSE_TRANSITIONIN, 0))
+				return;
+
+			if (play.fast_forward)
+				return;
+			
+			if (((theTransition == FADE_CROSSFADE) || (theTransition == FADE_DISSOLVE)) && (temp_virtual == NULL)) {
+				// transition type was not crossfade/dissolve when the screen faded out,
+				// but it is now when the screen fades in (Eg. a save game was restored
+				// with a different setting). Therefore just fade normally.
+				my_fade_out(5);
+				theTransition = FADE_NORMAL;
+			}
+
+			if ((theTransition == FADE_INSTANT) || (play.screen_tint >= 0))
+				wsetpalette(0,255,palette);
+			else if (theTransition == FADE_NORMAL) {
+				if (gfxDriver->UsesMemoryBackBuffer())
+					gfxDriver->RenderToBackBuffer();
+
+				my_fade_in(palette,5);
+			} else if (theTransition == FADE_BOXOUT) {
+				if (!gfxDriver->UsesMemoryBackBuffer()){
+					gfxDriver->BoxOutEffect(false, get_fixed_pixel_size(16), 1000 / GetGameSpeed());
+				} else {
+					wsetpalette(0,255,palette);
+					gfxDriver->RenderToBackBuffer();
+					gfxDriver->SetMemoryBackBuffer(screen);
+					clear(screen);
+					render_to_screen(screen, 0, 0);
+
+					int boxwid = get_fixed_pixel_size(16);
+					int boxhit = multiply_up_coordinate(GetMaxScreenHeight() / 20);
+					while (boxwid < screen->w) {
+						timerloop = 0;
+						boxwid += get_fixed_pixel_size(16);
+						boxhit += multiply_up_coordinate(GetMaxScreenHeight() / 20);
+						int lxp = scrnwid / 2 - boxwid / 2, lyp = scrnhit / 2 - boxhit / 2;
+						gfxDriver->Vsync();
+						blit(virtual_screen, screen, lxp, lyp, lxp, lyp,
+						boxwid, boxhit);
+						render_to_screen(screen, 0, 0);
+						UPDATE_MP3
+						while (timerloop == 0) ;
+					}
+					gfxDriver->SetMemoryBackBuffer(virtual_screen);
+				}
+				play.screen_is_faded_out = 0;
+			} else if (theTransition == FADE_CROSSFADE) {
+				if (game.color_depth == 1)
+					quit("!Cannot use crossfade screen transition in 256-colour games");
+
+				IDriverDependantBitmap *ddb = prepare_screen_for_transition_in();
+				
+				int transparency = 254;
+
+				while (transparency > 0) {
+					timerloop=0;
+					// do the crossfade
+					ddb->SetTransparency(transparency);
+					invalidate_screen();
+					draw_screen_callback();
+
+					if (transparency > 16) {
+						// on last frame of fade (where transparency < 16), don't
+						// draw the old screen on top
+						gfxDriver->DrawSprite(0, -(temp_virtual->h - virtual_screen->h), ddb);
+					}
+					render_to_screen(screen, 0, 0);
+					update_polled_stuff();
+					while (timerloop == 0) ;
+					transparency -= 16;
+				}
+				release_bitmap(temp_virtual);
+				
+				wfreeblock(temp_virtual);
+				temp_virtual = NULL;
+				wsetpalette(0,255,palette);
+				gfxDriver->DestroyDDB(ddb);
+			} else if (theTransition == FADE_DISSOLVE) {
+				int pattern[16]={0,4,14,9,5,11,2,8,10,3,12,7,15,6,13,1};
+				int aa,bb,cc,thcol=0;
+				color interpal[256];
+
+				IDriverDependantBitmap *ddb = prepare_screen_for_transition_in();
+				
+				for (aa=0;aa<16;aa++) {
+					timerloop=0;
+					// merge the palette while dithering
+					if (game.color_depth == 1) {
+						fade_interpolate(old_palette,palette,interpal,aa*4,0,255);
+						wsetpalette(0,255,interpal);
+					}
+					// do the dissolving
+					int maskCol = bitmap_mask_color(temp_virtual);
+					for (bb=0;bb<scrnwid;bb+=4) {
+						for (cc=0;cc<scrnhit;cc+=4) {
+							putpixel(temp_virtual, bb+pattern[aa]/4, cc+pattern[aa]%4, maskCol);
+						}
+					}
+					gfxDriver->UpdateDDBFromBitmap(ddb, temp_virtual, false);
+					invalidate_screen();
+					draw_screen_callback();
+					gfxDriver->DrawSprite(0, -(temp_virtual->h - virtual_screen->h), ddb);
+					render_to_screen(screen, 0, 0);
+					update_polled_stuff();
+					while (timerloop == 0) ;
+				}
+				release_bitmap(temp_virtual);
+				
+				wfreeblock(temp_virtual);
+				temp_virtual = NULL;
+				wsetpalette(0,255,palette);
+				gfxDriver->DestroyDDB(ddb);
+			}
+			
+		}
+#endif
 		warning("processGameEvent: can't do kEventAfterFadeIn yet"); // FIXME
 		// FIXME
 		break;
