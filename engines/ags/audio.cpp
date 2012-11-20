@@ -188,12 +188,14 @@ void AGSAudio::initFrom(Common::SeekableReadStream *stream) {
 }
 
 uint AGSAudio::findFreeAudioChannel(AudioClip &clip, uint priority, bool interruptEqualPriority) {
+	warning("findFreeAudioChannel unimplemented");
 	return 0; // FIXME
 	return (uint)-1; // FIXME
 }
 
 void AGSAudio::queueAudioClipToPlay(AudioClip &clip, uint priority, bool repeat) {
 	// FIXME
+	warning("queueAudioClipToPlay unimplemented");
 }
 
 AudioClip *AGSAudio::getClipByIndex(bool isMusic, uint index) {
@@ -459,18 +461,22 @@ void AGSAudio::stopAmbientSound(uint channelId) {
 
 void AGSAudio::updateAmbientSoundVolume() {
 	// FIXME
+	warning("updateAmbientSoundVolume unimplemented");
 }
 
 void AGSAudio::updateDirectionalSoundVolume() {
 	// FIXME
+	warning("updateDirectionalSoundVolume unimplemented");
 }
 
 void AGSAudio::updateMusicVolume() {
 	// FIXME
+	warning("updateMusicVolume unimplemented");
 }
 
 void AGSAudio::setAudioTypeVolume(uint type, uint volume, uint changeType) {
 	// FIXME
+	warning("setAudioTypeVolume unimplemented");
 }
 
 void AGSAudio::setSoundVolume(uint volume) {
