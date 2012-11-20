@@ -348,6 +348,8 @@ public:
 	void runOnEvent(uint32 p1, uint32 p2);
 
 	void claimEvent();
+	
+	void giveScore(int32 score);
 
 	bool playSpeech(uint charId, uint speechId);
 	void stopSpeech();

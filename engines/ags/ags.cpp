@@ -2002,6 +2002,15 @@ Common::String makeTextScriptName(const Common::String &base, uint id, uint val)
 	return string;
 }
 
+void AGSEngine::giveScore(int32 score) {
+	_state->_score += score;
+	_guiNeedsUpdate = true; // use gui->invalidate instead ?
+	if(score > 0 && _state->_scoreSound >= 0) {
+		_audio->playAudioClipByIndex(_state->_scoreSound);
+	}
+	runOnEvent(GE_GOT_SCORE, score);
+}
+
 bool AGSEngine::runInteractionCommandList(NewInteractionEvent &event, NewInteractionCommandList *list, uint &commandsRunCount) {
 	assert(list);
 
@@ -2037,12 +2046,7 @@ bool AGSEngine::runInteractionCommandList(NewInteractionEvent &event, NewInterac
 			// fallthrough
 		case kActionAddScore:
 			temparg = (int32) commands[i]._args[0]._val;
-			this->_state->_score += temparg;
-			_guiNeedsUpdate = true;
-			if(temparg > 0 && _state->_scoreSound >= 0) {
-				_audio->playAudioClipByIndex(_state->_scoreSound);
-			}
-			runOnEvent(GE_GOT_SCORE, temparg);
+			this->giveScore(temparg);
 			break;
 		case kActionDisplayMessage:
 			// FIXME
