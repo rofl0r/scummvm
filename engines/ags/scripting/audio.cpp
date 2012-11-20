@@ -89,11 +89,8 @@ RuntimeValue Script_PlayMusic(AGSEngine *vm, ScriptObject *, const Common::Array
 // Queues up the specified music to play after the current one finishes.
 RuntimeValue Script_PlayMusicQueued(AGSEngine *vm, ScriptObject *, const Common::Array<RuntimeValue> &params) {
 	int musicNumber = params[0]._signedValue;
-	UNUSED(musicNumber);
-
-	// FIXME
-	warning("PlayMusicQueued unimplemented");
-
+	vm->_state->_musicQueue.push_back(musicNumber);
+	// FIXME: figure how to detect when music stops so the queue gets processed
 	return RuntimeValue();
 }
 
