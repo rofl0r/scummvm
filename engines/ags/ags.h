@@ -364,6 +364,7 @@ public:
 	void runRegionInteraction(uint regionId, uint mode);
 
 	bool _keysPressed[MAX_AGS_KEYCODE];
+	bool _guiNeedsUpdate;
 
 private:
 	const AGSGameDescription *_gameDescription;
@@ -381,7 +382,7 @@ private:
 	ResourceManager *_resourceMan;
 	SpriteSet *_sprites;
 
-	bool _needsUpdate, _guiNeedsUpdate;
+	bool _needsUpdate;
 	bool _backgroundNeedsUpdate;
 	uint32 _cursorMode;
 	uint _poppedInterface;

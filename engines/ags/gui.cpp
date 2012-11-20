@@ -38,6 +38,44 @@
 #include "graphics/font.h"
 
 namespace AGS {
+	
+void GUITextControl::drawText(Graphics::Surface* surface, Common::String text, int useX, int useY, bool drawDisabled) {
+	warning("drawing text %s", text.c_str());
+	uint32 color = _vm->_graphics->resolveHardcodedColor(_textColor);
+	
+	// FIXME override color for test
+	//color = 0xAAFFAAFF;
+	
+	if (drawDisabled)
+		color = _vm->_graphics->resolveHardcodedColor(8);
+	_vm->_graphics->drawOutlinedString(_font, surface, text, useX, useY, _width, color);
+}
+
+void GUITextControl::setFont(uint32 font) {
+	if (_font == font)
+		return;
+
+	assert(font < _vm->_gameFile->_fonts.size());
+
+	_font = font;
+	_parent->invalidate();
+}
+
+void GUITextControl::setColor(uint32 color) {
+	if (_textColor == color)
+		return;
+
+	_textColor = color;
+	_parent->invalidate();
+}
+
+void GUITextControl::setText(Common::String text) {
+	if (_text == text)
+		return;
+
+	_text = text;
+	_parent->invalidate();
+}
 
 bool GUIControl::isOverControl(const Common::Point &pos) {
 	Common::Rect r(_x, _y, _x + _width, _y + _height);
@@ -197,24 +235,6 @@ void GUILabel::readFrom(Common::SeekableReadStream *dta) {
 		_textColor = 16;
 }
 
-void GUILabel::setFont(uint32 font) {
-	if (_font == font)
-		return;
-
-	assert(font < _vm->_gameFile->_fonts.size());
-
-	_font = font;
-	_parent->invalidate();
-}
-
-void GUILabel::setColor(uint32 color) {
-	if (_textColor == color)
-		return;
-
-	_textColor = color;
-	_parent->invalidate();
-}
-
 void GUILabel::setAlign(uint32 align) {
 	if (_align == align)
 		return;
@@ -222,14 +242,6 @@ void GUILabel::setAlign(uint32 align) {
 	assert(align < 3);
 
 	_align = align;
-	_parent->invalidate();
-}
-
-void GUILabel::setText(Common::String text) {
-	if (_text == text)
-		return;
-
-	_text = text;
 	_parent->invalidate();
 }
 
@@ -266,6 +278,31 @@ void GUILabel::draw(Graphics::Surface *surface) {
 	}
 }
 
+void GUITextBox::onKeyPress(uint id) {
+	size_t l;
+	this->_vm->_guiNeedsUpdate = true;
+	switch(id) {
+		case 8: //backspace
+			if(_text.size())
+				_text.deleteLastChar();
+			return;
+		case 13:
+			_activated = 1;
+			return;
+		default:
+			if(id >= 128) /*&& (!fontRenderers[font]->SupportsExtendedCharacters(font)))*/
+				return;
+			l = _text.size();
+			if(l < 200)
+				_text.insertChar(id, l);
+			// FIXME
+			// if the new string is too long, remove the new character
+			//if (wgettextwidth(text, font) > (wid - (6 + get_fixed_pixel_size(5))))
+			//  ... do not add buf to text.
+	}
+	this->_vm->invalidateGUI();
+}
+
 void GUITextBox::readFrom(Common::SeekableReadStream *dta) {
 	GUIControl::readFrom(dta);
 
@@ -279,26 +316,9 @@ void GUITextBox::readFrom(Common::SeekableReadStream *dta) {
 	_exFlags = dta->readUint32LE();
 }
 
-void GUITextBox::setFont(uint32 font) {
-	if (_font == font)
-		return;
-
-	assert(font < _vm->_gameFile->_fonts.size());
-
-	_font = font;
-	_parent->invalidate();
-}
-
-void GUITextBox::setText(Common::String text) {
-	if (_text == text)
-		return;
-
-	_text = text;
-	_parent->invalidate();
-}
-
 void GUITextBox::draw(Graphics::Surface *surface) {
 	warning("GUITextBox::draw unimplemented");
+	drawText(surface, getText(), _x, _y, false);
 }
 
 void GUIListBox::readFrom(Common::SeekableReadStream *dta) {
@@ -445,16 +465,6 @@ void GUIListBox::setTopItem(uint index) {
 		return;
 
 	_topItem = index;
-	_parent->invalidate();
-}
-
-void GUIListBox::setFont(uint32 font) {
-	if (_font == font)
-		return;
-
-	assert(font < _vm->_gameFile->_fonts.size());
-
-	_font = font;
 	_parent->invalidate();
 }
 
@@ -732,31 +742,6 @@ void GUIButton::setPushedGraphic(uint32 pic) {
 	stopAnimation();
 }
 
-void GUIButton::setText(Common::String text) {
-	if (_text == text)
-		return;
-
-	_text = text;
-	_parent->invalidate();
-}
-
-void GUIButton::setFont(uint32 font) {
-	if (_font == font)
-		return;
-
-	assert(font < _vm->_gameFile->_fonts.size());
-
-	_font = font;
-	_parent->invalidate();
-}
-
-void GUIButton::setTextColor(uint color) {
-	if (_textColor == color)
-		return;
-
-	_textColor = color;
-	_parent->invalidate();
-}
 
 void GUIButton::stopAnimation() {
 	// FIXME
@@ -811,13 +796,13 @@ void GUIButton::draw(Graphics::Surface *surface) {
 		useX++;
 		useY++;
 	}
-
+	
 	Graphics::Font *font = _vm->_graphics->getFont(_font);
 	// FIXME: This is the wrong height. Also, font multiplier?
 	uint fontHeight = font->getFontHeight();
 	// FIXME: font multiplier?
 	uint textWidth = font->getStringWidth(text);
-
+	
 	// We don't use Graphics::TextAlign here, because we have to be pixel-perfect.
 	switch (_textAlignment) {
 	case GBUT_ALIGN_TOPMIDDLE:
@@ -857,11 +842,9 @@ void GUIButton::draw(Graphics::Surface *surface) {
 		useY += _height - fontHeight - 2;
 		break;
 	}
+	
+	drawText(surface, text, useX, useY, drawDisabled);
 
-	uint32 color = _vm->_graphics->resolveHardcodedColor(_textColor);
-	if (drawDisabled)
-		color = _vm->_graphics->resolveHardcodedColor(8);
-	_vm->_graphics->drawOutlinedString(_font, surface, text, useX, useY, _width, color);
 }
 
 GUIGroup::GUIGroup(AGSEngine *vm) : _vm(vm), _width(0), _height(0), _needsUpdate(true), _transparency(0) {

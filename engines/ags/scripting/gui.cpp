@@ -1235,7 +1235,7 @@ RuntimeValue Script_Button_set_PushedGraphic(AGSEngine *vm, GUIButton *self, con
 // Button: import attribute int TextColor
 // Gets/sets the colour in which the button text is drawn.
 RuntimeValue Script_Button_get_TextColor(AGSEngine *vm, GUIButton *self, const Common::Array<RuntimeValue> &params) {
-	return self->getTextColor();
+	return self->getColor();
 }
 
 // Button: import attribute int TextColor
@@ -1243,7 +1243,7 @@ RuntimeValue Script_Button_get_TextColor(AGSEngine *vm, GUIButton *self, const C
 RuntimeValue Script_Button_set_TextColor(AGSEngine *vm, GUIButton *self, const Common::Array<RuntimeValue> &params) {
 	uint value = params[0]._value;
 
-	self->setTextColor(value);
+	self->setColor(value);
 
 	return RuntimeValue();
 }

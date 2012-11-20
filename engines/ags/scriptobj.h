@@ -47,6 +47,7 @@ enum ScriptObjectType {
 	sotGUI,
 	sotGUIButton,
 	sotGUIControl,
+	sotGUITextControl,
 	sotGUIInvWindow,
 	sotGUILabel,
 	sotGUIListBox,

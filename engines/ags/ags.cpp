@@ -494,15 +494,46 @@ void AGSEngine::updateEvents(bool checkControls) {
 			queueGameEvent(kEventTextScript, kTextScriptOnMouseClick, kMouseWheelNorth);
 			break;
 
-		case Common::EVENT_KEYDOWN:
-			_keysPressed[Common::mapKeycodeToAGS(event.kbd.keycode)] = true;
-			// FIXME: bad mapping
-			queueGameEvent(kEventTextScript, kTextScriptOnKeyPress, Common::mapKeycodeToAGS(event.kbd.keycode));
+		case Common::EVENT_KEYDOWN: {
+			uint trans = Common::mapKeycodeToAGS(event.kbd.keycode);
+			_keysPressed[trans] = true;
+			
+			bool processed = false;
 
-			// FIXME: keypresses
+			if(trans == 8 || trans == 13 || (trans >= 32 && trans != '[' && trans < 256)) {
+				for(size_t r = 0; r <  _gameFile->_guiGroups.size(); r++) {
+					GUIGroup *gg = _gameFile->_guiGroups[r];
+					if(gg->_enabled) { // on = 1
+						for(size_t i = 0; i < gg->_controls.size(); i++) {
+							GUIControl *gc = gg->_controls[i];
+							if(gc->isOfType(sotGUITextBox)) {
+								GUITextBox *t = (GUITextBox*) gc;
+								if(t->isVisible() && !t->isDisabled()) {
+									t->onKeyPress(trans);
+									if(t->_activated) {
+										t->_activated = false;
+										//AGSEngine::processInterfaceClick(uint guiId, uint controlId, uint mouseButtonId);
+										queueGameEvent(kEventInterfaceClick, r, i, 1);
+										processed = true;
+									}
+								}
+							}
+						}
+					}
+				}
+			}
+			if(!processed)
+				// FIXME: bad mapping
+				queueGameEvent(kEventTextScript, kTextScriptOnKeyPress, trans);
+
+			
+			// FIXME: more keypresses, see ac.cpp:6181, check_controls()
+			
+			
 			if (_state->_inCutscene > 0)
 				startSkippingCutscene();
 			break;
+		}
 		case Common::EVENT_KEYUP:
 			_keysPressed[Common::mapKeycodeToAGS(event.kbd.keycode)] = false;
 			break;
