@@ -461,22 +461,26 @@ void AGSAudio::stopAmbientSound(uint channelId) {
 
 void AGSAudio::updateAmbientSoundVolume() {
 	// FIXME
-	warning("updateAmbientSoundVolume unimplemented");
+	warn_once_init(x);
+	warn_once(x, "updateAmbientSoundVolume unimplemented");
 }
 
 void AGSAudio::updateDirectionalSoundVolume() {
 	// FIXME
-	warning("updateDirectionalSoundVolume unimplemented");
+	warn_once_init(x);
+	warn_once(x, "updateDirectionalSoundVolume unimplemented");
 }
 
 void AGSAudio::updateMusicVolume() {
 	// FIXME
-	warning("updateMusicVolume unimplemented");
+	warn_once_init(x);
+	warn_once(x, "updateMusicVolume unimplemented");
 }
 
 void AGSAudio::setAudioTypeVolume(uint type, uint volume, uint changeType) {
 	// FIXME
-	warning("setAudioTypeVolume unimplemented");
+	warn_once_init(x);
+	warn_once(x, "setAudioTypeVolume unimplemented");
 }
 
 void AGSAudio::setSoundVolume(uint volume) {

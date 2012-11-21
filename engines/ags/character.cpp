@@ -1128,8 +1128,9 @@ bool Character::doNextMoveStep() {
 	_x = pos.x;
 	_y = pos.y;
 
-	// FIXME
-	warning("Character::doNextMoveStep unimplemented");
+	// FIXME, hmm seems to work despite warning...
+	warn_once_init(x);
+	warn_once(x, "Character::doNextMoveStep unimplemented");
 
 	return false;
 }

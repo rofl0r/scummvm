@@ -319,6 +319,10 @@ uint AGSEngine::displayMain(int x, int y, int width, const Common::String &text,
 	Graphics::Surface surface;
 	surface.create((width > 0) ? width : 2, lines.size() * fontHeight + extraHeight, _graphics->getPixelFormat());
 	surface.fillRect(Common::Rect(0, 0, surface.w, surface.h), _graphics->getTransparentColor());
+	
+	warn_once_init(x);
+	warn_once_init(y);
+	warn_once_init(z);
 
 	// if it's an empty speech line, don't draw anything
 	if (!text.empty() && text[0] != ' ' && width) {
@@ -343,7 +347,7 @@ uint AGSEngine::displayMain(int x, int y, int width, const Common::String &text,
 			// TODO: sanity-check GUI value
 
 			// FIXME: draw background, set alpha channel
-			warning("displayMain as speech unimplemented");
+			warn_once(x, "displayMain as speech unimplemented");
 
 			uint textColor;
 			uint align;
@@ -403,7 +407,7 @@ uint AGSEngine::displayMain(int x, int y, int width, const Common::String &text,
 				_graphics->drawOutlinedString(usingFont, &surface, lines[i], textX, textY,
 					textWidth, textColor);
 			}
-			warning("displayMain as non-speech unimplemented");
+			warn_once(y, "displayMain as non-speech unimplemented");
 		}
 	}
 
@@ -445,7 +449,7 @@ uint AGSEngine::displayMain(int x, int y, int width, const Common::String &text,
 	}
 
 	// FIXME
-	warning("displayMain '%s' unimplemented", text.c_str());
+	warn_once(z, "displayMain '%s' unimplemented", text.c_str());
 
 	removeScreenOverlay(OVER_TEXTMSG);
 
@@ -569,6 +573,7 @@ void AGSEngine::displaySpeech(Common::String text, uint charId, int x, int y, in
 	bool overlayPositionFixed = false;
 	uint charFrameWas = 0;
 	bool viewWasLocked = (speakingChar->_flags & CHF_FIXVIEW);
+	warn_once_init(x);
 
 	if (speakingChar->_room != _displayedRoom) {
 		allowShrink = 1;
@@ -615,7 +620,7 @@ void AGSEngine::displaySpeech(Common::String text, uint charId, int x, int y, in
 		if ((useView >= 0) && (getGameOption(OPT_SPEECHTYPE) > 0)) {
 			// Sierra-style close-up portrait
 
-			warning("Sierra-style speech unimplemented");
+			warn_once(x, "Sierra-style speech unimplemented");
 			// FIXME
 		} else if (useView >= 0) {
 			// Lucasarts-style speech

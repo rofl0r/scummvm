@@ -30,6 +30,11 @@
 #include "common/textconsole.h"
 #include "common/array.h"
 #include "common/str.h"
+/* putting this here since every file includes this header */
+#define macro_concat(a, b) a ## b
+#define warn_once_var(name) macro_concat(warn_once_, name)
+#define warn_once_init(name) static int warn_once_var(name) = 0
+#define warn_once(name, ...) do { if(!warn_once_var(name)) { warning(__VA_ARGS__) ; warn_once_var(name)++; }} while(0)
 
 namespace AGS {
 
