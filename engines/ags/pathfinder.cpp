@@ -283,12 +283,20 @@ const int MAX_GRANULARITY = 3;
 // destination gets filled. If it doesn't, try finding a nearby point which was.
 bool PathFinder::isRoutePossible(bool &foundNewCandidate) {
 	foundNewCandidate = false;
+	static int fails = 0; // in case we're locked up somewhere
 
 	// If we're not *starting* from a walkable position, this will never work.
 	if (*(byte *)_mask->getBasePtr(_moveList->_from.x, _moveList->_from.y) == 0) {
 		warning("refusing to route from unwalkable point %d,%d", _moveList->_from.x, _moveList->_from.y);
+		fails++;
+		if(fails > 20) {
+			warning("it seems you are locked in, trying to route anyway...");
+			goto skip;
+		}
 		return false;
 	}
+	skip:
+	fails = 0;
 
 	Graphics::Surface tempMask;
 	tempMask.copyFrom(*_mask);
