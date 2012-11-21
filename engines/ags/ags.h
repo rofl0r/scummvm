@@ -203,6 +203,8 @@ public:
 	bool isGamePaused() { return _pauseGameCounter > 0; }
 
 	bool isDemo() const;
+	
+	void setGlobalInt(uint32 globalInt, uint32 value);
 
 	uint32 getGameFileVersion() const;
 	uint32 getGUIVersion() const;
