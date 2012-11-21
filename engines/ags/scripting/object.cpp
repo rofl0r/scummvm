@@ -76,16 +76,17 @@ RuntimeValue Script_RemoveObjectTint(AGSEngine *vm, ScriptObject *, const Common
 	return RuntimeValue();
 }
 
+static void stopMovingObject(AGSEngine* vm, uint id) {
+	if (id >= vm->getCurrentRoom()->_objects.size())
+		error("StopObjectMoving: object %d is too high (only have %d)", id, vm->getCurrentRoom()->_objects.size());
+
+	vm->getCurrentRoom()->_objects[id]->stopMoving();	
+}
 // import void StopObjectMoving(int object)
 // Obsolete function for objects.
 RuntimeValue Script_StopObjectMoving(AGSEngine *vm, ScriptObject *, const Common::Array<RuntimeValue> &params) {
 	uint object = params[0]._value;
-
-	if (object >= vm->getCurrentRoom()->_objects.size())
-		error("StopObjectMoving: object %d is too high (only have %d)", object, vm->getCurrentRoom()->_objects.size());
-
-	vm->getCurrentRoom()->_objects[object]->stopMoving();
-
+	stopMovingObject(vm, object);
 	return RuntimeValue();
 }
 
@@ -663,9 +664,7 @@ RuntimeValue Script_Object_StopAnimating(AGSEngine *vm, RoomObject *self, const 
 // Object: import function StopMoving()
 // Stops any currently running move on the object.
 RuntimeValue Script_Object_StopMoving(AGSEngine *vm, RoomObject *self, const Common::Array<RuntimeValue> &params) {
-	// FIXME
-	error("Object::StopMoving unimplemented");
-
+	stopMovingObject(vm, self->_id);
 	return RuntimeValue();
 }
 
